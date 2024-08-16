@@ -43,7 +43,7 @@
 										:class="pm.searchType=='dtbsSource' ? 'pi pi-database' : 'pi pi-file'"
 										title="<@spring.message code='switchSearchMode' />">
 									</i>
-									<p-inputtext type="text" v-model="pm.searchForm.keyword" class="w-full h-full border-noround-right"></p-inputtext>
+									<p-inputtext type="text" v-model="pm.searchForm.keyword" class="w-full h-full border-noround-right "></p-inputtext>
 								</div>
 								<p-button type="submit" icon="pi pi-search" class="px-4"></p-button>
 							</div>
@@ -80,7 +80,7 @@
 					<template #header>
 						<span class="p-tabview-title" :title="tab.desc">{{tab.title}}</span>
 						<p-button type="button" icon="pi pi-angle-down"
-							class="context-menu-btn p-button-xs p-button-secondary p-button-text p-button-rounded"
+							class="context-menu-btn p-button-xs p-button-secondary p-button-text p-button-rounded dashboard_form_editor_ftl_template_button"
 							@click="onDtbsSourceTabMenuToggle($event, tab)" aria-haspopup="true" aria-controls="${pid}dtbsSourceTabMenu">
 						</p-button>
 					</template>

@@ -30,11 +30,12 @@
 	<p-tabpanel v-for="tab in pm.resContentTabs.items" :key="tab.id" :header="tab.title">
 		<template #header>
 			<p-button type="button" icon="pi pi-angle-down"
-				class="context-menu-btn p-button-xs p-button-secondary p-button-text p-button-rounded"
+				class="context-menu-btn p-button-xs p-button-secondary p-button-text p-button-rounded dashboard_form_editor_ftl_template_button"
 				@click="onResourceContentTabMenuToggle($event, tab)"
 				aria-haspopup="true" aria-controls="${pid}resourceContentTabMenu">
 			</p-button>
 		</template>
+		<!--div>testct</div-->
 		<div :id="tab.id">
 			<div class="flex align-content-center justify-content-between">
 				<div>

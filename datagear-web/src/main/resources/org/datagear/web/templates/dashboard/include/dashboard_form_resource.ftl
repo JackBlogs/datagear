@@ -38,15 +38,15 @@
 				<div class="flex justify-content-between">
 					<div>
 						<div class="p-buttonset" v-if="!pm.isReadonlyAction">
-							<p-button type="button" icon="pi pi-plus" class="p-button-secondary"
+							<p-button type="button" icon="pi pi-plus" class="p-button-secondary dashboard_form_resource_ftl_ct_button"
 								aria:haspopup="true" aria-controls="${pid}addResPanelPanel"
 								@click="onToggleAddResPanel" title="<@spring.message code='dashboard.addResource.desc' />">
 							</p-button>
-							<p-button type="button" icon="pi pi-upload" class="p-button-secondary"
+							<p-button type="button" icon="pi pi-upload" class="p-button-secondary dashboard_form_resource_ftl_ct_button"
 								aria:haspopup="true" aria-controls="${pid}uploadResPanel"
 								@click="onToggleUploadResPanel" title="<@spring.message code='dashboard.uploadResource.desc' />">
 							</p-button>
-							<p-button type="button" icon="pi pi-pencil" class="p-button-secondary"
+							<p-button type="button" icon="pi pi-pencil" class="p-button-secondary dashboard_form_resource_ftl_ct_button"
 								@click="onEditSelectedLocalRes"
 								title="<@spring.message code='dashboard.editResource.desc' />">
 							</p-button>
@@ -54,16 +54,16 @@
 					</div>
 					<div class="relative">
 						<div class="p-buttonset">
-							<p-button type="button" icon="pi pi-copy" class="p-button-secondary"
+							<p-button type="button" icon="pi pi-copy" class="p-button-secondary dashboard_form_resource_ftl_ct_button"
 								@click="onCopyLocalResToClipboard"
 								title="<@spring.message code='dashboard.copyResourceNameToClipboard' />"
 								v-if="!pm.isReadonlyAction">
 							</p-button>
-							<p-button type="button" icon="pi pi-external-link" class="p-button-secondary"
+							<p-button type="button" icon="pi pi-external-link" class="p-button-secondary dashboard_form_resource_ftl_ct_button"
 								@click="onOpenSelectedLocalRes"
 								title="<@spring.message code='dashboard.openResource.desc' />">
 							</p-button>
-							<p-button type="button" icon="pi pi-ellipsis-h" class="p-button-secondary"
+							<p-button type="button" icon="pi pi-ellipsis-h" class="p-button-secondary dashboard_form_resource_ftl_ct_button"
 								 aria-haspopup="true" aria-controls="${pid}localResMenu"
 								 @click="toggleLocalResMenu" v-if="!pm.isReadonlyAction">
 							</p-button>

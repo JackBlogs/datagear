@@ -62,6 +62,7 @@
 					</div>
 				</div>
 			</div>
+			<!--div><p>testct</p></div-->
 			<div class="field grid mb-0">
 				<div class="field-label col-12 mb-2">
 					<div class="flex justify-content-between">
@@ -81,10 +82,10 @@
 				</div>
 		        <div class="field-input col-12">
 		        	<div class="resource-contents-wrapper grid grid-nogutter flex-nowrap">
-		        		<div class="col-8 md:col-9 pr-1">
+		        		<div class="col-8 md:col-8 pr-1">
 		        			<#include "include/dashboard_form_editor.ftl">
 		        		</div>
-		        		<div class="col-4 md:col-3 pl-2">
+		        		<div class="col-4 md:col-4 pl-2">
 		        			<#include "include/dashboard_form_resource.ftl">
 		        		</div>
 		        	</div>
