@@ -32,12 +32,12 @@
 
 .logo{
 	display: inline-block;
-	width: 8.5rem;
-	height: 1rem;
+	width: 180px;
+	height: 25px;
 	background-size: 100% 100%;
 	background-repeat: no-repeat;
 	font-size: 1rem;
-	line-height: 1rem;
+	line-height: 100px;
 	text-indent: -999px;
 	opacity: 1;
 }
