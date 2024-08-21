@@ -8,7 +8,7 @@
 	<packaging>pom</packaging>
 
 	<name>datagear</name>
-	<url>http://www.datagear.tech</url>
+	<url></url>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

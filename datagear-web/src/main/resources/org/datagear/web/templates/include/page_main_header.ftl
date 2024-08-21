@@ -227,7 +227,7 @@ DetectResult detectNewVersionResult
 					}
 				}
 			]
-		},
+		}
 		/*
 		{
 			label: "<@spring.message code='module.changeLanguage' />",
@@ -237,7 +237,7 @@ DetectResult detectNewVersionResult
 				{ label: "<@spring.message code='module.changeLanguage.en' />" }
 			]
 		},
-		*/
+
 		{
 			label: "<@spring.message code='help' />",
 			class: po.newVersionDetectedTipClassName,
@@ -265,7 +265,7 @@ DetectResult detectNewVersionResult
 					target: "_blank"
 				}
 			]
-		}
+		}*/
 	]);
 	
 	if(!po.isUserAnonymous)
