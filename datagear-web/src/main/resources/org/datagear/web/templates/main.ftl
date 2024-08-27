@@ -57,9 +57,9 @@
 							<div class="py-1">
 								<@spring.message code='app.shortDesc' />
 							</div>
-							<div class="py-1">
+							<!--div class="py-1">
 								${Global.WEB_SITE}
-							</div>
+							</div-->
 						</div>
 					</div>
 				</div>
