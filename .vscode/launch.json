@@ -1,0 +1,77 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "DatabaseMetaDataPrinter",
+            "request": "launch",
+            "mainClass": "org.datagear.meta.resolver.DatabaseMetaDataPrinter",
+            "projectName": "datagear-meta"
+        },
+        {
+            "type": "java",
+            "name": "DataGearApplication",
+            "request": "launch",
+            "mainClass": "org.datagear.webapp.DataGearApplication",
+            "projectName": "datagear-webapp"
+        },
+        {
+            "type": "java",
+            "name": "StandardPasswordEncoderPrinter",
+            "request": "launch",
+            "mainClass": "org.datagear.web.security.StandardPasswordEncoderPrinter",
+            "projectName": "datagear-web"
+        },
+        {
+            "type": "java",
+            "name": "ChartPluginZipTool",
+            "request": "launch",
+            "mainClass": "org.datagear.web.util.ChartPluginZipTool",
+            "projectName": "datagear-web"
+        },
+        {
+            "type": "java",
+            "name": "DelegatingTextEncryptor",
+            "request": "launch",
+            "mainClass": "org.datagear.web.util.DelegatingTextEncryptor",
+            "projectName": "datagear-web"
+        },
+        {
+            "type": "java",
+            "name": "DerbySqlClient",
+            "request": "launch",
+            "mainClass": "org.datagear.web.util.DerbySqlClient",
+            "projectName": "datagear-web"
+        },
+        {
+            "type": "java",
+            "name": "FileMerger",
+            "request": "launch",
+            "mainClass": "org.datagear.web.util.FileMerger",
+            "projectName": "datagear-web"
+        },
+        {
+            "type": "java",
+            "name": "CodeMirrorPackager",
+            "request": "launch",
+            "mainClass": "org.datagear.web.util.packager.CodeMirrorPackager",
+            "projectName": "datagear-web"
+        },
+        {
+            "type": "java",
+            "name": "PrimeVuePackager",
+            "request": "launch",
+            "mainClass": "org.datagear.web.util.packager.PrimeVuePackager",
+            "projectName": "datagear-web"
+        }
+    ]
+}
