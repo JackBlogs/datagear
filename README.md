@@ -1,3 +1,4 @@
+
 <p align="center">
 	<a href="http://www.datagear.tech"><img src="datagear-web/src/main/resources/org/datagear/web/static/theme/blue/image/logo.png" alt="DataGear" /></a>
 </p>

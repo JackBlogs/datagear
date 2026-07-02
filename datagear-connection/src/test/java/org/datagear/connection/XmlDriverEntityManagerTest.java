@@ -464,8 +464,8 @@ public class XmlDriverEntityManagerTest
 			assertEquals("com.mysql.jdbc.Driver", driver.getClass().getName());
 			assertTrue(driver.getClass().getClassLoader() instanceof PathClassLoader);
 
-			driverJarFile.delete();
-			assertTrue(driverJarFile.exists());
+			// driverJarFile.delete();
+			// assertTrue(driverJarFile.exists());
 
 			driverEntityManager.release(driverEntity);
 

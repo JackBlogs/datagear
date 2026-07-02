@@ -80,7 +80,7 @@ public class DirectoryQuerySupportTest
 
 			assertTrue(fileInfos.size() > 6);
 			assertEquals("dirquery", fileInfos.get(0).getName());
-			assertEquals("dirquery\\DirectoryPagingQuery.java", fileInfos.get(1).getName());
+			assertEquals("dirquery/DirectoryPagingQuery.java", fileInfos.get(1).getName());
 		}
 
 		// 子目录内
