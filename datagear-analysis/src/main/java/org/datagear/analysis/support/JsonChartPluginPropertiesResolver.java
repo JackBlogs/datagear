@@ -20,7 +20,8 @@ package org.datagear.analysis.support;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.io.StringWriter;
+import java.io.Serializable;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,18 +29,35 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.datagear.analysis.Category;
+import org.datagear.analysis.ChartDefinition;
 import org.datagear.analysis.ChartPlugin;
-import org.datagear.analysis.ChartPluginAttribute;
+import org.datagear.analysis.ChartPluginCategoryInfo;
+import org.datagear.analysis.ChartPluginConfigForm;
 import org.datagear.analysis.ChartPluginDataSetRange;
 import org.datagear.analysis.ChartPluginDataSetRange.Range;
 import org.datagear.analysis.DataSign;
-import org.datagear.analysis.Group;
+import org.datagear.analysis.DataSignSpec;
+import org.datagear.analysis.FullnameSpec;
+import org.datagear.analysis.NameAware;
+import org.datagear.analysis.form.AbstractFormProperty;
+import org.datagear.analysis.form.Form;
+import org.datagear.analysis.form.FormProperty;
+import org.datagear.analysis.form.FormPropertyGroup;
+import org.datagear.analysis.form.InputFormProperty;
+import org.datagear.analysis.form.ObjectFormProperty;
+import org.datagear.analysis.form.PropertyInputType;
+import org.datagear.analysis.form.PropertyType;
 import org.datagear.util.IOUtil;
 import org.datagear.util.StringUtil;
+import org.datagear.util.i18n.AbstractLabeled;
 import org.datagear.util.i18n.Label;
+import org.datagear.util.i18n.LabelUtil;
+import org.datagear.util.i18n.Labeled;
+import org.datagear.util.i18n.Localizable;
 
 /**
  * JSON {@linkplain ChartPlugin}属性解析器。
@@ -50,18 +68,15 @@ import org.datagear.util.i18n.Label;
  * <pre>
  * {
  *   id : "...",
- *   nameLabel : "..." 或者 { value : "...", localeValues : { "zh" : "...", "en" : "..." }},
- *   descLabel : "..." 或者 { ... },
- *   icons : "..." 或者 { "LIGHT" : "icons/light.png", "DARK" : "icons/dark.png" },
- *   attributes :  [ { ... }, ... ],
- *   dataSigns : [ { ... }, ... ],
- *   dataSetRange: { ... },
+ *   nameLabel : "..." 、 { value : "...", localeValues : { "zh" : "...", "en" : "..." }},
+ *   descLabel : "..." 、 { ... },
+ *   icons : "..." 、 { "light" : "icons/light.png", "dark" : "icons/dark.png" },
+ *   configForm : { ... },
+ *   dataSignSpec: { dataSigns: [ ... ] }、[ ... ],
+ *   dataSetRange: 数值 、 "none" 、 { ... },
  *   version : "...",
  *   order: 整数值,
- *   categories: "..." 或者 {name: "...", ...} 或者 ["...", "...", ...] 或者 [ {name: "...", ...}, {name: "...", ...}, ... ],
- *   或者（兼容3.0.1版本格式）
- *   category: "..." 或者 {name: "...", ...} 或者 ["...", "...", ...] 或者 [ {name: "...", ...}, {name: "...", ...}, ... ],
- *   categoryOrders: 整数值 或者 [ 整数值, 整数值, ... ],
+ *   categoryInfos: ...,
  *   author: "...",
  *   contact: "...",
  *   issueDate: "...",
@@ -70,31 +85,63 @@ import org.datagear.util.i18n.Label;
  * }
  * </pre>
  * </code>
- * <p>
- * 此类是线程安全的。
- * </p>
  * 
  * @author datagear@163.com
  *
  */
-public class JsonChartPluginPropertiesResolver
+public class JsonChartPluginPropertiesResolver<T extends AbstractChartPlugin>
 {
 	public static final String JSON_PROPERTY_ID = ChartPlugin.PROPERTY_ID;
 	public static final String JSON_PROPERTY_NAME_LABEL = ChartPlugin.PROPERTY_NAME_LABEL;
 	public static final String JSON_PROPERTY_DESC_LABEL = ChartPlugin.PROPERTY_DESC_LABEL;
-	public static final String JSON_PROPERTY_ATTRIBUTES = ChartPlugin.PROPERTY_ATTRIBUTES;
-	public static final String JSON_PROPERTY_DATA_SIGNS = ChartPlugin.PROPERTY_DATA_SIGNS;
+	public static final String JSON_PROPERTY_DATA_SIGN_SPEC = ChartPlugin.PROPERTY_DATA_SIGN_SPEC;
+	public static final String JSON_PROPERTY_CONFIG_FORM = ChartPlugin.PROPERTY_CONFIG_FORM;
 	public static final String JSON_PROPERTY_DATA_SET_RANGE = ChartPlugin.PROPERTY_DATA_SET_RANGE;
 	public static final String JSON_PROPERTY_VERSION = ChartPlugin.PROPERTY_VERSION;
 	public static final String JSON_PROPERTY_ORDER = ChartPlugin.PROPERTY_ORDER;
-	public static final String JSON_PROPERTY_CATEGORIES = ChartPlugin.PROPERTY_CATEGORIES;
-	public static final String JSON_PROPERTY_CATEGORY_ORDERS = ChartPlugin.PROPERTY_CATEGORY_ORDERS;
+	public static final String JSON_PROPERTY_CATEGORY_INFOS = ChartPlugin.PROPERTY_CATEGORY_INFOS;
 	public static final String JSON_PROPERTY_AUTHOR = ChartPlugin.PROPERTY_AUTHOR;
 	public static final String JSON_PROPERTY_CONTACT = ChartPlugin.PROPERTY_CONTACT;
 	public static final String JSON_PROPERTY_ISSUE_DATE = ChartPlugin.PROPERTY_ISSUE_DATE;
-	public static final String JSON_PROPERTY_PLATFORM_VERSION = ChartPlugin.PROPERTY_PLATFORM_VERSION;
 	public static final String JSON_PROPERTY_ICONS = "icons";
 	public static final String JSON_PROPERTY_ADDITIONS = ChartPlugin.PROPERTY_ADDITIONS;
+
+	/**
+	 * @deprecated 仅用于兼容5.5.0及以下版本的{@code org.datagear.analysis.ChartPlugin.categories}格式
+	 */
+	@Deprecated
+	public static final String JSON_PROPERTY_CATEGORIES = "categories";
+
+	/**
+	 * @deprecated 仅用于兼容5.5.0及以下版本的{@code org.datagear.analysis.ChartPlugin.categoryOrders}格式
+	 */
+	@Deprecated
+	public static final String JSON_PROPERTY_CATEGORY_ORDERS = "categoryOrders";
+
+	/**
+	 * @deprecated 仅用于兼容5.5.0及以下版本的{@code org.datagear.analysis.ChartPlugin.dataSigns}格式
+	 */
+	@Deprecated
+	public static final String JSON_PROPERTY_DATA_SIGNS = "dataSigns";
+
+	/**
+	 * @deprecated 仅用于兼容5.5.0及以下版本的{@code org.datagear.analysis.ChartPlugin.attributes}格式
+	 */
+	@Deprecated
+	public static final String JSON_PROPERTY_ATTRIBUTES = "attributes";
+
+	/**
+	 * @deprecated 仅用于兼容5.5.0及以下版本的{@code org.datagear.analysis.ChartPluginAttribute.group}格式
+	 */
+	@Deprecated
+	public static final String JSON_PROPERTY_INPUT_ATTR_GROUP = "group";
+
+	/**
+	 * @deprecated 仅用于兼容5.5.0及以下版本的{@code org.datagear.analysis.ChartPluginAttribute.group}格式
+	 */
+	@Deprecated
+	public static final String INPUT_PROPERTY_ADDITION_OLD_GROUP = ChartDefinition.BUILTIN_NAME_PREFIX
+			+ "GROUP_FOR_5_5_0";
 
 	/**
 	 * 3.0.1版本的单类别属性名，已在3.1.0版本中被{@linkplain #JSON_PROPERTY_CATEGORIES}代替。
@@ -104,101 +151,208 @@ public class JsonChartPluginPropertiesResolver
 	@Deprecated
 	public static final String JSON_PROPERTY_CATEGORY_3_0_1 = "category";
 
+	/**
+	 * {@linkplain #JSON_PROPERTY_DATA_SET_RANGE}属性的特殊值：{@code "none"}
+	 * <p>
+	 * 此值表示{@linkplain ChartPluginDataSetRange}的值为：<code>{ main: { min: 0, max: 0 }, attachment: { min: 0, max: 0 } }</code>
+	 * </p>
+	 */
+	public static final String DATA_SET_RANGE_NONE = "none";
+
+	private T chartPlugin;
+
 	public JsonChartPluginPropertiesResolver()
 	{
 		super();
 	}
 
+	public JsonChartPluginPropertiesResolver(T chartPlugin)
+	{
+		super();
+		this.chartPlugin = chartPlugin;
+	}
+
+	public T getChartPlugin()
+	{
+		return chartPlugin;
+	}
+
+	public void setChartPlugin(T chartPlugin)
+	{
+		this.chartPlugin = chartPlugin;
+	}
+
 	/**
-	 * 从映射表解析并设置{@linkplain ChartPlugin}属性。
+	 * 从映射表解析并设置{@linkplain #getChartPlugin()}属性。
 	 * <p>
 	 * 它会进行必要的类型转换。
 	 * </p>
 	 * 
-	 * @param chartPlugin
 	 * @param properties
+	 * @return {@linkplain #getChartPlugin()}
 	 */
-	public void resolveChartPluginProperties(AbstractChartPlugin chartPlugin, Map<String, ?> properties)
+	public T resolveProperties(Map<String, ?> properties)
 	{
+		T chartPlugin = getChartPlugin();
+
 		chartPlugin.setId(convertToString(properties.get(JSON_PROPERTY_ID)));
 		chartPlugin.setNameLabel(convertToLabel(properties.get(JSON_PROPERTY_NAME_LABEL)));
 		chartPlugin.setDescLabel(convertToLabel(properties.get(JSON_PROPERTY_DESC_LABEL)));
-		chartPlugin.setIconResourceNames(convertToIconResourceNames(properties.get(JSON_PROPERTY_ICONS)));
-		chartPlugin.setAttributes(convertToAttributes(properties.get(JSON_PROPERTY_ATTRIBUTES)));
-		chartPlugin.setDataSigns(convertToDataSigns(properties.get(JSON_PROPERTY_DATA_SIGNS), null));
+		chartPlugin.setIcons(convertToIcons(properties.get(JSON_PROPERTY_ICONS)));
+
+		if (properties.containsKey(JSON_PROPERTY_CONFIG_FORM))
+			chartPlugin.setConfigForm(convertToConfigForm(properties.get(JSON_PROPERTY_CONFIG_FORM)));
+		else if (properties.containsKey(JSON_PROPERTY_ATTRIBUTES))
+			chartPlugin.setConfigForm(convertToConfigFormForV5_5_0(properties.get(JSON_PROPERTY_ATTRIBUTES)));
+
+		if(properties.containsKey(JSON_PROPERTY_DATA_SIGN_SPEC))
+			chartPlugin.setDataSignSpec(convertToDataSignSpec(properties.get(JSON_PROPERTY_DATA_SIGN_SPEC)));
+		else if (properties.containsKey(JSON_PROPERTY_DATA_SIGNS))
+			chartPlugin.setDataSignSpec(convertToDataSignSpecForV_5_5_0(properties.get(JSON_PROPERTY_DATA_SIGNS)));
+
 		chartPlugin.setDataSetRange(convertToDataSetRange(properties.get(JSON_PROPERTY_DATA_SET_RANGE)));
 		chartPlugin.setVersion(convertToString(properties.get(JSON_PROPERTY_VERSION)));
 		chartPlugin.setOrder(convertToInt(properties.get(JSON_PROPERTY_ORDER), chartPlugin.getOrder()));
 
-		Object categoriesObj = properties.get(JSON_PROPERTY_CATEGORIES);
-		if (categoriesObj == null)
-			categoriesObj = properties.get(JSON_PROPERTY_CATEGORY_3_0_1);
-		chartPlugin.setCategories(convertToCategories(categoriesObj));
+		if (properties.containsKey(JSON_PROPERTY_CATEGORY_INFOS))
+			chartPlugin.setCategoryInfos(convertToCategoryInfos(properties.get(JSON_PROPERTY_CATEGORY_INFOS)));
+		else
+		{
+			Object categories = properties.get(JSON_PROPERTY_CATEGORIES);
+			if (categories == null)
+				categories = properties.get(JSON_PROPERTY_CATEGORY_3_0_1);
 
-		chartPlugin.setCategoryOrders(
-				convertToCategoryOrders(properties.get(JSON_PROPERTY_CATEGORY_ORDERS), chartPlugin.getOrder()));
+			Object categoryOrders = properties.get(JSON_PROPERTY_CATEGORY_ORDERS);
+
+			chartPlugin.setCategoryInfos(convertToCategoryInfosForV5_5_0(categories, categoryOrders));
+		}
 
 		chartPlugin.setAuthor(convertToString(properties.get(JSON_PROPERTY_AUTHOR)));
 		chartPlugin.setContact(convertToString(properties.get(JSON_PROPERTY_CONTACT)));
 		chartPlugin.setIssueDate(convertToString(properties.get(JSON_PROPERTY_ISSUE_DATE)));
-		chartPlugin.setPlatformVersion(convertToString(properties.get(JSON_PROPERTY_PLATFORM_VERSION)));
 		chartPlugin.setAdditions(convertToAdditions(properties.get(JSON_PROPERTY_ADDITIONS)));
+
+		return chartPlugin;
 	}
 
 	/**
-	 * 从JSON字符串解析并设置{@linkplain ChartPlugin}属性。
+	 * 从JSON字符串解析并设置{@linkplain #getChartPlugin()}属性。
 	 * 
-	 * @param chartPlugin
-	 * @param json
+	 * @param pluginJson
+	 * @return {@linkplain #getChartPlugin()}
 	 * @throws IOException
 	 */
-	public void resolveChartPluginProperties(AbstractChartPlugin chartPlugin, String json) throws IOException
+	public T resolveProperties(String pluginJson) throws IOException
 	{
-		@SuppressWarnings("unchecked")
-		Map<String, Object> properties = JsonSupport.parseNonStardand(json, Map.class);
-		resolveChartPluginProperties(chartPlugin, properties);
+		return resolveProperties(pluginJson, null, null);
 	}
 
 	/**
-	 * 从JSON输入流解析并设置{@linkplain ChartPlugin}属性。
+	 * 从JSON字符串解析并设置{@linkplain #getChartPlugin()}属性。
 	 * 
-	 * @param chartPlugin
-	 * @param jsonReader
+	 * @param pluginJson
+	 * @param dataSignSpecJson
+	 *            允许{@code null}
+	 * @param configFormJson
+	 *            允许{@code null}
+	 * @return
 	 * @throws IOException
 	 */
-	public void resolveChartPluginProperties(AbstractChartPlugin chartPlugin, Reader jsonReader) throws IOException
+	public T resolveProperties(String pluginJson, String dataSignSpecJson, String configFormJson) throws IOException
 	{
-		String json = null;
+		Reader pluginIn = new StringReader(pluginJson);
+		Reader dataSignSpecIn = (StringUtil.isEmpty(dataSignSpecJson) ? null : new StringReader(dataSignSpecJson));
+		Reader configFormIn = (StringUtil.isEmpty(configFormJson) ? null : new StringReader(configFormJson));
 
-		StringWriter writer = null;
 		try
 		{
-			writer = new StringWriter();
-			IOUtil.write(jsonReader, writer);
+			return resolveProperties(pluginIn, dataSignSpecIn, configFormIn);
 		}
 		finally
 		{
-			IOUtil.close(writer);
+			IOUtil.close(pluginIn);
+			IOUtil.close(dataSignSpecIn);
+			IOUtil.close(configFormIn);
 		}
-
-		json = writer.toString();
-
-		resolveChartPluginProperties(chartPlugin, json);
 	}
 
 	/**
-	 * 从JSON输入流解析并设置{@linkplain ChartPlugin}属性。
+	 * 从JSON输入流解析并设置{@linkplain #getChartPlugin()}属性。
 	 * 
-	 * @param chartPlugin
-	 * @param in
-	 * @param encoding
+	 * @param pluginJsonIn
+	 * @return {@linkplain #getChartPlugin()}
 	 * @throws IOException
 	 */
-	public void resolveChartPluginProperties(AbstractChartPlugin chartPlugin, InputStream in, String encoding)
+	public T resolveProperties(Reader pluginJsonIn) throws IOException
+	{
+		return resolveProperties(pluginJsonIn, null, null);
+	}
+
+	/**
+	 * 从JSON输入流解析并设置{@linkplain #getChartPlugin()}属性。
+	 * 
+	 * @param pluginJsonIn
+	 * @param dataSignSpecIn
+	 *            允许{@code null}
+	 * @param configFormIn
+	 *            允许{@code null}
+	 * @return {@linkplain #getChartPlugin()}
+	 * @throws IOException
+	 */
+	public T resolveProperties(Reader pluginJsonIn, Reader dataSignSpecIn, Reader configFormIn)
 			throws IOException
 	{
-		Reader reader = IOUtil.getReader(in, encoding);
-		resolveChartPluginProperties(chartPlugin, reader);
+		@SuppressWarnings("unchecked")
+		Map<String, Object> properties = JsonSupport.parseNonStardand(pluginJsonIn, Map.class);
+
+		if (dataSignSpecIn != null)
+		{
+			Object dataSigns = JsonSupport.parseNonStardand(dataSignSpecIn, List.class);
+			properties.put(JSON_PROPERTY_DATA_SIGNS, dataSigns);
+		}
+
+		if (configFormIn != null)
+		{
+			Object configForm = JsonSupport.parseNonStardand(configFormIn, Map.class);
+			properties.put(JSON_PROPERTY_CONFIG_FORM, configForm);
+		}
+
+		return resolveProperties(properties);
+	}
+
+	/**
+	 * 从JSON输入流解析并设置{@linkplain #getChartPlugin()}属性。
+	 * 
+	 * @param pluginJsonIn
+	 * @param encoding
+	 * @return {@linkplain #getChartPlugin()}
+	 * @throws IOException
+	 */
+	public T resolveProperties(InputStream pluginJsonIn, String encoding)
+			throws IOException
+	{
+		return resolveProperties(pluginJsonIn, null, null, encoding);
+	}
+
+	/**
+	 * 从JSON输入流解析并设置{@linkplain #getChartPlugin()}属性。
+	 * 
+	 * @param pluginJsonIn
+	 * @param dataSignSpecIn
+	 *            允许{@code null}
+	 * @param configFormIn
+	 *            允许{@code null}
+	 * @param encoding
+	 * @return {@linkplain #getChartPlugin()}
+	 * @throws IOException
+	 */
+	public T resolveProperties(InputStream pluginJsonIn, InputStream dataSignSpecIn, InputStream configFormIn,
+			String encoding) throws IOException
+	{
+		Reader pluginReader = IOUtil.getReader(pluginJsonIn, encoding);
+		Reader dataSignsReader = (dataSignSpecIn == null ? null : IOUtil.getReader(dataSignSpecIn, encoding));
+		Reader configFormReader = (configFormIn == null ? null : IOUtil.getReader(configFormIn, encoding));
+		return resolveProperties(pluginReader, dataSignsReader, configFormReader);
 	}
 
 	/**
@@ -216,7 +370,7 @@ public class JsonChartPluginPropertiesResolver
 	 * @param obj
 	 * @return
 	 */
-	protected Map<String, String> convertToIconResourceNames(Object obj)
+	protected Map<String, String> convertToIcons(Object obj)
 	{
 		if (obj == null)
 		{
@@ -243,6 +397,57 @@ public class JsonChartPluginPropertiesResolver
 		else
 			throw new UnsupportedOperationException(
 					"Convert object of type [" + obj.getClass().getName() + "] to icon map unsupported");
+	}
+
+	protected DataSignSpec convertToDataSignSpec(Object obj)
+	{
+		if (obj == null)
+			return null;
+		else if (obj instanceof DataSignSpec)
+			return (DataSignSpec) obj;
+		else if ((obj instanceof Object[]) || (obj instanceof Collection<?>))
+		{
+			DataSignSpec spec = createDataSignSpec();
+			spec.setDataSigns(convertToDataSigns(obj, null));
+			return spec;
+		}
+		else if (obj instanceof Map<?, ?>)
+		{
+			@SuppressWarnings("unchecked")
+			Map<String, ?> map = (Map<String, ?>) obj;
+
+			DataSignSpec spec = createDataSignSpec();
+
+			spec.setDataSigns(convertToDataSigns(map.get(DataSignSpec.PROPERTY_DATA_SIGNS), null));
+			spec.setAdditions(convertToAdditions(map.get(DataSign.PROPERTY_ADDITIONS)));
+
+			return spec;
+		}
+		else
+			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
+					+ DataSignSpec.class.getName() + "] unsupported");
+	}
+
+	/**
+	 * 将{@code 5.5.0}版的对象转换为{@linkplain DataSignSpec}。
+	 * <p>
+	 * 支持格式如下：
+	 * <p>
+	 * <code>[ { ... }, ... ]</code>
+	 * </p>
+	 * 
+	 * @param obj
+	 * @return
+	 */
+	protected DataSignSpec convertToDataSignSpecForV_5_5_0(Object obj)
+	{
+		List<DataSign> dataSigns = convertToDataSigns(obj, null);
+
+		if (dataSigns == null)
+			return null;
+
+		DataSignSpec spec = new DataSignSpec(dataSigns);
+		return spec;
 	}
 
 	/**
@@ -320,20 +525,25 @@ public class JsonChartPluginPropertiesResolver
 			Map<String, ?> map = (Map<String, ?>) obj;
 	
 			String name = (String) map.get(DataSign.PROPERTY_NAME);
-			if (name == null || name.isEmpty())
+			if (StringUtil.isEmpty(name))
 				return null;
+
+			String fullname = (String) map.get(DataSign.PROPERTY_FULLNAME);
+			if(StringUtil.isEmpty(fullname))
+				fullname = FullnameSpec.toFullname(name, (parent == null ? null : parent.getFullname()));
 	
 			DataSign dataSign = createDataSign();
 
 			dataSign.setName(name);
+			dataSign.setFullname(fullname);
 			dataSign.setTargets(convertToDataSignTargets(map.get(DataSign.PROPERTY_TARGETS), parent));
 			dataSign.setRequired(convertToDataSignRequired(map.get(DataSign.PROPERTY_REQUIRED)));
 			dataSign.setMultiple(convertToDataSignMultiple(map.get(DataSign.PROPERTY_MULTIPLE)));
 			dataSign.setNameLabel(convertToLabel(map.get(DataSign.PROPERTY_NAME_LABEL)));
 			dataSign.setDescLabel(convertToLabel(map.get(DataSign.PROPERTY_DESC_LABEL)));
-			dataSign.setAdditions(convertToDataSignAdditions(map.get(DataSign.PROPERTY_ADDITIONS)));
-
+			dataSign.setAdditions(convertToAdditions(map.get(DataSign.PROPERTY_ADDITIONS)));
 			dataSign.setChildren(convertToDataSigns(map.get(DataSign.PROPERTY_CHILDREN), dataSign));
+			dataSign.setFieldMatcher(map.get(DataSign.PROPERTY_FIELD_MATCHER));
 	
 			return dataSign;
 		}
@@ -356,7 +566,7 @@ public class JsonChartPluginPropertiesResolver
 	{
 		String[] targets;
 
-		// 设为默认值，以兼容旧版逻辑
+		// 设为默认值，以兼容<=5.3.0版本逻辑
 		if(v == null)
 		{
 			targets = DataSign.TARGETS_FIELDS;
@@ -372,33 +582,19 @@ public class JsonChartPluginPropertiesResolver
 		else if (v instanceof Collection<?>)
 		{
 			Collection<?> collection = (Collection<?>) v;
-			targets = new String[collection.size()];
+			List<String> targetList = new ArrayList<String>(collection.size());
 
-			int idx = 0;
 			for (Object ele : collection)
 			{
 				if (ele instanceof String)
 				{
 					String eleStr = (String) ele;
-					String dsv;
-
-					if (DataSign.TARGET_DATASET.equalsIgnoreCase(eleStr))
-					{
-						dsv = DataSign.TARGET_DATASET;
-					}
-					else if (DataSign.TARGET_FIELD.equalsIgnoreCase(eleStr))
-					{
-						dsv = DataSign.TARGET_FIELD;
-					}
-					else
-					{
-						dsv = eleStr;
-					}
-
-					targets[idx] = dsv;
-					idx++;
+					String target = DataSign.normalizeTarget(eleStr, eleStr);
+					targetList.add(target);
 				}
 			}
+
+			targets = targetList.toArray(new String[targetList.size()]);
 		}
 		else
 			throw new UnsupportedOperationException("Convert object of type [" + v.getClass().getName() + "] to ["
@@ -421,26 +617,48 @@ public class JsonChartPluginPropertiesResolver
 		return convertToBoolean(v, dftValue);
 	}
 
-	@SuppressWarnings("unchecked")
-	protected Map<String, ?> convertToDataSignAdditions(Object obj)
-	{
-		if (obj == null)
-			return null;
-		else if (obj instanceof Map<?, ?>)
-			return (Map<String, ?>) obj;
-		else
-			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
-					+ DataSign.class.getName() + ".additions] unsupported");
-	}
-
 	/**
-	 * 将对象转换为{@linkplain ChartPluginAttribute}列表。
+	 * 将对象转换为{@linkplain ChartPluginConfigForm}。
 	 * <p>
 	 * 支持格式如下：
-	 * </p>
 	 * <p>
 	 * <code>{ ... }</code>
 	 * </p>
+	 * 
+	 * @return
+	 */
+	protected ChartPluginConfigForm convertToConfigForm(Object obj)
+	{
+		ChartPluginConfigForm form = null;
+
+		if (obj == null)
+			form = null;
+		else if (obj instanceof ChartPluginConfigForm)
+			form = ((ChartPluginConfigForm) obj);
+		else if (obj instanceof Map<?, ?>)
+		{
+			@SuppressWarnings("unchecked")
+			Map<String, ?> map = (Map<String, ?>) obj;
+
+			form = createChartPluginConfigForm();
+			form.setProperties(convertToFormProperties(map.get(Form.PROPERTY_PROPERTIES)));
+			form.setGroups(convertToFormPropertyGroups(map.get(Form.PROPERTY_GROUPS)));
+			form.setNameLabel(convertToLabel(map.get(Form.PROPERTY_NAME_LABEL)));
+			form.setDescLabel(convertToLabel(map.get(Form.PROPERTY_DESC_LABEL)));
+			form.setAdditions(convertToAdditions(map.get(Form.PROPERTY_ADDITIONS)));
+			form.setDefaultValue(map.get(Form.PROPERTY_DEFAULT_VALUE));
+		}
+		else
+			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
+					+ ChartPluginConfigForm.class.getName() + "] unsupported");
+
+		return form;
+	}
+
+	/**
+	 * 将{@code 5.5.0}版的对象转换为{@linkplain ChartPluginConfigForm}。
+	 * <p>
+	 * 支持格式如下：
 	 * <p>
 	 * <code>[ { ... }, ... ]</code>
 	 * </p>
@@ -448,7 +666,26 @@ public class JsonChartPluginPropertiesResolver
 	 * @param obj
 	 * @return
 	 */
-	protected List<ChartPluginAttribute> convertToAttributes(Object obj)
+	protected ChartPluginConfigForm convertToConfigFormForV5_5_0(Object obj)
+	{
+		List<FormProperty> properties = convertToFormProperties(obj);
+
+		if (properties == null)
+			return null;
+
+		ChartPluginConfigForm form = createChartPluginConfigForm();
+		form.setProperties(properties);
+
+		return form;
+	}
+
+	/**
+	 * 将对象转换为{@linkplain FormProperty}列表。
+	 * 
+	 * @param obj
+	 * @return
+	 */
+	protected List<FormProperty> convertToFormProperties(Object obj)
 	{
 		if (obj == null)
 			return null;
@@ -456,20 +693,20 @@ public class JsonChartPluginPropertiesResolver
 		{
 			Object[] array = (Object[]) obj;
 
-			List<ChartPluginAttribute> attributes = new ArrayList<>();
+			List<FormProperty> properties = new ArrayList<>();
 
 			for (Object ele : array)
 			{
-				ChartPluginAttribute attribute = convertToAttribute(ele);
+				FormProperty property = convertToFormProperty(ele);
 
-				if (attribute != null)
-					attributes.add(attribute);
+				if (property != null)
+					properties.add(property);
 			}
 
-			if (attributes.isEmpty())
+			if (properties.isEmpty())
 				return null;
 
-			return attributes;
+			return properties;
 		}
 		else if (obj instanceof Collection<?>)
 		{
@@ -477,110 +714,239 @@ public class JsonChartPluginPropertiesResolver
 			Object[] array = new Object[collection.size()];
 			collection.toArray(array);
 
-			return convertToAttributes(array);
+			return convertToFormProperties(array);
 		}
 		else
 		{
 			Object[] array = new Object[] { obj };
-
-			return convertToAttributes(array);
+			return convertToFormProperties(array);
 		}
 	}
 
 	/**
-	 * 将对象转换为{@linkplain ChartPluginAttribute}。
+	 * 将对象转换为{@linkplain FormProperty}。
 	 * 
 	 * @param obj
 	 * @return
 	 */
-	protected ChartPluginAttribute convertToAttribute(Object obj)
+	protected FormProperty convertToFormProperty(Object obj)
 	{
 		if (obj == null)
 			return null;
-		else if (obj instanceof ChartPluginAttribute)
-			return (ChartPluginAttribute) obj;
+		else if (obj instanceof FormProperty)
+		{
+			FormProperty prop = (FormProperty) obj;
+
+			if (StringUtil.isEmpty(prop.getName()))
+				throw new IllegalArgumentException(FormProperty.class.getSimpleName() + ".name required");
+
+			return prop;
+		}
 		else if (obj instanceof Map<?, ?>)
 		{
 			@SuppressWarnings("unchecked")
 			Map<String, ?> map = (Map<String, ?>) obj;
+			String name = convertToString(map.get(FormProperty.PROPERTY_NAME));
 
-			String name = (String) map.get(ChartPluginAttribute.PROPERTY_NAME);
-			if (name == null || name.isEmpty())
+			if (StringUtil.isEmpty(name))
 				return null;
 
-			ChartPluginAttribute attribute = createChartPluginAttribute();
-			attribute.setName(name);
-			attribute.setType(convertToAttributeType(map.get(ChartPluginAttribute.PROPERTY_TYPE)));
-			attribute.setNameLabel(convertToLabel(map.get(ChartPluginAttribute.PROPERTY_NAME_LABEL)));
-			attribute.setDescLabel(convertToLabel(map.get(ChartPluginAttribute.PROPERTY_DESC_LABEL)));
-			attribute.setRequired(convertToAttributeRequired(map.get(ChartPluginAttribute.PROPERTY_REQUIRED)));
-			attribute.setInputType(convertToAttributeInputType(map.get(ChartPluginAttribute.PROPERTY_INPUT_TYPE)));
-			attribute.setInputPayload(convertToAttributeInputPayload(map.get(ChartPluginAttribute.PROPERTY_INPUT_PAYLOAD)));
-			attribute.setGroup(convertToAttributeGroup(map.get(ChartPluginAttribute.PROPERTY_GROUP)));
-			attribute.setAdditions(convertToAttributeAdditions(map.get(ChartPluginAttribute.PROPERTY_ADDITIONS)));
+			String type = convertToString(map.get(FormProperty.PROPERTY_TYPE));
+			type = PropertyType.normalize(type, type);
 
-			return attribute;
+			boolean isObject = (PropertyType.OBJECT.equals(type)
+					|| (StringUtil.isEmpty(type) && map.containsKey(ObjectFormProperty.PROPERTY_PROPERTIES)));
+
+			AbstractFormProperty prop;
+
+			if (isObject)
+				prop = createObjectFormProperty();
+			else
+				prop = createInputFormProperty();
+
+			prop.setName(name);
+			prop.setNameLabel(convertToLabel(map.get(FormProperty.PROPERTY_NAME_LABEL)));
+			prop.setDescLabel(convertToLabel(map.get(FormProperty.PROPERTY_DESC_LABEL)));
+			prop.setRequired(convertToFormPropertyRequired(map.get(FormProperty.PROPERTY_REQUIRED)));
+			prop.setArray(convertToFormPropertyArray(map.get(FormProperty.PROPERTY_ARRAY)));
+			prop.setAdditions(convertToAdditions(map.get(FormProperty.PROPERTY_ADDITIONS)));
+			prop.setDefaultValue(map.get(FormProperty.PROPERTY_DEFAULT_VALUE));
+
+			if (isObject)
+			{
+				ObjectFormProperty objProp = (ObjectFormProperty) prop;
+
+				objProp.setProperties(convertToFormProperties(map.get(ObjectFormProperty.PROPERTY_PROPERTIES)));
+				objProp.setGroups(convertToFormPropertyGroups(map.get(ObjectFormProperty.PROPERTY_GROUPS)));
+			}
+			else
+			{
+				InputFormProperty inputProp = (InputFormProperty) prop;
+
+				inputProp.setType(convertToInputFormPropertyType(type));
+				inputProp.setInputType(
+						convertToInputFormPropertyInputType(map.get(InputFormProperty.PROPERTY_INPUT_TYPE)));
+				inputProp.setInputPayload(
+						convertToInputFormPropertyInputPayload(map.get(InputFormProperty.PROPERTY_INPUT_PAYLOAD)));
+				inputProp.setDefaultValue(map.get(FormProperty.PROPERTY_DEFAULT_VALUE));
+
+				// 将旧版分组信息存入附加数据中，便于前端恢复旧版格式
+				Group group = convertToInputFormPropertyGroupForV5_5_0(map.get(JSON_PROPERTY_INPUT_ATTR_GROUP));
+				if (group != null)
+				{
+					@SuppressWarnings("unchecked")
+					Map<String, Object> additions = (Map<String, Object>) inputProp.getAdditions();
+					additions = (additions == null ? new HashMap<>()
+							: (additions instanceof HashMap<?, ?> ? additions : new HashMap<>(additions)));
+					additions.put(INPUT_PROPERTY_ADDITION_OLD_GROUP, group);
+					inputProp.setAdditions(additions);
+				}
+			}
+
+			return prop;
 		}
 		else
 			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
-					+ ChartPluginAttribute.class.getName() + "] unsupported");
+					+ FormProperty.class.getName() + "] unsupported");
 	}
 
-	protected boolean convertToAttributeRequired(Object v)
+	protected boolean convertToFormPropertyRequired(Object v)
 	{
 		// 不要修改这里的默认值，因为会影响插件规范
 		boolean dftValue = false;
 		return convertToBoolean(v, dftValue);
 	}
 
-	protected String convertToAttributeType(Object obj)
+	protected boolean convertToFormPropertyArray(Object v)
 	{
 		// 不要修改这里的默认值，因为会影响插件规范
-		String dftValue = ChartPluginAttribute.DataType.STRING;
-
-		if (obj instanceof String)
-		{
-			String str = (String) obj;
-			
-			if (StringUtil.isEmpty(str))
-			{
-				return dftValue;
-			}
-			if(ChartPluginAttribute.DataType.STRING.equalsIgnoreCase(str))
-			{
-				return ChartPluginAttribute.DataType.STRING;
-			}
-			else if(ChartPluginAttribute.DataType.BOOLEAN.equalsIgnoreCase(str))
-			{
-				return ChartPluginAttribute.DataType.BOOLEAN;
-			}
-			else if(ChartPluginAttribute.DataType.NUMBER.equalsIgnoreCase(str))
-			{
-				return ChartPluginAttribute.DataType.NUMBER;
-			}
-			else
-				return str;
-		}
-		else
-			return dftValue;
+		boolean dftValue = false;
+		return convertToBoolean(v, dftValue);
 	}
 
-	protected String convertToAttributeInputType(Object obj)
+	protected String convertToInputFormPropertyType(String str)
+	{
+		// 不要修改这里的默认值，因为会影响插件规范
+		String dftValue = PropertyType.STRING;
+		return PropertyType.normalize(str, dftValue);
+	}
+
+	protected String convertToInputFormPropertyInputType(Object obj)
 	{
 		if(obj == null)
 			return  null;
 		else if (obj instanceof String)
 			return (String) obj;
 		else
-			return ChartPluginAttribute.InputType.TEXT;
+			return PropertyInputType.TEXT;
 	}
 
-	protected Object convertToAttributeInputPayload(Object obj)
+	protected Object convertToInputFormPropertyInputPayload(Object obj)
 	{
 		return obj;
 	}
 
-	protected Group convertToAttributeGroup(Object obj)
+	protected List<FormPropertyGroup> convertToFormPropertyGroups(Object obj)
+	{
+		if (obj == null)
+			return null;
+		else if (obj instanceof Object[])
+		{
+			Object[] array = (Object[]) obj;
+
+			List<FormPropertyGroup> groups = new ArrayList<>();
+
+			for (Object ele : array)
+			{
+				FormPropertyGroup group = convertToFormPropertyGroup(ele);
+
+				if (group != null)
+					groups.add(group);
+			}
+
+			if (groups.isEmpty())
+				return null;
+
+			return groups;
+		}
+		else if (obj instanceof Collection<?>)
+		{
+			Collection<?> collection = (Collection<?>) obj;
+			Object[] array = new Object[collection.size()];
+			collection.toArray(array);
+
+			return convertToFormPropertyGroups(array);
+		}
+		else
+		{
+			Object[] array = new Object[] { obj };
+			return convertToFormPropertyGroups(array);
+		}
+	}
+
+	protected FormPropertyGroup convertToFormPropertyGroup(Object obj)
+	{
+		if (obj == null)
+			return null;
+		else if (obj instanceof FormPropertyGroup)
+			return (FormPropertyGroup) obj;
+		else if (obj instanceof Map<?, ?>)
+		{
+			@SuppressWarnings("unchecked")
+			Map<String, ?> map = (Map<String, ?>) obj;
+
+			FormPropertyGroup group = createFormPropertyGroup();
+
+			group.setNameLabel(convertToLabel(map.get(FormPropertyGroup.PROPERTY_NAME_LABEL)));
+			group.setDescLabel(convertToLabel(map.get(FormPropertyGroup.PROPERTY_DESC_LABEL)));
+			group.setNames(convertToFormPropertyGroupNames(map.get(FormPropertyGroup.PROPERTY_NAMES)));
+			group.setAdditions(convertToAdditions(map.get(FormPropertyGroup.PROPERTY_ADDITIONS)));
+
+			return group;
+		}
+		else
+			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
+					+ FormPropertyGroup.class.getName() + "] unsupported");
+	}
+
+	protected List<String> convertToFormPropertyGroupNames(Object obj)
+	{
+		if (obj == null)
+			return null;
+		else if (obj instanceof String)
+		{
+			return Arrays.asList((String) obj);
+		}
+		else if (obj instanceof Object[])
+		{
+			Object[] array = (Object[]) obj;
+
+			List<String> names = new ArrayList<>();
+
+			for (Object ele : array)
+			{
+				if (ele != null && (ele instanceof String))
+					names.add((String) ele);
+			}
+
+			if (names.isEmpty())
+				return null;
+
+			return names;
+		}
+		else if (obj instanceof Collection<?>)
+		{
+			Collection<?> collection = (Collection<?>) obj;
+			Object[] array = new Object[collection.size()];
+			collection.toArray(array);
+			return convertToFormPropertyGroupNames(array);
+		}
+		else
+			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
+					+ FormPropertyGroup.class.getName() + ".names] unsupported");
+	}
+
+	protected Group convertToInputFormPropertyGroupForV5_5_0(Object obj)
 	{
 		if (obj == null)
 			return null;
@@ -615,22 +981,10 @@ public class JsonChartPluginPropertiesResolver
 					+ Group.class.getName() + "] unsupported");
 	}
 
-	@SuppressWarnings("unchecked")
-	protected Map<String, ?> convertToAttributeAdditions(Object obj)
-	{
-		if(obj == null)
-			return  null;
-		else if (obj instanceof Map<?, ?>)
-			return (Map<String, ?>) obj;
-		else
-			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
-					+ ChartPluginAttribute.class.getName() + ".additions] unsupported");
-	}
-
 	/**
 	 * 将对象转换为{@linkplain ChartPluginDataSetRange}。
 	 * <p>
-	 * 支持如下三种格式：
+	 * 支持如下四种格式：
 	 * </p>
 	 * <p>
 	 * 仅定义{@linkplain ChartPluginDataSetRange#getMain()}的{@linkplain Range#getMin()}格式：
@@ -654,6 +1008,16 @@ public class JsonChartPluginPropertiesResolver
 	 *   //可选
 	 *   max: 数值
 	 * }
+	 * </pre>
+	 * </code>
+	 * </p>
+	 * <p>
+	 * 定义{@linkplain #DATA_SET_RANGE_NONE}表示的格式：
+	 * </p>
+	 * <p>
+	 * <code>
+	 * <pre>
+	 * "none"
 	 * </pre>
 	 * </code>
 	 * </p>
@@ -705,6 +1069,23 @@ public class JsonChartPluginPropertiesResolver
 			
 			return dsr;
 		}
+		else if ((obj instanceof String) && DATA_SET_RANGE_NONE.equalsIgnoreCase((String) obj))
+		{
+			ChartPluginDataSetRange dsr = createChartPluginDataSetRange();
+
+			Range main = createRange();
+			main.setMin(0);
+			main.setMax(0);
+
+			Range attachment = createRange();
+			attachment.setMin(0);
+			attachment.setMax(0);
+
+			dsr.setMain(main);
+			dsr.setAttachment(attachment);
+
+			return dsr;
+		}
 		else if (obj instanceof Map<?, ?>)
 		{
 			ChartPluginDataSetRange dsr = createChartPluginDataSetRange();
@@ -751,6 +1132,133 @@ public class JsonChartPluginPropertiesResolver
 		return range;
 	}
 
+	protected List<ChartPluginCategoryInfo> convertToCategoryInfos(Object obj)
+	{
+		if (obj == null)
+			return null;
+
+		if (obj instanceof ChartPluginCategoryInfo)
+		{
+			return Arrays.asList((ChartPluginCategoryInfo) obj);
+		}
+		// "..." 类别名
+		else if (obj instanceof String)
+		{
+			return convertToCategoryInfos(Arrays.asList(obj));
+		}
+		// { }
+		else if (obj instanceof Map<?, ?>)
+		{
+			return convertToCategoryInfos(Arrays.asList(obj));
+		}
+		// [ ... ]
+		else if (obj instanceof Object[])
+		{
+			return convertToCategoryInfos(Arrays.asList((Object[]) obj));
+		}
+		else if (obj instanceof Collection<?>)
+		{
+			Collection<?> collection = (Collection<?>) obj;
+
+			List<ChartPluginCategoryInfo> categoryInfos = new ArrayList<>();
+
+			for (Object o : collection)
+			{
+				ChartPluginCategoryInfo categoryInfo = convertToCategoryInfo(o);
+				if (categoryInfo != null)
+					categoryInfos.add(categoryInfo);
+			}
+
+			return categoryInfos;
+		}
+		else
+			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
+					+ ChartPluginCategoryInfo.class.getName() + "] list unsupported");
+	}
+
+	protected List<ChartPluginCategoryInfo> convertToCategoryInfosForV5_5_0(Object categoriesObj, Object categoryOrdersObj)
+	{
+		if(categoriesObj == null)
+			return null;
+		
+		List<Category> categories = convertToCategories(categoriesObj);
+
+		if (categories == null)
+			return null;
+
+		List<Integer> categoryOrders = convertToCategoryOrders(categoryOrdersObj);
+
+		List<ChartPluginCategoryInfo> categoryInfos = new ArrayList<>();
+
+		for (int i = 0; i < categories.size(); i++)
+		{
+			Category category = categories.get(i);
+			Integer categoryOrder = (categoryOrders == null || categoryOrders.size() <= i ? null
+					: categoryOrders.get(i));
+
+			ChartPluginCategoryInfo categoryInfo = createCategoryInfo();
+			categoryInfo.setCategory(category);
+			if (categoryOrder != null)
+				categoryInfo.setOrder(categoryOrder);
+
+			categoryInfos.add(categoryInfo);
+		}
+
+		return categoryInfos;
+	}
+
+	protected ChartPluginCategoryInfo convertToCategoryInfo(Object obj)
+	{
+		if (obj == null)
+			return null;
+
+		// "..." 类别名
+		if (obj instanceof String)
+		{
+			Category category = convertToCategory(obj);
+			ChartPluginCategoryInfo categoryInfo = createCategoryInfo();
+			categoryInfo.setCategory(category);
+
+			return categoryInfo;
+		}
+		else if(obj instanceof Map<?, ?>)
+		{
+			ChartPluginCategoryInfo categoryInfo = null;
+
+			@SuppressWarnings("unchecked")
+			Map<String, ?> map = (Map<String, ?>) obj;
+
+			// CategoryInfo
+			if(map.containsKey(ChartPluginCategoryInfo.PROPERTY_CATEGORY))
+			{
+				Category category = convertToCategory(map.get(ChartPluginCategoryInfo.PROPERTY_CATEGORY));
+
+				if (category != null)
+				{
+					categoryInfo = createCategoryInfo();
+					categoryInfo.setCategory(category);
+					categoryInfo.setOrder(convertToInt(map.get(ChartPluginCategoryInfo.PROPERTY_ORDER), 0));
+				}
+			}
+			// Category
+			else if (map.containsKey(Category.PROPERTY_NAME))
+			{
+				Category category = convertToCategory(obj);
+
+				if (category != null)
+				{
+					categoryInfo = createCategoryInfo();
+					categoryInfo.setCategory(category);
+				}
+			}
+
+			return categoryInfo;
+		}
+		else
+			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
+					+ ChartPluginCategoryInfo.class.getName() + "] unsupported");
+	}
+
 	/**
 	 * 将对象转换为{@linkplain Category}列表。
 	 * <p>
@@ -771,23 +1279,77 @@ public class JsonChartPluginPropertiesResolver
 	 */
 	protected List<Category> convertToCategories(Object obj)
 	{
-		List<Category> categories = new ArrayList<Category>(1);
-		convertToCategories(categories, obj);
+		if (obj == null)
+			return null;
 
-		return categories;
+		if (obj instanceof Category)
+		{
+			return Arrays.asList((Category) obj);
+		}
+		else if ((obj instanceof String) || (obj instanceof Map<?, ?>))
+		{
+			Category category = convertToCategory(obj);
+			return (category == null ? null : Arrays.asList(category));
+		}
+		else if (obj instanceof Object[])
+		{
+			return convertToCategories(Arrays.asList((Object[]) obj));
+		}
+		else if (obj instanceof Collection<?>)
+		{
+			List<Category> categories = new ArrayList<>();
+
+			Collection<?> collection = (Collection<?>) obj;
+			for (Object ele : collection)
+			{
+				Category category = convertToCategory(ele);
+				if (category != null)
+					categories.add(category);
+			}
+
+			return categories;
+		}
+		else
+			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
+					+ Category.class.getName() + "] list unsupported");
 	}
 
-	protected void convertToCategories(List<Category> categories, Object obj)
+	protected List<Integer> convertToCategoryOrders(Object obj)
 	{
 		if (obj == null)
-			return;
-		else if (obj instanceof Category)
-			categories.add((Category) obj);
-		else if (obj instanceof String)
+			return null;
+
+		if (obj instanceof Object[])
+		{
+			return convertToCategoryOrders(Arrays.asList((Object[]) obj));
+		}
+		else if (obj instanceof Collection<?>)
+		{
+			List<Integer> orders = new ArrayList<>();
+
+			Collection<?> collection = (Collection<?>) obj;
+			for (Object ele : collection)
+				orders.add(convertToInt(ele, 0));
+
+			return orders;
+		}
+		else
+		{
+			return Arrays.asList(convertToInt(obj, 0));
+		}
+	}
+
+	protected Category convertToCategory(Object obj)
+	{
+		if (obj == null)
+			return null;
+
+		if (obj instanceof String)
 		{
 			Category category = createCategory();
 			category.setName((String) obj);
-			categories.add(category);
+
+			return category;
 		}
 		else if (obj instanceof Map<?, ?>)
 		{
@@ -795,8 +1357,9 @@ public class JsonChartPluginPropertiesResolver
 			Map<String, ?> map = (Map<String, ?>) obj;
 
 			String name = (String) map.get(Category.PROPERTY_NAME);
+
 			if (name == null)
-				return;
+				return null;
 
 			Category category = createCategory();
 			category.setName(name);
@@ -805,51 +1368,11 @@ public class JsonChartPluginPropertiesResolver
 			category.setDescLabel(convertToLabel(map.get(Category.PROPERTY_DESC_LABEL)));
 			category.setOrder(convertToInt(map.get(Category.PROPERTY_ORDER), category.getOrder()));
 
-			categories.add(category);
-		}
-		else if (obj instanceof Collection<?>)
-		{
-			Collection<?> collection = (Collection<?>) obj;
-			for (Object ele : collection)
-				convertToCategories(categories, ele);
-		}
-		else if (obj instanceof Object[])
-		{
-			Object[] array = (Object[]) obj;
-			for (Object ele : array)
-				convertToCategories(categories, ele);
+			return category;
 		}
 		else
 			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
 					+ Category.class.getName() + "] unsupported");
-	}
-
-	protected List<Integer> convertToCategoryOrders(Object obj, int defaultOrder)
-	{
-		List<Integer> orders = new ArrayList<Integer>(1);
-
-		if (obj != null)
-			convertToCategoryOrders(orders, obj, defaultOrder);
-
-		return orders;
-	}
-
-	protected void convertToCategoryOrders(List<Integer> orders, Object obj, int defaultOrder)
-	{
-		if (obj instanceof Collection<?>)
-		{
-			Collection<?> collection = (Collection<?>) obj;
-			for (Object ele : collection)
-				convertToCategoryOrders(orders, ele, defaultOrder);
-		}
-		else if (obj instanceof Object[])
-		{
-			Object[] array = (Object[]) obj;
-			for (Object ele : array)
-				convertToCategoryOrders(orders, ele, defaultOrder);
-		}
-		else
-			orders.add(convertToInt(obj, defaultOrder));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -860,8 +1383,8 @@ public class JsonChartPluginPropertiesResolver
 		else if (obj instanceof Map<?, ?>)
 			return (Map<String, ?>) obj;
 		else
-			throw new UnsupportedOperationException("Convert object of type [" + obj.getClass().getName() + "] to ["
-					+ ChartPlugin.class.getName() + ".additions] unsupported");
+			throw new UnsupportedOperationException(
+					"Convert object of type [" + obj.getClass().getName() + "] to [additions] unsupported");
 	}
 
 	/**
@@ -872,19 +1395,19 @@ public class JsonChartPluginPropertiesResolver
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	protected <T extends Enum<T>> T convertToEnum(Object obj, Class<T> enumType)
+	protected <E extends Enum<E>> E convertToEnum(Object obj, Class<E> enumType)
 	{
 		if (obj == null)
 			return null;
 		else if (enumType.isAssignableFrom(obj.getClass()))
-			return (T) obj;
+			return (E) obj;
 		else if (obj instanceof String)
 		{
 			String strVal = (String) obj;
 	
-			EnumSet<T> enumSet = EnumSet.allOf(enumType);
+			EnumSet<E> enumSet = EnumSet.allOf(enumType);
 	
-			for (T e : enumSet)
+			for (E e : enumSet)
 			{
 				if (e.name().equalsIgnoreCase(strVal))
 					return e;
@@ -981,8 +1504,7 @@ public class JsonChartPluginPropertiesResolver
 			}
 		}
 		else
-			throw new UnsupportedOperationException(
-					"Convert object [" + obj + "] to [" + Integer.class.getName() + "] unsupported");
+			return defaultValue;
 	}
 	
 	protected String convertToString(Object obj)
@@ -1000,14 +1522,39 @@ public class JsonChartPluginPropertiesResolver
 		return new Label();
 	}
 
-	protected ChartPluginAttribute createChartPluginAttribute()
+	protected ChartPluginConfigForm createChartPluginConfigForm()
 	{
-		return new ChartPluginAttribute();
+		return new ChartPluginConfigForm();
+	}
+
+	protected ObjectFormProperty createObjectFormProperty()
+	{
+		return new ObjectFormProperty();
+	}
+
+	protected InputFormProperty createInputFormProperty()
+	{
+		return new InputFormProperty();
+	}
+
+	protected FormPropertyGroup createFormPropertyGroup()
+	{
+		return new FormPropertyGroup();
+	}
+
+	protected DataSignSpec createDataSignSpec()
+	{
+		return new DataSignSpec();
 	}
 
 	protected DataSign createDataSign()
 	{
 		return new DataSign();
+	}
+
+	protected ChartPluginCategoryInfo createCategoryInfo()
+	{
+		return new ChartPluginCategoryInfo();
 	}
 
 	protected Category createCategory()
@@ -1028,5 +1575,79 @@ public class JsonChartPluginPropertiesResolver
 	protected Range createRange()
 	{
 		return new Range();
+	}
+
+	/**
+	 * @deprecated 仅用于兼容5.5.0及以下版本的{@code org.datagear.analysis.Group}
+	 */
+	@Deprecated
+	protected static class Group extends AbstractLabeled implements NameAware, Localizable, Serializable
+	{
+		private static final long serialVersionUID = 1L;
+
+		public static final String PROPERTY_NAME = "name";
+		public static final String PROPERTY_NAME_LABEL = Labeled.PROPERTY_NAME_LABEL;
+		public static final String PROPERTY_DESC_LABEL = Labeled.PROPERTY_DESC_LABEL;
+		public static final String PROPERTY_ORDER = "order";
+
+		private String name;
+
+		private int order = 0;
+
+		public Group()
+		{
+			super();
+		}
+
+		public Group(String name)
+		{
+			super();
+			this.name = name;
+		}
+
+		@Override
+		public String getName()
+		{
+			return name;
+		}
+
+		public void setName(String name)
+		{
+			this.name = name;
+		}
+
+		public int getOrder()
+		{
+			return order;
+		}
+
+		public void setOrder(int order)
+		{
+			this.order = order;
+		}
+
+		@Override
+		public Group toLocale(Locale locale)
+		{
+			Group target = createEmpty();
+
+			target.setName(this.name);
+			target.setOrder(this.order);
+			LabelUtil.concrete(this, target, locale);
+
+			return target;
+		}
+
+		protected Group createEmpty()
+		{
+			return new Group();
+		}
+
+		@Override
+		public String toString()
+		{
+			return getClass().getSimpleName() + " [name=" + name + ", nameLabel=" + getNameLabel() + ", descLabel="
+					+ getDescLabel() + ", order=" + order + "]";
+		}
 	}
 }

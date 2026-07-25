@@ -45,7 +45,10 @@
 		maxlength: $.validator.format("<@spring.message code='validation.maxlength' />"),
 		minlength: $.validator.format("<@spring.message code='validation.minlength' />"),
 		integer: "<@spring.message code='validation.integer' />",
-		pattern: "<@spring.message code='validation.pattern' />"
+		pattern: "<@spring.message code='validation.pattern' />",
+		detailrequired: "<@spring.message code='validation.required' />",
+		minsize: $.validator.format("<@spring.message code='validation.minsize' />"),
+		maxsize: $.validator.format("<@spring.message code='validation.maxsize' />")
 	};
 })
 (${pid});

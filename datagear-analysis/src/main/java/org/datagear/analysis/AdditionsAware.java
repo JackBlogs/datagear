@@ -30,7 +30,7 @@ public interface AdditionsAware
 	public static final String PROPERTY_ADDITIONS = "additions";
 
 	/**
-	 * 获取附加属性。
+	 * 获取附加属性集。
 	 * <p>
 	 * 返回{@code null}或空表示没有。
 	 * </p>

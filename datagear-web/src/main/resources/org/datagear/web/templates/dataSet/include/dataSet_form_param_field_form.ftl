@@ -17,7 +17,7 @@
  *
 -->
 <#--
-数据集参数、属性表单
+数据集参数、字段表单
 
 依赖：
 page_boolean_options.ftl
@@ -62,6 +62,16 @@ page_simple_form.ftl
 						<p-selectbutton id="${pid}dspFormRequired" v-model="pm.dataSetParamForm.data.required" :options="pm.booleanOptions"
 							option-label="name" option-value="value" class="input w-full">
 						</p-selectbutton>
+					</div>
+				</div>
+				<div class="field grid">
+					<label for="${pid}dspFormLabel" class="field-label col-12 mb-2">
+						<@spring.message code='displayName' />
+					</label>
+					<div class="field-input col-12">
+						<p-inputtext id="${pid}dspFormLabel" v-model="pm.dataSetParamForm.data.label" type="text"
+							class="input w-full" name="label" maxlength="100">
+						</p-inputtext>
 					</div>
 				</div>
 				<div class="field grid">
@@ -127,6 +137,16 @@ page_simple_form.ftl
 						<p-dropdown id="${pid}dsppFormType" v-model="pm.dataSetFieldForm.data.type" :options="pm.dataSetFieldTypeOptions"
 							option-label="name" option-value="value" class="input w-full">
 						</p-dropdown>
+					</div>
+				</div>
+				<div class="field grid">
+					<label for="${pid}dsppFormArray" class="field-label col-12 mb-2">
+						<@spring.message code='array' />
+					</label>
+					<div class="field-input col-12">
+						<p-selectbutton id="${pid}dsppFormArray" v-model="pm.dataSetFieldForm.data.array" :options="pm.booleanOptions"
+							option-label="name" option-value="value" class="input w-full">
+						</p-selectbutton>
 					</div>
 				</div>
 				<div class="field grid">
@@ -284,6 +304,7 @@ page_simple_form.ftl
 				{
 					name: "",
 					type: "${FieldDataType.STRING}",
+					array: false,
 					evaluated: false
 				},
 				po.vueRaw(data));
@@ -316,8 +337,10 @@ page_simple_form.ftl
 		dataSetParamDataTypeOptions:
 		[
 			{name: "<@spring.message code='dataSetParam.DataType.STRING' />", value: "${ParamDataType.STRING}"},
+			{name: "<@spring.message code='dataSetParam.DataType.INTEGER' />", value: "${ParamDataType.INTEGER}"},
 			{name: "<@spring.message code='dataSetParam.DataType.NUMBER' />", value: "${ParamDataType.NUMBER}"},
-			{name: "<@spring.message code='dataSetParam.DataType.BOOLEAN' />", value: "${ParamDataType.BOOLEAN}"}
+			{name: "<@spring.message code='dataSetParam.DataType.BOOLEAN' />", value: "${ParamDataType.BOOLEAN}"},
+			{name: "<@spring.message code='dataSetParam.DataType.OBJECT' />", value: "${ParamDataType.OBJECT}"}
 		],
 		dataSetParamInputTypeOptions:
 		[
@@ -335,11 +358,11 @@ page_simple_form.ftl
 			{name: "<@spring.message code='dataSetField.DataType.STRING' />", value: "${FieldDataType.STRING}"},
 			{name: "<@spring.message code='dataSetField.DataType.NUMBER' />", value: "${FieldDataType.NUMBER}"},
 			{name: "<@spring.message code='dataSetField.DataType.INTEGER' />", value: "${FieldDataType.INTEGER}"},
-			{name: "<@spring.message code='dataSetField.DataType.DECIMAL' />", value: "${FieldDataType.DECIMAL}"},
 			{name: "<@spring.message code='dataSetField.DataType.DATE' />", value: "${FieldDataType.DATE}"},
 			{name: "<@spring.message code='dataSetField.DataType.TIME' />", value: "${FieldDataType.TIME}"},
 			{name: "<@spring.message code='dataSetField.DataType.TIMESTAMP' />", value: "${FieldDataType.TIMESTAMP}"},
 			{name: "<@spring.message code='dataSetField.DataType.BOOLEAN' />", value: "${FieldDataType.BOOLEAN}"},
+			{name: "<@spring.message code='dataSetField.DataType.OBJECT' />", value: "${FieldDataType.OBJECT}"},
 			{name: "<@spring.message code='dataSetField.DataType.UNKNOWN' />", value: "${FieldDataType.UNKNOWN}"}
 		]
 	});
@@ -455,6 +478,10 @@ page_simple_form.ftl
 		{
 			return po.formatBooleanValue(data.evaluated);
 		},
+		formatFieldArray: function(data)
+		{
+			return po.formatBooleanValue(data.array);
+		}
 	});
 })
 (${pid});

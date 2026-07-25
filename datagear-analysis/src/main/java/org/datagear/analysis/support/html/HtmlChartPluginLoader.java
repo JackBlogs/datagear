@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -52,7 +53,10 @@ import org.datagear.util.StringUtil;
  * <code>
  * <pre>
  * |---- plugin.json
- * |---- renderer.js    //可选，当plugin.json里没有定义renderer（或chartRenderer）属性时必须
+ * |---- renderer.js                //可选，当plugin.json里没有定义renderer（或chartRenderer）属性时必须
+ * |---- plugin-datasignspec.json   //可选，当希望在单独文件中定义插件的dataSigns时使用，格式应为：[ ... ]
+ * |---- plugin-configform.json     //可选，当希望在单独文件中定义插件的configForm时使用，格式应为：{ ... }
+ * |---- manual.md                  //可选，使用手册文件，此文件可有可无，不影响插件解析流程，这里主要是定义使用手册文件名规范
  * |---- ...
  * </pre>
  * </code>
@@ -102,16 +106,36 @@ public class HtmlChartPluginLoader
 	 * 图表渲染器JS文件名
 	 */
 	public static final String FILE_NAME_RENDERER = "renderer.js";
+
+	/**
+	 * 插件数据标记JSON文件名
+	 */
+	public static final String FILE_NAME_DATASIGNSPEC = "plugin-datasignspec.json";
+
+	/**
+	 * 插件配置表单JSON文件名
+	 */
+	public static final String FILE_NAME_CONFIGFORM = "plugin-configform.json";
 	
-	private HtmlChartPluginJsDefResolver htmlChartPluginJsDefResolver = new HtmlChartPluginJsDefResolver();
+	/**
+	 * 使用手册Markdown文件名。
+	 * <p>
+	 * 此文件可有可无，不影响插件解析流程，这里主要是定义使用手册文件名规范。
+	 * </p>
+	 */
+	public static final String FILE_NAME_MANUAL = "manual.md";
 
-	private JsonChartPluginPropertiesResolver jsonChartPluginPropertiesResolver = new JsonChartPluginPropertiesResolver();
+	private HtmlChartPluginJsDefResolver pluginJsDefResolver = new HtmlChartPluginJsDefResolver();
 
-	private HtmlChartPluginScriptObjectWriter htmlChartPluginScriptObjectWriter = HtmlChartPluginScriptObjectWriter.INSTANCE;
+	private JsonHtmlChartPluginPropertiesResolver<HtmlChartPlugin> jsonPluginPropertiesResolver = new JsonHtmlChartPluginPropertiesResolver<HtmlChartPlugin>();
 
-	private HtmlRenderContextScriptObjectWriter htmlRenderContextScriptObjectWriter = HtmlRenderContextScriptObjectWriter.INSTANCE;
+	private HtmlChartPluginScriptObjectWriter pluginScriptObjectWriter = HtmlChartPluginScriptObjectWriter.INSTANCE;
 
-	private HtmlChartScriptObjectWriter htmlChartScriptObjectWriter = HtmlChartScriptObjectWriter.INSTANCE;
+	private HtmlRenderContextScriptObjectWriter renderContextScriptObjectWriter = HtmlRenderContextScriptObjectWriter.INSTANCE;
+
+	private HtmlChartScriptObjectWriter chartScriptObjectWriter = HtmlChartScriptObjectWriter.INSTANCE;
+
+	private HtmlChartPluginLoadedProcessor loadedProcessor = null;
 
 	/** 文件编码 */
 	private String encoding = IOUtil.CHARSET_UTF_8;
@@ -121,57 +145,65 @@ public class HtmlChartPluginLoader
 		super();
 	}
 
-	public HtmlChartPluginJsDefResolver getHtmlChartPluginJsDefResolver()
+	public HtmlChartPluginJsDefResolver getPluginJsDefResolver()
 	{
-		return htmlChartPluginJsDefResolver;
+		return pluginJsDefResolver;
 	}
 
-	public void setHtmlChartPluginJsDefResolver(HtmlChartPluginJsDefResolver htmlChartPluginJsDefResolver)
+	public void setPluginJsDefResolver(HtmlChartPluginJsDefResolver pluginJsDefResolver)
 	{
-		this.htmlChartPluginJsDefResolver = htmlChartPluginJsDefResolver;
+		this.pluginJsDefResolver = pluginJsDefResolver;
 	}
 
-	public JsonChartPluginPropertiesResolver getJsonChartPluginPropertiesResolver()
+	public JsonHtmlChartPluginPropertiesResolver<HtmlChartPlugin> getJsonPluginPropertiesResolver()
 	{
-		return jsonChartPluginPropertiesResolver;
+		return jsonPluginPropertiesResolver;
 	}
 
-	public void setJsonChartPluginPropertiesResolver(
-			JsonChartPluginPropertiesResolver jsonChartPluginPropertiesResolver)
+	public void setJsonPluginPropertiesResolver(
+			JsonHtmlChartPluginPropertiesResolver<HtmlChartPlugin> jsonPluginPropertiesResolver)
 	{
-		this.jsonChartPluginPropertiesResolver = jsonChartPluginPropertiesResolver;
+		this.jsonPluginPropertiesResolver = jsonPluginPropertiesResolver;
 	}
 
-	public HtmlChartPluginScriptObjectWriter getHtmlChartPluginScriptObjectWriter()
+	public HtmlChartPluginScriptObjectWriter getPluginScriptObjectWriter()
 	{
-		return htmlChartPluginScriptObjectWriter;
+		return pluginScriptObjectWriter;
 	}
 
-	public void setHtmlChartPluginScriptObjectWriter(
-			HtmlChartPluginScriptObjectWriter htmlChartPluginScriptObjectWriter)
+	public void setPluginScriptObjectWriter(HtmlChartPluginScriptObjectWriter pluginScriptObjectWriter)
 	{
-		this.htmlChartPluginScriptObjectWriter = htmlChartPluginScriptObjectWriter;
+		this.pluginScriptObjectWriter = pluginScriptObjectWriter;
 	}
 
-	public HtmlRenderContextScriptObjectWriter getHtmlRenderContextScriptObjectWriter()
+	public HtmlRenderContextScriptObjectWriter getRenderContextScriptObjectWriter()
 	{
-		return htmlRenderContextScriptObjectWriter;
+		return renderContextScriptObjectWriter;
 	}
 
-	public void setHtmlRenderContextScriptObjectWriter(
-			HtmlRenderContextScriptObjectWriter htmlRenderContextScriptObjectWriter)
+	public void setRenderContextScriptObjectWriter(HtmlRenderContextScriptObjectWriter renderContextScriptObjectWriter)
 	{
-		this.htmlRenderContextScriptObjectWriter = htmlRenderContextScriptObjectWriter;
+		this.renderContextScriptObjectWriter = renderContextScriptObjectWriter;
 	}
 
-	public HtmlChartScriptObjectWriter getHtmlChartScriptObjectWriter()
+	public HtmlChartScriptObjectWriter getChartScriptObjectWriter()
 	{
-		return htmlChartScriptObjectWriter;
+		return chartScriptObjectWriter;
 	}
 
-	public void setHtmlChartScriptObjectWriter(HtmlChartScriptObjectWriter htmlChartScriptObjectWriter)
+	public void setChartScriptObjectWriter(HtmlChartScriptObjectWriter chartScriptObjectWriter)
 	{
-		this.htmlChartScriptObjectWriter = htmlChartScriptObjectWriter;
+		this.chartScriptObjectWriter = chartScriptObjectWriter;
+	}
+
+	public HtmlChartPluginLoadedProcessor getLoadedProcessor()
+	{
+		return loadedProcessor;
+	}
+
+	public void setLoadedProcessor(HtmlChartPluginLoadedProcessor loadedProcessor)
+	{
+		this.loadedProcessor = loadedProcessor;
 	}
 
 	public String getEncoding()
@@ -275,7 +307,9 @@ public class HtmlChartPluginLoader
 	 */
 	public HtmlChartPlugin load(File directory) throws HtmlChartPluginLoadException
 	{
-		return loadSingleForDirectory(directory);
+		HtmlChartPlugin plugin = loadSingleForDirectory(directory);
+		processLoadedPlugin(plugin);
+		return plugin;
 	}
 
 	/**
@@ -287,7 +321,9 @@ public class HtmlChartPluginLoader
 	 */
 	public HtmlChartPlugin loadZip(File zip) throws HtmlChartPluginLoadException
 	{
-		return loadSingleForZip(zip);
+		HtmlChartPlugin plugin = loadSingleForZip(zip);
+		processLoadedPlugin(plugin);
+		return plugin;
 	}
 
 	/**
@@ -304,7 +340,9 @@ public class HtmlChartPluginLoader
 	{
 		try
 		{
-			return loadSingleForZipInputStream(in);
+			HtmlChartPlugin plugin = loadSingleForZipInputStream(in);
+			processLoadedPlugin(plugin);
+			return plugin;
 		}
 		catch (HtmlChartPluginLoadException e)
 		{
@@ -335,6 +373,8 @@ public class HtmlChartPluginLoader
 		else
 			plugin = loadFileExt(file);
 
+		processLoadedPlugin(plugin);
+
 		return plugin;
 	}
 
@@ -360,6 +400,7 @@ public class HtmlChartPluginLoader
 		for (File child : children)
 		{
 			HtmlChartPlugin plugin = loadFile(child);
+			processLoadedPlugin(plugin);
 
 			if (plugin != null)
 				plugins.add(plugin);
@@ -460,32 +501,53 @@ public class HtmlChartPluginLoader
 	{
 		HtmlChartPlugin plugin = createHtmlChartPlugin();
 
-		JsDefContent jsDefContent = null;
+		Reader pluginIn = null;
+		Reader dataSignSpecIn = null;
+		Reader configFormIn = null;
+		Reader rendererIn = null;
 
-		ZipEntry zipEntry = null;
-		while ((zipEntry = in.getNextEntry()) != null)
+		try
 		{
-			String name = zipEntry.getName();
+			ZipEntry zipEntry = null;
+			while ((zipEntry = in.getNextEntry()) != null)
+			{
+				String name = zipEntry.getName();
 
-			if (zipEntry.isDirectory())
-				;
-			else if (name.equals(FILE_NAME_PLUGIN))
-			{
-				Reader pluginIn = IOUtil.getReader(in, this.encoding);
-				jsDefContent = this.htmlChartPluginJsDefResolver.resolve(pluginIn);
-				inflateChartPluginProperties(plugin, jsDefContent);
-			}
-			else if (name.equals(FILE_NAME_RENDERER))
-			{
-				if (jsDefContent == null || !jsDefContent.hasPluginRenderer())
+				if (zipEntry.isDirectory())
+					;
+				else if (name.equals(FILE_NAME_PLUGIN))
 				{
-					Reader rendererIn = IOUtil.getReader(in, this.encoding);
-					String rendererCodeValue = IOUtil.readString(rendererIn, false);
-					plugin.setRenderer(new StringJsChartRenderer(JsChartRenderer.CODE_TYPE_INVOKE, rendererCodeValue));
+					Reader reader = IOUtil.getReader(in, this.encoding);
+					pluginIn = new StringReader(IOUtil.readString(reader, false));
 				}
+				else if (name.equals(FILE_NAME_DATASIGNSPEC))
+				{
+					Reader reader = IOUtil.getReader(in, this.encoding);
+					dataSignSpecIn = new StringReader(IOUtil.readString(reader, false));
+				}
+				else if (name.equals(FILE_NAME_CONFIGFORM))
+				{
+					Reader reader = IOUtil.getReader(in, this.encoding);
+					configFormIn = new StringReader(IOUtil.readString(reader, false));
+				}
+				else if (name.equals(FILE_NAME_RENDERER))
+				{
+					Reader reader = IOUtil.getReader(in, this.encoding);
+					rendererIn = new StringReader(IOUtil.readString(reader, false));
+				}
+
+				in.closeEntry();
 			}
 
-			in.closeEntry();
+			if (pluginIn != null)
+				inflateChartPluginProperties(plugin, pluginIn, dataSignSpecIn, configFormIn, rendererIn);
+		}
+		finally
+		{
+			IOUtil.close(pluginIn);
+			IOUtil.close(dataSignSpecIn);
+			IOUtil.close(configFormIn);
+			IOUtil.close(rendererIn);
 		}
 
 		// 设置为加载时间而不取文件上次修改时间，因为文件上次修改时间可能错乱
@@ -514,25 +576,22 @@ public class HtmlChartPluginLoader
 		HtmlChartPlugin plugin = createHtmlChartPlugin();
 
 		Reader pluginIn = null;
+		Reader dataSignSpecIn = null;
+		Reader configFormIn = null;
 		Reader rendererIn = null;
 
 		try
 		{
-			pluginIn = IOUtil.getReader(pluginFile, this.encoding);
-			JsDefContent jsDefContent = this.htmlChartPluginJsDefResolver.resolve(pluginIn);
-			inflateChartPluginProperties(plugin, jsDefContent);
-			
-			if (!jsDefContent.hasPluginRenderer())
-			{
-				File rendererFile = FileUtil.getFile(directory, FILE_NAME_RENDERER);
-				if (rendererFile.exists())
-				{
-					rendererIn = IOUtil.getReader(rendererFile, this.encoding);
-					String rendererCodeValue = IOUtil.readString(rendererIn, false);
-					plugin.setRenderer(new StringJsChartRenderer(JsChartRenderer.CODE_TYPE_INVOKE, rendererCodeValue));
-				}
-			}
+			File dataSignsFile = FileUtil.getFile(directory, FILE_NAME_DATASIGNSPEC);
+			File configFormFile = FileUtil.getFile(directory, FILE_NAME_CONFIGFORM);
+			File rendererFile = FileUtil.getFile(directory, FILE_NAME_RENDERER);
 
+			pluginIn = IOUtil.getReader(pluginFile, this.encoding);
+			dataSignSpecIn = (dataSignsFile.exists() ? IOUtil.getReader(dataSignsFile, this.encoding) : null);
+			configFormIn = (configFormFile.exists() ? IOUtil.getReader(configFormFile, this.encoding) : null);
+			rendererIn = (rendererFile.exists() ? IOUtil.getReader(rendererFile, this.encoding) : null);
+
+			inflateChartPluginProperties(plugin, pluginIn, dataSignSpecIn, configFormIn, rendererIn);
 			inflateChartPluginResources(plugin, directory);
 		}
 		catch (HtmlChartPluginLoadException e)
@@ -546,6 +605,8 @@ public class HtmlChartPluginLoader
 		finally
 		{
 			IOUtil.close(pluginIn);
+			IOUtil.close(dataSignSpecIn);
+			IOUtil.close(configFormIn);
 			IOUtil.close(rendererIn);
 		}
 
@@ -558,23 +619,52 @@ public class HtmlChartPluginLoader
 		return plugin;
 	}
 
-	protected void inflateChartPluginProperties(HtmlChartPlugin plugin, JsDefContent jsDefContent) throws Exception
+	/**
+	 * 填充插件属性。
+	 * 
+	 * @param plugin
+	 * @param pluginJsonIn
+	 * @param dataSignSpecIn
+	 *            允许{@code null}
+	 * @param configFormIn
+	 *            允许{@code null}
+	 * @param rendererIn
+	 *            允许{@code null}
+	 * @throws Exception
+	 */
+	protected void inflateChartPluginProperties(HtmlChartPlugin plugin, Reader pluginJsonIn, Reader dataSignSpecIn,
+			Reader configFormIn, Reader rendererIn) throws Exception
 	{
-		if (!StringUtil.isEmpty(jsDefContent.getPluginJson()))
-		{
-			this.jsonChartPluginPropertiesResolver.resolveChartPluginProperties(plugin, jsDefContent.getPluginJson());
+		JsonHtmlChartPluginPropertiesResolver<HtmlChartPlugin> propertiesResolver = createPluginPropertiesResolver(
+				plugin);
 
-			// 内联渲染器格式
-			if (jsDefContent.hasPluginRenderer())
+		// 渲染器在独立文件中定义
+		if (rendererIn != null)
+		{
+			propertiesResolver.resolveProperties(pluginJsonIn, dataSignSpecIn, configFormIn);
+			String rendererCodeValue = IOUtil.readString(rendererIn, false);
+			plugin.setRenderer(new StringJsChartRenderer(JsChartRenderer.CODE_TYPE_INVOKE, rendererCodeValue));
+		}
+		else
+		{
+			JsDefContent jsDefContent = this.pluginJsDefResolver.resolve(pluginJsonIn);
+
+			if (!StringUtil.isEmpty(jsDefContent.getPluginJson()))
 			{
-				String rendererCodeValue = jsDefContent.getPluginRenderer();
-				plugin.setRenderer(new StringJsChartRenderer(JsChartRenderer.CODE_TYPE_OBJECT, rendererCodeValue));
+				propertiesResolver.resolveProperties(jsDefContent.getPluginJson());
+
+				// 内联渲染器格式
+				if (jsDefContent.hasPluginRenderer())
+				{
+					String rendererCodeValue = jsDefContent.getPluginRenderer();
+					plugin.setRenderer(new StringJsChartRenderer(JsChartRenderer.CODE_TYPE_OBJECT, rendererCodeValue));
+				}
 			}
 		}
 
-		plugin.setPluginWriter(getHtmlChartPluginScriptObjectWriter());
-		plugin.setRenderContextWriter(getHtmlRenderContextScriptObjectWriter());
-		plugin.setChartWriter(getHtmlChartScriptObjectWriter());
+		plugin.setPluginWriter(getPluginScriptObjectWriter());
+		plugin.setRenderContextWriter(getRenderContextScriptObjectWriter());
+		plugin.setChartWriter(getChartScriptObjectWriter());
 	}
 
 	protected void inflateChartPluginResources(HtmlChartPlugin plugin, File pluginFile) throws Exception
@@ -681,8 +771,22 @@ public class HtmlChartPluginLoader
 		return FileUtil.isExtension(file, "zip");
 	}
 
+	protected void processLoadedPlugin(HtmlChartPlugin plugin)
+	{
+		if (plugin == null || this.loadedProcessor == null)
+			return;
+
+		this.loadedProcessor.process(plugin);
+	}
+
 	protected HtmlChartPlugin createHtmlChartPlugin()
 	{
 		return new HtmlChartPlugin();
+	}
+
+	protected JsonHtmlChartPluginPropertiesResolver<HtmlChartPlugin> createPluginPropertiesResolver(
+			HtmlChartPlugin plugin)
+	{
+		return new JsonHtmlChartPluginPropertiesResolver<HtmlChartPlugin>(plugin);
 	}
 }

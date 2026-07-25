@@ -76,6 +76,14 @@ public class DbVersionManager extends AbstractVersionContentReader
 	public static final String VERSION_LINE_SUFFIX = "]";
 
 	/**
+	 * 静默执行SQL的标识。
+	 * <p>
+	 * SQL语句的末尾添加此标识（应添加在分号（{@code ;}）前），表示执行此条SQL时不抛出异常，不中断后续SQL执行。
+	 * </p>
+	 */
+	public static final String SILENT_SQL_IDENTITY = "/*silent*/";
+
+	/**
 	 * 低于此版本将不支持自动升级。
 	 * 在3.0.0版本，整理了历届版本的SQL变更记录，合并为2.13.0版本SQL（详见：org/datagear/management/ddl/datagear.sql），
 	 * 因此，低于2.13.0版本的程序，必须先下载2.13.0版程序，使数据库自动升级至2.13.0版本，然后再下载高于2.13.0版本的程序，才能正确自动升级。
@@ -362,9 +370,9 @@ public class DbVersionManager extends AbstractVersionContentReader
 		if (from.isHigherThan(Version.ZERO_VERSION) && from.isLowerThan(UPGRADE_UNCOMPATIBLE_VERSION_LOWER_THAN))
 		{
 			throw new DbVersionManagerException("Upgrade lower than " + Global.PRODUCT_NAME_EN + "-"
-					+ UPGRADE_UNCOMPATIBLE_VERSION_LOWER_THAN.toString() + " NOT support, you MUST run "
-					+ Global.PRODUCT_NAME_EN + "-" + UPGRADE_UNCOMPATIBLE_VERSION_LOWER_THAN.toString()
-					+ " for upgrading version to " + UPGRADE_UNCOMPATIBLE_VERSION_LOWER_THAN.toString()
+					+ UPGRADE_UNCOMPATIBLE_VERSION_LOWER_THAN.stringValue() + " NOT support, you MUST run "
+					+ Global.PRODUCT_NAME_EN + "-" + UPGRADE_UNCOMPATIBLE_VERSION_LOWER_THAN.stringValue()
+					+ " for upgrading version to " + UPGRADE_UNCOMPATIBLE_VERSION_LOWER_THAN.stringValue()
 					+ " first, then shutdown it, then run " + Global.PRODUCT_NAME_EN + "-" + to);
 		}
 	}
@@ -490,7 +498,7 @@ public class DbVersionManager extends AbstractVersionContentReader
 	{
 		PreparedStatement st = cn.prepareStatement("UPDATE " + this.versionTableName + " SET VERSION_VALUE = ?");
 
-		st.setString(1, Version.stringOf(version));
+		st.setString(1, version.stringValue());
 
 		int count = st.executeUpdate();
 
@@ -498,7 +506,7 @@ public class DbVersionManager extends AbstractVersionContentReader
 		{
 			st = cn.prepareStatement("INSERT INTO " + this.versionTableName + " (VERSION_VALUE) VALUES(?)");
 
-			st.setString(1, Version.stringOf(version));
+			st.setString(1, version.stringValue());
 
 			st.executeUpdate();
 		}
@@ -519,9 +527,9 @@ public class DbVersionManager extends AbstractVersionContentReader
 		PreparedStatement st = cn.prepareStatement("UPDATE " + this.versionTableName
 				+ " SET VERSION_MAJOR = ?, VERSION_MINOR = ?, VERSION_REVISION = ?, VERSION_BUILD = ?");
 
-		st.setString(1, version.getMajor());
-		st.setString(2, version.getMinor());
-		st.setString(3, version.getRevision());
+		st.setString(1, Integer.toString(version.getMajor()));
+		st.setString(2, Integer.toString(version.getMinor()));
+		st.setString(3, Integer.toString(version.getRevision()));
 		st.setString(4, version.getBuild());
 
 		int count = st.executeUpdate();
@@ -531,9 +539,9 @@ public class DbVersionManager extends AbstractVersionContentReader
 			st = cn.prepareStatement("INSERT INTO " + this.versionTableName
 					+ " (VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION, VERSION_BUILD) VALUES(?, ?, ?, ?)");
 
-			st.setString(1, version.getMajor());
-			st.setString(2, version.getMinor());
-			st.setString(3, version.getRevision());
+			st.setString(1, Integer.toString(version.getMajor()));
+			st.setString(2, Integer.toString(version.getMinor()));
+			st.setString(3, Integer.toString(version.getRevision()));
 			st.setString(4, version.getBuild());
 
 			st.executeUpdate();
@@ -592,16 +600,47 @@ public class DbVersionManager extends AbstractVersionContentReader
 
 			for (String sql : sqls)
 			{
-				if (LOGGER.isInfoEnabled())
-					LOGGER.info("Start execute sql : " + IOUtil.LINE_SEPARATOR + sql);
+				boolean silent = isSilentSql(sql);
+				if (silent)
+					sql = deleteSilentSqlIdentity(sql);
 
-				st.execute(sql);
+				if (LOGGER.isInfoEnabled())
+					LOGGER.info(
+							"Start execute sql " + (silent ? "silently" : "") + " : " + IOUtil.LINE_SEPARATOR + sql);
+
+				if (silent)
+				{
+					try
+					{
+						st.execute(sql);
+					}
+					catch (Throwable t)
+					{
+						if (LOGGER.isWarnEnabled())
+							LOGGER.warn("Execute sql silently error", t);
+					}
+				}
+				else
+				{
+					st.execute(sql);
+				}
 			}
 		}
 		finally
 		{
 			JdbcUtil.closeStatement(st);
 		}
+	}
+
+	protected boolean isSilentSql(String sql)
+	{
+		return sql.endsWith(SILENT_SQL_IDENTITY);
+	}
+
+	protected String deleteSilentSqlIdentity(String sql)
+	{
+		int endIdx = sql.length() - SILENT_SQL_IDENTITY.length();
+		return sql.substring(0, endIdx);
 	}
 
 	/**
@@ -622,7 +661,7 @@ public class DbVersionManager extends AbstractVersionContentReader
 			Version myVersion = vc.getVersion();
 			
 			// 使用方法参数对象调用比较方法，因为它们可能是Version的子类
-			if (from.isLowerThan(myVersion) && (to.equals(myVersion) || to.isHigherThan(myVersion)))
+			if (from.isLowerThan(myVersion) && (to.isEqualTo(myVersion) || to.isHigherThan(myVersion)))
 			{
 				myVersionContents.add(vc);
 			}

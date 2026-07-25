@@ -170,7 +170,6 @@
 			po.trimPreviewQueryFetchSize(previewQuery);
 			
 			action.options.data = { dataSet: action.options.data, query: po.vueRaw(previewQuery), view: po.isViewAction };
-			
 			po._prevPreviewFingerprint = po.toPreviewFingerprint(action.options.data.dataSet);
 		}
 		else
@@ -178,7 +177,7 @@
 			if(pm.saveMustPreview)
 			{
 				var myPreviewFingerprint = po.toPreviewFingerprint(action.options.data);
-				if(!$.equalsForSameType(myPreviewFingerprint, po._prevPreviewFingerprint)
+				if(!$.deepEquals(myPreviewFingerprint, po._prevPreviewFingerprint)
 						|| !po.isPreviewSuccess())
 				{
 					$.tipInfo("<@spring.message code='dataSet.previewRequired' />");
@@ -209,16 +208,16 @@
 		if(!fm.mutableModel && !pm.isReadonlyAction && pm.autoGenerateField)
 		{
 			fm.fields = response.fields;
-			pm.selectedFields = [];
+			po.inflateFieldTreeNodes(response.fields);
 			
 			if(po._prevPreviewFingerprint)
 				po._prevPreviewFingerprint.fields = $.extend(true, [], response.fields);
 		}
 		
 		var previewColumns = [];
-		$.each(fm.fields, function(i, p)
+		$.each(fm.fields, function(i, f)
 		{
-			previewColumns.push({ name: p.name, label: p.name, style: "" });	
+			previewColumns.push({ name: f.name, label: f.name, style: "" });	
 		});
 		
 		if(fm.mutableModel)
@@ -303,28 +302,28 @@
 			noText: "<@spring.message code='no' />",
 			paramValues: po.vueRaw(pm.previewQuery.paramValues),
 			readonly: false,
-			render: function()
+			rendered: function()
 			{
-				$("select, input[type='text'], textarea", this).addClass("p-inputtext p-component w-full");
-				$("button", this).addClass("p-button p-component");
+				$(".dg-dspform-input:not([type='radio'],[type='checkbox']), .dg-dspform-inputs-wrapper", this).addClass("p-inputtext p-component w-full");
+				$(".dg-date-widget-inputs select", this).addClass("p-inputtext p-component");
+				$(".dg-dspform-content button", this).addClass("p-button p-button-secondary p-component");
+				$(".dg-dspform-foot button", this).addClass("p-button p-component");
 				$.focusOnFirstInput(this);
 			},
-			submit: function()
+			submit: function(formData)
 			{
-				pm.previewQuery.paramValues = chartFactory.chartSetting.getDataSetParamValueObj(this);
-				
+				pm.previewQuery.paramValues = formData;
 				po.inParamFormSubmitAction(true);
 				po.triggerPreview();
 			}
 		});
 		
-		chartFactory.chartSetting.removeDatetimePickerRoot();
 		wrapper.empty();
 		
 		var fm = po.vueFormModel();
 		var params = $.extend(true, [], po.vueRaw(fm.params));
 		
-		chartFactory.chartSetting.renderDataSetParamValueForm(wrapper, params, formOptions);
+		chartFactory.chartTool.renderDataSetParamForm(wrapper[0], params, formOptions);
 	};
 	
 	po.vuePageModel(
@@ -392,7 +391,7 @@
 		onPreviewParamPanelHide: function(e)
 		{
 			var wrapper = $(".paramvalue-form-wrapper", po.elementOfId("${pid}previewParamPanel", document.body));
-			chartFactory.chartSetting.destroyDataSetParamValueForm(wrapper);
+			chartFactory.chartTool.destroyDataSetParamForm(wrapper[0]);
 		},
 		formatPreviewColValue: function(data, name)
 		{

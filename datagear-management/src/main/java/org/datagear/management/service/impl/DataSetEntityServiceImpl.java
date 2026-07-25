@@ -27,6 +27,7 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.datagear.analysis.DataSet;
 import org.datagear.analysis.DataSetField;
 import org.datagear.analysis.DataSetParam;
+import org.datagear.analysis.FullnameSpec;
 import org.datagear.analysis.support.AbstractResolvableResourceDataSet;
 import org.datagear.analysis.support.DataFormat;
 import org.datagear.analysis.support.HttpDataSet;
@@ -57,11 +58,11 @@ import org.datagear.management.service.UserService;
 import org.datagear.management.util.DtbsSourceConnectionFactory;
 import org.datagear.management.util.DtbsSourcePermissionSqlValidator;
 import org.datagear.management.util.DtbsSourceSqlPermissionValidator;
+import org.datagear.management.util.PagingQuery;
 import org.datagear.management.util.dialect.MbSqlDialect;
-import org.datagear.persistence.PagingData;
-import org.datagear.persistence.PagingQuery;
 import org.datagear.util.FileUtil;
 import org.datagear.util.StringUtil;
+import org.datagear.util.query.PagingData;
 import org.datagear.util.sqlvalidator.SqlValidator;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.cache.Cache;
@@ -591,12 +592,91 @@ public class DataSetEntityServiceImpl extends AbstractMybatisDataPermissionEntit
 		params.put("dataSetId", dataSetEntity.getId());
 
 		List<DataSetFieldPO> fieldPOs = selectListMybatis("getFieldPOs", params);
-		List<DataSetField> fields = DataSetFieldPO.to(fieldPOs);
-		dataSetEntity.setFields(fields);
+		List<DataSetField> fields = fromDataSetFieldPOs(fieldPOs);
+		dataSetEntity.setFields(arrangeDataSetFields(fields));
 
 		List<DataSetParamPO> paramPOs = selectListMybatis("getParamPOs", params);
-		List<DataSetParam> dataSetParams = DataSetParamPO.to(paramPOs);
+		List<DataSetParam> dataSetParams = fromDataSetParamPOs(paramPOs);
 		dataSetEntity.setParams(dataSetParams);
+	}
+
+	protected List<DataSetField> fromDataSetFieldPOs(List<DataSetFieldPO> fieldPOs)
+	{
+		List<DataSetField> fields = new ArrayList<>();
+
+		if (fieldPOs != null)
+		{
+			for (DataSetFieldPO fieldPO : fieldPOs)
+				fields.add(fieldPO.getChild());
+		}
+
+		return fields;
+	}
+
+	protected List<DataSetParam> fromDataSetParamPOs(List<DataSetParamPO> paramPOs)
+	{
+		List<DataSetParam> params = new ArrayList<>();
+
+		if (paramPOs != null)
+		{
+			for (DataSetParamPO paramPO : paramPOs)
+				params.add(paramPO.getChild());
+		}
+
+		return params;
+	}
+
+	/**
+	 * 按照父子关系整理{@linkplain DataSetField}列表。
+	 * 
+	 * @param fields
+	 * @return
+	 */
+	protected List<DataSetField> arrangeDataSetFields(List<DataSetField> fields)
+	{
+		if (fields == null || fields.isEmpty())
+			return fields;
+
+		List<DataSetField> re = new ArrayList<>(fields.size());
+
+		// 兼容<=5.5.0版本数据中没有fullname的场景
+		for (DataSetField field : fields)
+		{
+			if (StringUtil.isEmpty(field.getFullname()))
+				field.setFullname(FullnameSpec.toFullname(field.getName(), null));
+		}
+
+		for (DataSetField field : fields)
+		{
+			String name = field.getName();
+			String fullname = field.getFullname();
+
+			if (FullnameSpec.isTopFullname(fullname, name))
+				re.add(field);
+			else
+			{
+				for (DataSetField parent : fields)
+				{
+					if (parent == field)
+						continue;
+
+					if (fullname.equals(FullnameSpec.toFullname(name, parent.getFullname())))
+					{
+						List<DataSetField> children = parent.getFields();
+						if (children == null)
+						{
+							children = new ArrayList<>();
+							parent.setFields(children);
+						}
+
+						children.add(field);
+						break;
+					}
+				}
+			}
+		}
+
+		return re;
 	}
 
 	protected SqlDataSetEntity getSqlDataSetEntityById(String id)
@@ -722,22 +802,57 @@ public class DataSetEntityServiceImpl extends AbstractMybatisDataPermissionEntit
 		if (entity == null)
 			return;
 
+		inflateFieldsFullname(entity.getFields(), null);
+
 		Map<String, Object> delParams = buildParamMap();
 		delParams.put("dataSetId", entity.getId());
-
 		deleteMybatis("deleteFieldPOs", delParams);
 
-		List<DataSetFieldPO> pos = DataSetFieldPO.from(entity);
+		List<DataSetFieldPO> pos = new ArrayList<>();
+		toDataSetFieldPOs(pos, entity.getId(), entity.getFields());
 
-		if (!pos.isEmpty())
+		for (DataSetFieldPO po : pos)
 		{
-			for (DataSetFieldPO relation : pos)
-			{
-				Map<String, Object> insertParams = buildParamMap();
-				insertParams.put("entity", relation);
+			Map<String, Object> insertParams = buildParamMap();
+			insertParams.put("entity", po);
+			insertMybatis("insertFieldPO", insertParams);
+		}
+	}
 
-				insertMybatis("insertFieldPO", insertParams);
+	protected void toDataSetFieldPOs(List<DataSetFieldPO> pos, String dataSetId,
+			List<DataSetField> fields)
+	{
+		if (fields != null)
+		{
+			for (int i = 0; i < fields.size(); i++)
+			{
+				DataSetField field = fields.get(i);
+				DataSetFieldPO po = new DataSetFieldPO(dataSetId, field, pos.size());
+				pos.add(po);
 			}
+
+			for (int i = 0; i < fields.size(); i++)
+			{
+				DataSetField field = fields.get(i);
+				List<DataSetField> children = field.getFields();
+				
+				if (children != null && children.size() > 0)
+					toDataSetFieldPOs(pos, dataSetId, children);
+			}
+		}
+	}
+
+	protected void inflateFieldsFullname(List<DataSetField> fields, DataSetField parent)
+	{
+		if (fields == null || fields.isEmpty())
+			return;
+
+		String parentFullname = (parent == null ? null : parent.getFullname());
+
+		for (DataSetField field : fields)
+		{
+			field.setFullname(FullnameSpec.toFullname(field.getName(), parentFullname));
+			inflateFieldsFullname(field.getFields(), field);
 		}
 	}
 
@@ -748,21 +863,32 @@ public class DataSetEntityServiceImpl extends AbstractMybatisDataPermissionEntit
 
 		Map<String, Object> delParams = buildParamMap();
 		delParams.put("dataSetId", entity.getId());
-
 		deleteMybatis("deleteParamPOs", delParams);
 
-		List<DataSetParamPO> pos = DataSetParamPO.from(entity);
+		List<DataSetParamPO> pos = toDataSetParamPOs(entity.getId(), entity.getParams());
 
-		if (!pos.isEmpty())
+		for (DataSetParamPO po : pos)
 		{
-			for (DataSetParamPO relation : pos)
-			{
-				Map<String, Object> insertParams = buildParamMap();
-				insertParams.put("entity", relation);
+			Map<String, Object> insertParams = buildParamMap();
+			insertParams.put("entity", po);
+			insertMybatis("insertParamPO", insertParams);
+		}
+	}
 
-				insertMybatis("insertParamPO", insertParams);
+	protected List<DataSetParamPO> toDataSetParamPOs(String dataSetId, List<DataSetParam> params)
+	{
+		List<DataSetParamPO> pos = new ArrayList<>();
+
+		if (params != null)
+		{
+			for (int i = 0; i < params.size(); i++)
+			{
+				DataSetParamPO po = new DataSetParamPO(dataSetId, params.get(i), i);
+				pos.add(po);
 			}
 		}
+
+		return pos;
 	}
 
 	public static abstract class DataSetChildPO<T>
@@ -813,19 +939,6 @@ public class DataSetEntityServiceImpl extends AbstractMybatisDataPermissionEntit
 		{
 			this.order = order;
 		}
-
-		public static <T> List<T> to(List<? extends DataSetChildPO<T>> pos)
-		{
-			List<T> childs = new ArrayList<>();
-
-			if (pos != null)
-			{
-				for (DataSetChildPO<T> po : pos)
-					childs.add(po.getChild());
-			}
-
-			return childs;
-		}
 	}
 
 	public static class DataSetFieldPO extends DataSetChildPO<DataSetField>
@@ -851,24 +964,6 @@ public class DataSetEntityServiceImpl extends AbstractMybatisDataPermissionEntit
 		{
 			super.setChild(child);
 		}
-
-		public static List<DataSetFieldPO> from(DataSet dataSet)
-		{
-			List<DataSetFieldPO> pos = new ArrayList<>();
-
-			List<DataSetField> fields = dataSet.getFields();
-
-			if (fields != null)
-			{
-				for (int i = 0; i < fields.size(); i++)
-				{
-					DataSetFieldPO po = new DataSetFieldPO(dataSet.getId(), fields.get(i), i);
-					pos.add(po);
-				}
-			}
-
-			return pos;
-		}
 	}
 
 	public static class DataSetParamPO extends DataSetChildPO<DataSetParam>
@@ -893,24 +988,6 @@ public class DataSetEntityServiceImpl extends AbstractMybatisDataPermissionEntit
 		public void setChild(DataSetParam child)
 		{
 			super.setChild(child);
-		}
-
-		public static List<DataSetParamPO> from(DataSet dataSet)
-		{
-			List<DataSetParamPO> pos = new ArrayList<>();
-
-			List<DataSetParam> params = dataSet.getParams();
-
-			if (params != null)
-			{
-				for (int i = 0; i < params.size(); i++)
-				{
-					DataSetParamPO po = new DataSetParamPO(dataSet.getId(), params.get(i), i);
-					pos.add(po);
-				}
-			}
-
-			return pos;
 		}
 	}
 }

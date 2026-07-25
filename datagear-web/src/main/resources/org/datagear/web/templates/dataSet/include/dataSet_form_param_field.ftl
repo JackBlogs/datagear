@@ -23,6 +23,7 @@
 dataSet_form_param_field_form.ftl
 
 -->
+<#assign FieldDataType=statics['org.datagear.analysis.DataSetField$DataType']>
 <div class="field grid">
 	<label for="${pid}params" class="field-label col-12 mb-2 flex-column align-items-start">
 		<div>
@@ -35,7 +36,7 @@ dataSet_form_param_field_form.ftl
 	<div class="field-input col-12">
 		<div class="p-component p-inputtext">
 			<div class="flex flex-row pb-2" v-if="!pm.isReadonlyAction">
-				<div class="h-opts flex-grow-1">
+				<div class="flex-grow-1 flex align-items-center gap-1">
 					<p-button type="button" label="<@spring.message code='add' />"
 						@click="onAddParam" class="p-button-secondary p-button-sm">
 					</p-button>
@@ -43,10 +44,10 @@ dataSet_form_param_field_form.ftl
 						@click="onEditParam" class="p-button-secondary p-button-sm">
 					</p-button>
 					<p-button type="button" label="<@spring.message code='moveUp' />"
-						@click="onMoveUpParam" class="p-button-secondary p-button-sm">
+						@click="onMoveParam($event, 'up')" class="p-button-secondary p-button-sm">
 					</p-button>
 					<p-button type="button" label="<@spring.message code='moveDown' />"
-						@click="onMoveDownParam" class="p-button-secondary p-button-sm">
+						@click="onMoveParam($event, 'down')" class="p-button-secondary p-button-sm">
 					</p-button>
 					<p-button type="button" label="<@spring.message code='delete' />"
 						@click="onDeleteParam" class="p-button-danger p-button-sm">
@@ -66,10 +67,12 @@ dataSet_form_param_field_form.ftl
 							{{formatParamType(data)}}
 						</template>
 					</p-column>
-					<p-column field="required" header="<@spring.message code='isRequired' />" class="col-name">
+					<p-column field="required" header="<@spring.message code='isRequired' />" class="col-boolean">
 						<template #body="{data}">
 							{{formatParamRequired(data)}}
 						</template>
+					</p-column>
+					<p-column field="label" header="<@spring.message code='displayName' />" class="col-name">
 					</p-column>
 					<p-column field="desc" header="<@spring.message code='desc' />" class="col-name">
 					</p-column>
@@ -86,31 +89,33 @@ dataSet_form_param_field_form.ftl
 	</div>
 </div>
 <div class="field grid">
-	<label for="${pid}fields" class="field-label col-12 mb-2"
-		title="<@spring.message code='dataSet.fields.desc' />">
-		<@spring.message code='field' />
+	<label for="${pid}fields" class="field-label col-12 mb-2 flex-column align-items-start">
+		<div>
+			<@spring.message code='field' />
+		</div>
+		<div class="text-xs text-color-secondary">
+			<@spring.message code='dataSet.fields.desc' />
+		</div>
 	</label>
 	<div class="field-input col-12">
 		<div class="p-component p-inputtext">
 			<div class="flex justify-content-between flex-row pb-2" v-if="!pm.isReadonlyAction">
-				<div class="flex">
-					<div class="h-opts">
-						<p-button type="button" label="<@spring.message code='add' />"
-							@click="onAddField" class="p-button-secondary p-button-sm">
-						</p-button>
-						<p-button type="button" label="<@spring.message code='edit' />"
-							@click="onEditField" class="p-button-secondary p-button-sm">
-						</p-button>
-						<p-button type="button" label="<@spring.message code='moveUp' />"
-							@click="onMoveUpField" class="p-button-secondary p-button-sm">
-						</p-button>
-						<p-button type="button" label="<@spring.message code='moveDown' />"
-							@click="onMoveDownField" class="p-button-secondary p-button-sm">
-						</p-button>
-						<p-button type="button" label="<@spring.message code='delete' />"
-							@click="onDeleteField" class="p-button-danger p-button-sm">
-						</p-button>
-					</div>
+				<div class="flex align-items-center gap-1">
+					<p-button type="button" label="<@spring.message code='add' />"
+						@click="onAddField" class="p-button-secondary p-button-sm">
+					</p-button>
+					<p-button type="button" label="<@spring.message code='edit' />"
+						@click="onEditField" class="p-button-secondary p-button-sm">
+					</p-button>
+					<p-button type="button" label="<@spring.message code='moveUp' />"
+						@click="onMoveField($event, 'up')" class="p-button-secondary p-button-sm">
+					</p-button>
+					<p-button type="button" label="<@spring.message code='moveDown' />"
+						@click="onMoveField($event, 'down')" class="p-button-secondary p-button-sm">
+					</p-button>
+					<p-button type="button" label="<@spring.message code='delete' />"
+						@click="onDeleteField" class="p-button-danger p-button-sm">
+					</p-button>
 				</div>
 				<div>
 					<p-button type="button" label="<@spring.message code='dataFormat' />"
@@ -169,30 +174,35 @@ dataSet_form_param_field_form.ftl
 				</div>
 			</div>
 			<div id="${pid}fields" class="fields-wrapper input w-full overflow-auto">
-				<p-datatable :value="fm.fields" :scrollable="true"
-					v-model:selection="pm.selectedFields"
+				<p-treetable :value="pm.fieldTreeNodes" :scrollable="true"
+					v-model:selection-keys="pm.selectedFieldKeys"
+					v-model:expanded-keys="pm.expandedFieldKeys"
 					:resizable-columns="true" column-resize-mode="expand"
-					selection-mode="multiple" :meta-key-selection="true" data-key="name" striped-rows class="fields-table table-sm">
-					<p-column selection-mode="multiple" :frozen="true" class="col-check"></p-column>
-					<p-column field="name" header="<@spring.message code='name' />" class="col-name">
+					selection-mode="multiple" :meta-key-selection="true" data-key="key" class="fields-table table-sm">
+					<p-column field="name" header="<@spring.message code='name' />" expander style="flex-grow:2;">
 					</p-column>
-					<p-column field="type" header="<@spring.message code='type' />" class="col-name">
-						<template #body="{data}">
-							{{formatFieldType(data)}}
+					<p-column field="type" header="<@spring.message code='type' />">
+						<template #body="{node}">
+							{{formatFieldType(node.data)}}
 						</template>
 					</p-column>
-					<p-column field="label" header="<@spring.message code='displayName' />" class="col-name">
-					</p-column>
-					<p-column field="defaultValue" header="<@spring.message code='defaultValue' />" class="col-name">
-					</p-column>
-					<p-column field="evaluated" header="<@spring.message code='enableExpression' />" class="col-name">
-						<template #body="{data}">
-							{{formatFieldEvaludated(data)}}
+					<p-column field="array" header="<@spring.message code='array' />">
+						<template #body="{node}">
+							{{formatFieldArray(node.data)}}
 						</template>
 					</p-column>
-					<p-column field="expression" header="<@spring.message code='expression' />" class="col-name">
+					<p-column field="label" header="<@spring.message code='displayName' />">
 					</p-column>
-				</p-datatable>
+					<p-column field="defaultValue" header="<@spring.message code='defaultValue' />">
+					</p-column>
+					<p-column field="evaluated" header="<@spring.message code='enableExpression' />">
+						<template #body="{node}">
+							{{formatFieldEvaludated(node.data)}}
+						</template>
+					</p-column>
+					<p-column field="expression" header="<@spring.message code='expression' />">
+					</p-column>
+				</p-treetable>
 			</div>
 		</div>
 	</div>
@@ -213,28 +223,141 @@ dataSet_form_param_field_form.ftl
 	po.vuePageModel(
 	{
 		selectedParams: [],
-		selectedFields: []
+		selectedFieldKeys: {},
+		expandedFieldKeys: {}
 	});
 	
 	po.vueRef("${pid}dataSourceFormatPanelEle", null);
 	
-	po.hasDuplicateNameNoCase = function(array, name, ignoreIdx)
+	po.hasSameNameIgnoreCase = function(array, name, ignoreIdx)
 	{
-		name = (name || "").toUpperCase();
+		name = (name || "").toLowerCase();
 		
 		for(var i=0; i<array.length; i++)
 		{
-			if(i != ignoreIdx)
-			{
-				var myName = (array[i].name || "").toUpperCase();
-				if(name == myName)
-				{
-					return true;
-				}
-			}
+			if(i === ignoreIdx)
+				continue;
+			
+			var myName = (array[i].name || "").toLowerCase();
+			
+			if(name == myName)
+				return true;
 		}
 		
 		return false;
+	};
+	
+	po.inflateFieldTreeNodes = function(fields)
+	{
+		var pm = po.vuePageModel();
+		pm.fieldTreeNodes = po.fieldsToTreeNodes(fields);
+	};
+	
+	po.fieldsToTreeNodes = function(fields, parentNode)
+	{
+		if(fields == null)
+			return fields;
+		
+		var re = [];
+		
+		for(var i=0; i<fields.length; i++)
+		{
+			var field = fields[i];
+			re[i] = po.fieldToTreeNode(field, parentNode);
+		}
+		
+		return re;
+	};
+	
+	po.fieldToTreeNode = function(field, parentNode)
+	{
+		var key = (parentNode ? parentNode.key+"-" : "") + field.name;
+		var node = { key: key, data: field, leaf: po.isLeafField(field) };
+		node.children = po.fieldsToTreeNodes(field.fields, node);
+		node.parentNode = parentNode;
+		
+		return node;
+	};
+	
+	po.isLeafField = function(field)
+	{
+		return (field.type !== "${FieldDataType.OBJECT}")
+	};
+	
+	po.treeNodesToFields = function(fieldTreeNodes, handleChildren)
+	{
+		handleChildren = (handleChildren == null ? true : handleChildren);
+		
+		if(fieldTreeNodes == null)
+			return fieldTreeNodes;
+		
+		var re = [];
+		
+		for(var i=0; i<fieldTreeNodes.length; i++)
+		{
+			var ftm = fieldTreeNodes[i];
+			re[i] = ftm.data;
+			
+			if(handleChildren)
+				re[i].fields = po.treeNodesToFields(ftm.children);
+		}
+		
+		return re;
+	};
+	
+	po.selectedFieldNodeCount = function()
+	{
+		var pm = po.vuePageModel();
+		return $.propCountOfObj(pm.selectedFieldKeys);
+	};
+	
+	po.firstSelectedFieldNode = function()
+	{
+		var pm = po.vuePageModel();
+		var key = null;
+		
+		for(var p in pm.selectedFieldKeys)
+		{
+			key = p;
+			break;
+		}
+		
+		if(key == null)
+			return null;
+		
+		return $.findTreeArrayById(pm.fieldTreeNodes, key, "key");
+	};
+	
+	po.selectedFieldNodesOneParent = function()
+	{
+		var pm = po.vuePageModel();
+		var parentNode = false;
+		
+		for(var p in pm.selectedFieldKeys)
+		{
+			var node = $.findTreeArrayById(pm.fieldTreeNodes, p, "key");
+			
+			if(node == null)
+				continue;
+			
+			if(parentNode === false)
+				parentNode = node.parentNode;
+			else if(parentNode !== node.parentNode)
+				return false;
+		}
+		
+		return parentNode;
+	};
+	
+	po.toSelectedFieldNodeArray = function()
+	{
+		var pm = po.vuePageModel();
+		var array = [];
+		
+		for(var p in pm.selectedFieldKeys)
+			array.push(p);
+		
+		return array;
 	};
 	
 	po.vueMethod(
@@ -245,9 +368,9 @@ dataSet_form_param_field_form.ftl
 			{
 				var fm = po.vueFormModel();
 				
-				if(po.hasDuplicateNameNoCase(fm.params, dsp.name))
+				if(po.hasSameNameIgnoreCase(fm.params, dsp.name))
 				{
-					$.tipInfo("<@spring.message code='paramNameMustBeUniqueIgnoreCase' />");
+					$.tipWarn("<@spring.message code='paramNameMustBeUniqueIgnoreCase' />");
 					return false;
 				}
 				
@@ -257,121 +380,159 @@ dataSet_form_param_field_form.ftl
 		onEditParam: function(e)
 		{
 			var pm = po.vuePageModel();
+			var fm = po.vueFormModel();
 			
 			if(!pm.selectedParams || pm.selectedParams.length == 0)
 				return;
 			
-			var fm = po.vueFormModel();
 			var dsp = pm.selectedParams[0];
 			var dspIdx = $.inArrayById(fm.params, dsp.name, "name");
 			
 			po.showDataSetParamForm("<@spring.message code='edit' />", dsp, function(dsp)
 			{
-				if(po.hasDuplicateNameNoCase(fm.params, dsp.name, dspIdx))
+				if(po.hasSameNameIgnoreCase(fm.params, dsp.name, dspIdx))
 				{
-					$.tipInfo("<@spring.message code='paramNameMustBeUniqueIgnoreCase' />");
+					$.tipWarn("<@spring.message code='paramNameMustBeUniqueIgnoreCase' />");
 					return false;
 				}
 				
 				fm.params[dspIdx] = dsp;
-				pm.selectedParams = [];
 			});
 		},
 		onAddField: function(e)
 		{
+			var pm = po.vuePageModel();
 			var fm = po.vueFormModel();
+			var selectedCount = po.selectedFieldNodeCount();
 			
-			po.showDataSetFieldForm("<@spring.message code='add' />", {}, function(dsp)
+			if(selectedCount > 1)
 			{
-				if(po.hasDuplicateNameNoCase(fm.fields, dsp.name))
+				$.tipWarn("<@spring.message code='pleaseSelectOnlyOne' />");
+				return;
+			}
+			
+			var fieldNode = po.firstSelectedFieldNode();
+			
+			if(fieldNode != null)
+			{
+				if(fieldNode.data.type !== "${FieldDataType.OBJECT}")
 				{
-					$.tipInfo("<@spring.message code='fieldNameMustBeUniqueIgnoreCase' />");
+					$.tipWarn("<@spring.message code='onlyObjTypeFieldCanAddChild' />");
+					return;
+				}
+				
+				fieldNode.children = (fieldNode.children ? fieldNode.children : []);
+			}
+			
+			var addNodes = (fieldNode == null ? pm.fieldTreeNodes : fieldNode.children);
+			var addFields = po.treeNodesToFields(addNodes, false);
+			
+			po.showDataSetFieldForm("<@spring.message code='add' />", {}, function(field)
+			{
+				if(po.hasSameNameIgnoreCase(addFields, field.name))
+				{
+					$.tipWarn("<@spring.message code='fieldNameMustBeUniqueIgnoreCase' />");
 					return false;
 				}
 				
-				fm.fields.push(dsp);
+				addNodes.push(po.fieldToTreeNode(field, fieldNode));
+				
+				if(fieldNode != null && !pm.expandedFieldKeys[fieldNode.key])
+					pm.expandedFieldKeys[fieldNode.key] = true;
 			},
-			fm.fields);
+			addFields);
 		},
 		onEditField: function(e)
 		{
 			var pm = po.vuePageModel();
-			
-			if(!pm.selectedFields || pm.selectedFields.length == 0)
-				return;
-			
 			var fm = po.vueFormModel();
-			var dsp = pm.selectedFields[0];
-			var dspIdx = $.inArrayById(fm.fields, dsp.name, "name");
+			var selectedCount = po.selectedFieldNodeCount();
 			
-			po.showDataSetFieldForm("<@spring.message code='edit' />", dsp, function(dsp)
+			if(selectedCount != 1)
 			{
-				if(po.hasDuplicateNameNoCase(fm.fields, dsp.name, dspIdx))
+				if(selectedCount > 1)
+					$.tipWarn("<@spring.message code='pleaseSelectOnlyOne' />");
+				
+				return;
+			}
+			
+			var fieldNode = po.firstSelectedFieldNode();
+			var parentNode = fieldNode.parentNode;
+			var editNodes = (parentNode == null ? pm.fieldTreeNodes : parentNode.children);
+			var editFields = po.treeNodesToFields(editNodes, false);
+			var editFieldIdx = $.inArrayById(editFields, fieldNode.data.name, "name");
+			
+			po.showDataSetFieldForm("<@spring.message code='edit' />", fieldNode.data, function(field)
+			{
+				if(po.hasSameNameIgnoreCase(editFields, field.name, editFieldIdx))
 				{
-					$.tipInfo("<@spring.message code='fieldNameMustBeUniqueIgnoreCase' />");
+					$.tipWarn("<@spring.message code='fieldNameMustBeUniqueIgnoreCase' />");
 					return false;
 				}
 				
-				fm.fields[dspIdx] = dsp;
-				pm.selectedFields = [];
+				fieldNode.data = field;
 			},
-			fm.fields);
+			editFields);
 		},
-		onMoveUpParam: function(e)
+		onMoveParam: function(e, dir)
 		{
 			var fm = po.vueFormModel();
 			var pm = po.vuePageModel();
 			var sps = $.wrapAsArray(po.vueRaw(pm.selectedParams));
 			var spNames = $.propertyValue(sps, "name");
-			$.moveUpById(fm.params, spNames, "name");
-		},
-		onMoveDownParam: function(e)
-		{
-			var fm = po.vueFormModel();
-			var pm = po.vuePageModel();
-			var sps = $.wrapAsArray(po.vueRaw(pm.selectedParams));
-			var spNames = $.propertyValue(sps, "name");
-			$.moveDownById(fm.params, spNames, "name");
+			
+			if(dir == "up")
+				$.moveUpById(fm.params, spNames, "name");
+			else if(dir == "down")
+				$.moveDownById(fm.params, spNames, "name");
 		},
 		onDeleteParam: function(e)
 		{
 			var fm = po.vueFormModel();
 			var pm = po.vuePageModel();
-			var sps = $.wrapAsArray(po.vueRaw(pm.selectedParams));
+			var ps = $.wrapAsArray(po.vueRaw(pm.selectedParams));
 			
-			$.each(sps, function(idx, sp)
+			for(var i=0; i<ps.length; i++)
+				$.removeById(fm.params, ps[i].name, "name");
+			
+			pm.selectedParams = [];
+		},
+		onMoveField: function(e, dir)
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			var selectedCount = po.selectedFieldNodeCount();
+			
+			if(selectedCount == 0)
+				return;
+			
+			var parentNode = po.selectedFieldNodesOneParent();
+			
+			if(parentNode === false)
 			{
-				$.removeById(fm.params, sp.name, "name");
-				pm.selectedParams = [];
-			});
-		},
-		onMoveUpField: function(e)
-		{
-			var fm = po.vueFormModel();
-			var pm = po.vuePageModel();
-			var sps = $.wrapAsArray(po.vueRaw(pm.selectedFields));
-			var spNames = $.propertyValue(sps, "name");
-			$.moveUpById(fm.fields, spNames, "name");
-		},
-		onMoveDownField: function(e)
-		{
-			var fm = po.vueFormModel();
-			var pm = po.vuePageModel();
-			var sps = $.wrapAsArray(po.vueRaw(pm.selectedFields));
-			var spNames = $.propertyValue(sps, "name");
-			$.moveDownById(fm.fields, spNames, "name");
+				$.tipWarn("<@spring.message code='pleaseSelectItemInOneNode' />");
+				return;
+			}
+			
+			var moveNodes = (parentNode == null ? pm.fieldTreeNodes : parentNode.children);
+			var keys = po.toSelectedFieldNodeArray();
+			
+			if(dir == "up")
+				$.moveUpById(moveNodes, keys, "key");
+			else if(dir == "down")
+				$.moveDownById(moveNodes, keys, "key");
 		},
 		onDeleteField: function(e)
 		{
 			var fm = po.vueFormModel();
 			var pm = po.vuePageModel();
-			var sps = $.wrapAsArray(po.vueRaw(pm.selectedFields));
 			
-			$.each(sps, function(idx, sp)
+			for(var p in pm.selectedFieldKeys)
 			{
-				$.removeById(fm.fields, sp.name, "name");
-				pm.selectedFields = [];
-			});
+				$.removeTreeArrayById(pm.fieldTreeNodes, p, "key");
+			}
+			
+			pm.selectedFieldKeys = {};
 		},
 		toggleDataSourceFormatPanel: function(e)
 		{

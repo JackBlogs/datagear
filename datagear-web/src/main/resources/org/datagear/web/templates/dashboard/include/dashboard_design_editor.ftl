@@ -45,30 +45,28 @@
 				<div class="my-1">
 					<p-selectbutton v-model="tab.editMode" :options="pm.templateEditModeOptions"
 						option-label="name" option-value="value" class="text-sm" @change="onChangeEditMode($event, tab)"
-						v-if="tab.isTemplate">
+						:disabled="!tab.isTemplate">
 					</p-selectbutton>
 				</div>
-				<div class="flex" v-if="!pm.isReadonlyAction && tab.editMode == 'code'">
-					<div class="p-buttonset flex align-items-stretch">
-						<p-button icon="pi pi-list" label="<@spring.message code='selectChart' />" severity="secondary" class="p-button-sm for-open-chart-panel" title="<@spring.message code='dashboard.insertChart.select' />"
-							@click="onInsertCodeEditorChart($event, tab, false)" v-if="tab.isTemplate">
-						</p-button>
-						<p-button icon="pi pi-plus" label="<@spring.message code='createChart' />" severity="secondary" class="p-button-sm" title="<@spring.message code='dashboard.insertChart.create' />"
-							@click="onInsertCodeEditorChart($event, tab, true)" v-if="tab.isTemplate && pm.enableInsertNewChart">
-						</p-button>
-					</div>
+				<div class="flex" v-if="!pm.isReadonlyAction && tab.editMode != 'visual'">
+					<p-button label="<@spring.message code='quickExecute' />" @click="pm.onCodeQuickExecute($event, tab)"
+						class="p-button-sm" :disabled="pm.codeQuickExecuteMenuItem == null" v-tooltip.top="pm.codeQuickExecuteTooltip" v-if="tab.isTemplate">
+					</p-button>
 					<p-menubar :model="pm.codeEditMenuItems" class="ve-menubar light-menubar no-root-icon-menubar border-none pl-2 text-sm z-99">
 						<template #end>
 							<div class="p-inputgroup pl-2">
-								<p-inputtext type="text" v-model="tab.searchCodeKeyword" class="text-sm p-0 px-1" style="width:9rem;" @keydown.enter.prevent="onSearchInCodeEditor($event, tab)"></p-inputtext>
+								<p-inputtext type="text" v-model="pm.codeSearch.model.value" class="text-sm p-0 px-1" style="width:9rem;" @keydown.enter.prevent="onSearchInCodeEditor($event, tab)"></p-inputtext>
 								<p-button type="button" icon="pi pi-search" class="p-button-secondary p-button-sm" @click="onSearchInCodeEditor($event, tab)"></p-button>
+								<p-button type="button" icon="pi pi-angle-down" class="p-button-secondary p-button-sm"
+									aria:haspopup="true" aria-controls="${pid}codeReplacePanel"
+									@click="onToggleCodeReplacePanel($event, tab)"></p-button>
 							</div>
 						</template>
 					</p-menubar>
 				</div>
 				<div class="flex" v-if="!pm.isReadonlyAction && tab.editMode == 'visual'" v-if="tab.isTemplate">
-					<p-button label="<@spring.message code='quickExecute' />" @click="pm.onQuickExecute($event, tab)"
-						class="p-button-sm" :disabled="pm.quickExecuteMenuItem == null" v-tooltip.top="pm.quickExecuteTooltip">
+					<p-button label="<@spring.message code='quickExecute' />" @click="pm.onVeQuickExecute($event, tab)"
+						class="p-button-sm" :disabled="pm.veQuickExecuteMenuItem == null" v-tooltip.top="pm.veQuickExecuteTooltip">
 					</p-button>
 					<p-menubar :model="pm.tplVisualEditMenuItems" class="ve-menubar light-menubar no-root-icon-menubar border-none pl-2 text-sm z-99">
 					</p-menubar>
@@ -79,8 +77,11 @@
 					<div :id="resCodeEditorEleId(tab)" class="code-editor"></div>
 				</div>
 				<div class="visual-editor-wrapper res-editor-wrapper opacity-hide p-component p-inputtext p-0 w-full h-full absolute">
-					<div class="visual-editor-ele-path-wrapper text-color-secondary text-sm overflow-x-auto overflow-y-hidden">
+					<div class="visual-editor-ele-path-wrapper text-color-secondary text-sm border-round overflow-x-auto overflow-y-hidden">
 						<div class="ele-path white-space-nowrap">
+							<span class="opacity-60" v-if="!pm.isReadonlyAction && (tab.veElementPath == null || tab.veElementPath.length == 0)">
+								<small><@spring.message code='dashboard.veditor.optGuide' /></small>
+							</span>
 							<span v-for="(ep, epIdx) in tab.veElementPath" :key="epIdx">
 								<span class="info-separator p-1 opacity-50" v-if="epIdx > 0">&gt;</span>
 								<span class="ele-info cursor-pointer" :title="ep.displayName"
@@ -127,14 +128,16 @@
 	po.i18n.videoEleRequired = "<@spring.message code='dashboard.opt.tip.videoEleRequired' />";
 	po.i18n.iframeEleRequired = "<@spring.message code='dashboard.opt.tip.iframeEleRequired' />";
 	po.i18n.labelEleRequired = "<@spring.message code='dashboard.opt.tip.labelEleRequired' />";
-	po.i18n.chartPluginNoAttrDefined = "<@spring.message code='dashboard.opt.tip.chartPluginNoAttrDefined' />";
+	po.i18n.chartPluginNoConfigDefined = "<@spring.message code='dashboard.opt.tip.chartPluginNoConfigDefined' />";
 	po.i18n.bindChartElementMustBeDiv = "<@spring.message code='dashboard.opt.tip.bindChartElementMustBeDiv' />";
 	po.i18n.chart = "<@spring.message code='chart' />";
+	po.i18n.chartPlugin = "<@spring.message code='chartPlugin' />";
 	po.i18n.select = "<@spring.message code='select' />";
 	po.i18n.insertNoPermissionChart = "<@spring.message code='dashboard.insertNoPermissionChart' />";
 	po.i18n["dashboard.opt.edit.eleAttr.eleRequired"] = "<@spring.message code='dashboard.opt.edit.eleAttr.eleRequired' />";
 	po.i18n.chartTipSelect = "<@spring.message code='chartTipSelect' />";
 	po.i18n.chartTipCreate = "<@spring.message code='chartTipCreate' />";
+	po.i18n.chartTipLocal = "<@spring.message code='chartTipLocal' />";
 	po.i18n.gridLayout = "<@spring.message code='gridLayout' />";
 	po.i18n.flexLayout = "<@spring.message code='flexLayout' />";
 	po.i18n.divElement = "<@spring.message code='divElement' />";
@@ -158,8 +161,7 @@
 	po.i18n.parentElement = "<@spring.message code='parentElement' />";
 	po.i18n.cancelSelect = "<@spring.message code='cancelSelect' />";
 	po.i18n.insert = "<@spring.message code='insert' />";
-	po.i18n.bindOrReplaceChartTipSelect = "<@spring.message code='bindOrReplaceChartTipSelect' />";
-	po.i18n.bindOrReplaceChartTipCreate = "<@spring.message code='bindOrReplaceChartTipCreate' />";
+	po.i18n.bindOrReplaceChart = "<@spring.message code='bindOrReplaceChart' />";
 	po.i18n.outerInsertAfter = "<@spring.message code='outerInsertAfter' />";
 	po.i18n.outerInsertBefore = "<@spring.message code='outerInsertBefore' />";
 	po.i18n.innerInsertAfter = "<@spring.message code='innerInsertAfter' />";
@@ -171,7 +173,7 @@
 	po.i18n.style = "<@spring.message code='style' />";
 	po.i18n.chartTheme = "<@spring.message code='chartTheme' />";
 	po.i18n.chartOptions = "<@spring.message code='chartOptions' />";
-	po.i18n.chartAttribute = "<@spring.message code='chartAttribute' />";
+	po.i18n.chartConfig = "<@spring.message code='chartConfig' />";
 	po.i18n.textContent = "<@spring.message code='textContent' />";
 	po.i18n.elementSetting = "<@spring.message code='elementSetting' />";
 	po.i18n.elementId = "<@spring.message code='elementId' />";
@@ -182,7 +184,14 @@
 	po.i18n.dashboardSize = "<@spring.message code='dashboardSize' />";
 	po.i18n.elementBoundary = "<@spring.message code='elementBoundary' />";
 	po.i18n.refresh = "<@spring.message code='refresh' />";
-	po.i18n.confirmCloseWithUnsaved= "<@spring.message code='confirmCloseWithUnsaved' />";
+	po.i18n.confirmCloseWithUnsaved = "<@spring.message code='confirmCloseWithUnsaved' />";
+	po.i18n.insertMismatchApiVersionChartDenied = "<@spring.message code='dashboard.insertMismatchApiVersionChartDenied' />";
+	po.i18n.unsupportedFnForApiVersion = "<@spring.message code='dashboard.unsupportedFnForApiVersion' />";
+	po.i18n.customInsertChartEleAttr = "<@spring.message code='customInsertChartEleAttr' />";
+	po.i18n.find = "<@spring.message code='find' />";
+	po.i18n.noMatchesFound = "<@spring.message code='noMatchesFound' />";
+	po.i18n.replacedWithCount = "<@spring.message code='replacedWithCount' />";
+	po.i18n.findNextPlace = "<@spring.message code='findNextPlace' />";
 	
 	//dashboardDesign.js
 	$.inflateDashboardDesignEditor(po);

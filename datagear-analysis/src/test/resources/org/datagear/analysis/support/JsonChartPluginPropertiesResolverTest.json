@@ -32,93 +32,248 @@
 		'LIGHT' :  'icon-0.png',
 		'DARK' :  'icon-1.png'
 	},
-	dataSigns :
-	[
-  		{
-			name : 'x-value',
-			required : false,
-			multiple : false,
-			nameLabel :
-			{
-				value : 'X值',
-				localeValues :
+	dataSignSpec:
+	{
+		dataSigns :
+		[
+	  		{
+				name : 'x-value',
+				required : false,
+				multiple : false,
+				nameLabel :
 				{
-					'en' : 'X value',
-					'zh' : 'X值中文'
+					value : 'X值',
+					localeValues :
+					{
+						'en' : 'X value',
+						'zh' : 'X值中文'
+					}
+				},
+				descLabel :
+				{
+					value : 'X值描述',
+					localeValues :
+					{
+						'en' : 'X value desc',
+						'zh' : 'X值描述中文'
+					}
+				},
+				additions:
+				{
+					for: "field",
+					name: "x-val"
 				}
 			},
-			descLabel :
 			{
-				value : 'X值描述',
-				localeValues :
+				name : 'y-value',
+				required : true,
+				multiple : true,
+				nameLabel :
 				{
-					'en' : 'X value desc',
-					'zh' : 'X值描述中文'
-				}
+					value : 'Y值',
+					localeValues :
+					{
+						'en' : 'Y value',
+						'zh' : 'Y值中文'
+					}
+				},
+	  			descLabel :
+	  			{
+	  				value : 'Y值描述',
+	  				localeValues :
+	  				{
+	  					'en' : 'Y value desc',
+	  					'zh' : 'Y值描述中文'
+	  				}
+	  			}
 			},
-			additions:
 			{
-				for: "field",
-				name: "x-val"
+				name: "simple-value"
+			},
+			{
+				name: "sign-special-char-.#%*()"
+			},
+			{
+				name: "signWithFieldMatcher",
+				fieldMatcher: "primitive"
+			},
+			{
+				name: "nestDataSetSign",
+				targets: "dataset",
+				children:
+				[
+					{
+						name: "s0",
+						children:
+						[
+							{ name: "s00", children: [ { name: "s000" } ] },
+							{ name: "s01", fieldMatcher: "fm01" }
+						]
+					},
+					{
+						name: "s1",
+						fullname: "nestDataSetSign-s1"
+					}
+				]
+			},
+			{
+				name: "nestFieldSign",
+				fullname: "nestCustomFullname",
+				children:
+				[
+					{
+						name: "s0",
+						children:
+						[
+							{ name: "s00", children: [ { name: "s000", fieldMatcher: "fm000" } ] },
+							{ name: "s01" }
+						]
+					},
+					{
+						name: "s1",
+						fullname: "nestFieldSign-s1"
+					}
+				]
 			}
-		},
-		{
-			name : 'y-value',
-			required : true,
-			multiple : true,
-			nameLabel :
-			{
-				value : 'Y值',
-				localeValues :
-				{
-					'en' : 'Y value',
-					'zh' : 'Y值中文'
-				}
-			},
-  			descLabel :
-  			{
-  				value : 'Y值描述',
-  				localeValues :
-  				{
-  					'en' : 'Y value desc',
-  					'zh' : 'Y值描述中文'
-  				}
-  			}
-		},
-		{
-			name: "simple-value"
-		}
-	],
+		],
+		additions: { "name": "dataSignSpec" }
+	},
 	dataSetRange:
 	{
 		min: 1
 	},
-	attributes :
-	[
-  		{
-			name : 'title',
-			type : 'STRING',
-			nameLabel :
-			{
-				value : '标题',
-				localeValues :
+	configForm :
+	{
+		properties:
+		[
+	  		{
+				name : 'title',
+				type : 'STRING',
+				nameLabel :
 				{
-					'en' : 'title',
-					'zh' : '标题中文'
+					value : '标题',
+					localeValues :
+					{
+						'en' : 'title',
+						'zh' : '标题中文'
+					}
+				},
+				descLabel :
+				{
+					value : '标题描述',
+					localeValues :
+					{
+						'en' : 'title desc',
+						'zh' : '标题描述中文'
+					}
+				},
+				additions:
+				{
+					for: "that",
+					optionPath: "title.text",
+					priority: 3
 				}
 			},
-			descLabel :
 			{
-				value : '标题描述',
-				localeValues :
+				name : 'interval',
+				type : 'NUMBER',
+				nameLabel :
 				{
-					'en' : 'title desc',
-					'zh' : '标题描述中文'
-				}
+					value : '间隔',
+					localeValues :
+					{
+						'en' : 'interval',
+						'zh' : '间隔中文'
+					}
+				},
+	  			descLabel :
+	  			{
+	  				value : '间隔描述',
+	  				localeValues :
+	  				{
+	  					'en' : 'interval desc',
+	  					'zh' : '间隔描述中文'
+	  				}
+	  			},
+	  			required: true,
+	  			inputType: "mytype",
+	  			inputPayload: "mypayload"
 			},
-			group:
+	  		{
+				name : 'a2',
+				type : 'BOOLEAN',
+				inputPayload: [ {name: "a", value: 2}, {name: "b", value: 3} ]
+			},
+	  		{
+				name : 'a3',
+				type : 'string',
+				inputPayload: [ "a", "b" ],
+				defaultValue: "a"
+			},
+	  		{
+				name : 'a4',
+				type : 'number',
+				inputPayload: [ 2, 3 ],
+				defaultValue: 2
+			},
+	  		{
+				name : 'a5',
+				type : 'boolean',
+				defaultValue: false
+			},
+	  		{
+				name : 'a6',
+				type : 'custom'
+			},
+	  		{
+				name : 'a7'
+			},
 			{
-				name: "group-0",
+				name: "a8",
+				nameLabel: "对象-a8",
+				descLabel: "对象-a8-描述",
+				properties:
+				[
+					{
+						name: "a8.1"
+					},
+					{
+						name: "a8.2"
+					},
+					{
+						name: "a8.3",
+						properties:
+						[
+							{
+								name: "a8.3.1"
+							},
+							{
+								name: "a8.3.2"
+							}
+						]
+					},
+					{
+						name: "a8.4"
+					}
+				],
+				groups:
+				[
+					{
+						nameLabel: "a8-分组-1",
+						descLabel: "a8-分组-1-描述",
+						names: [ "a8.2", "a8.3" ],
+						additions: { displayIf: "a8.1 == 'ok'" }
+					},
+					{
+						nameLabel: "a8-分组-2",
+						names: "a8.4"
+					}
+				]
+			}
+		],
+		groups:
+		[
+			{
 				nameLabel :
 				{
 					value : '分组-0',
@@ -137,86 +292,39 @@
 						'zh' : '分组-0-描述-中文'
 					}
 				},
-				order: 99
+				names: [ "title", "interval" ]
 			},
-			additions:
 			{
-				for: "that",
-				optionPath: "title.text",
-				priority: 3
+				nameLabel: "分组-1",
+				names: [ "a2", "a3", "a4" ]
 			}
-		},
-		{
-			name : 'interval',
-			type : 'NUMBER',
-			nameLabel :
-			{
-				value : '间隔',
-				localeValues :
-				{
-					'en' : 'interval',
-					'zh' : '间隔中文'
-				}
-			},
-  			descLabel :
-  			{
-  				value : '间隔描述',
-  				localeValues :
-  				{
-  					'en' : 'interval desc',
-  					'zh' : '间隔描述中文'
-  				}
-  			},
-  			required: true,
-  			inputType: "mytype",
-  			inputPayload: "mypayload",
-			group: "group-1"
-		},
-  		{
-			name : 'a2',
-			type : 'BOOLEAN',
-			inputPayload: [ {name: "a", value: 2}, {name: "b", value: 3} ]
-		},
-  		{
-			name : 'a3',
-			type : 'string',
-			inputPayload: [ "a", "b" ]
-		},
-  		{
-			name : 'a4',
-			type : 'number',
-			inputPayload: [ 2, 3 ]
-		},
-  		{
-			name : 'a5',
-			type : 'boolean'
-		},
-  		{
-			name : 'a6',
-			type : 'custom'
-		},
-  		{
-			name : 'a7'
-		}
-	],
+		]
+	},
 	version : "0.1.0",
 	order : 2,
-	categories :
+	categoryInfos :
 	[
 		{
-			name : 'line',
-			nameLabel : "nameLabel-line",
-			descLabel : "descLabel-line",
-			order: 41
+			category:
+			{
+				name : 'line',
+				nameLabel : "nameLabel-line",
+				descLabel : "descLabel-line",
+				order: 41
+			},
+			order: 6
 		},
 		{
-			name : 'bar',
-			nameLabel : "nameLabel-bar",
-			descLabel : "descLabel-bar",
-			order: 51
+			category:
+			{
+				name : 'bar',
+				nameLabel : "nameLabel-bar",
+				descLabel : "descLabel-bar",
+				order: 51
+			},
+			order: 3
 		}
 	],
-	categoryOrders: [ 41, 51 ],
 	author: "test",
 	issueDate: "2024-09-01",
 	platformVersion: "5.3.0+",

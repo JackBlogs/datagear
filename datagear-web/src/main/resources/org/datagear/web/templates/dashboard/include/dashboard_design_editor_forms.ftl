@@ -865,10 +865,10 @@ page_palette.ftl
 	</div>
 </p-dialog>
 
-<p-dialog :header="pm.vepts.chartAttrValues" append-to="body"
-	position="center" :modal="true" v-model:visible="pm.vepss.chartAttrValuesShown" @show="onVeChartAttrValuesPanelShow">
-	<div class="page page-form dashboard-form-chart-attr-values">
-		<#include "../../chart/include/chart_attr_values_form.ftl">
+<p-dialog :header="pm.vepts.chartConfigValues" append-to="body"
+	position="center" :modal="true" v-model:visible="pm.vepss.chartConfigValuesShown" @show="onVeChartConfigValuesPanelShow">
+	<div class="page page-form page-chart-config-values dashboard-form-chart-config-values">
+		<#include "../../chart/include/chart_config_values_form.ftl">
 	</div>
 </p-dialog>
 
@@ -2871,6 +2871,76 @@ page_palette.ftl
 	</div>
 </p-overlaypanel>
 
+<p-dialog :header="pm.vepts.customInsertChartEleAttr" append-to="body"
+	position="center" :modal="true" v-model:visible="pm.vepss.customInsertChartEleAttrShown" @show="onCustomInsertChartEleAttrPanelShow">
+	<div class="page page-form">
+		<form id="${pid}customInsertChartEleAttrForm" class="flex flex-column">
+			<div class="page-form-content size-30vw flex-grow-1 px-2 py-1 overflow-y-auto">
+				<div class="field grid">
+					<label for="${pid}customInsertChartEleAttrVal" class="field-label col-12 mb-2">
+						<@spring.message code='value' />
+					</label>
+					<div class="field-input col-12">
+						<div class="p-inputgroup">
+							<span class="p-inputgroup-addon">&lt;div</span>
+							<p-inputtext id="${pid}customInsertChartEleAttrVal" v-model="pm.vepms.customInsertChartEleAttr.value" type="text"
+								class="input w-full" name="width" autofocus>
+							</p-inputtext>
+							<span class="p-inputgroup-addon">&gt;</span>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
+				<p-button type="submit" label="<@spring.message code='confirm' />"></p-button>
+			</div>
+		</form>
+	</div>
+</p-dialog>
+
+<p-overlaypanel ref="${pid}codeReplacePanelEle" append-to="body" id="${pid}codeReplacePanel" @show="onCodeReplacePanelShow">
+	<div class="pb-2">
+		<label class="text-lg font-bold">
+			<@spring.message code='replace' />
+		</label>
+	</div>
+	<div class="page page-form">
+		<form id="${pid}codeReplaceForm" class="flex flex-column">
+			<div class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
+				<div class="field grid">
+					<label for="${pid}codeReplaceSourceValue" class="field-label col-12 mb-2">
+						<@spring.message code='find' />
+					</label>
+					<div class="field-input col-12">
+						<p-inputtext id="${pid}codeReplaceSourceValue" v-model="pm.codeReplace.model.source" type="text"
+							class="input w-full" name="source" required autofocus>
+						</p-inputtext>
+					</div>
+				</div>
+				<div class="field grid">
+					<label for="${pid}codeReplaceToValue" class="field-label col-12 mb-2">
+						<@spring.message code='replaceTo' />
+					</label>
+					<div class="field-input col-12">
+						<p-inputtext id="${pid}codeReplaceToValue" v-model="pm.codeReplace.model.replaceTo" type="text"
+							class="input w-full" name="replaceTo">
+						</p-inputtext>
+					</div>
+				</div>
+			</div>
+			<div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
+				<p-button type="button" severity="secondary" label="<@spring.message code='findNextPlace' />"
+					@click="onCodeReplaceSearchNext($event)">
+				</p-button>
+				<p-button type="submit" label="<@spring.message code='replace' />"></p-button>
+				<p-button type="button" severity="secondary" label="<@spring.message code='replaceAll' />"
+					@click="onReplaceAllInCodeEditor($event)">
+				</p-button>
+			</div>
+		</form>
+	</div>
+</p-overlaypanel>
+
 <script>
 (function(po)
 {
@@ -2886,7 +2956,7 @@ page_palette.ftl
 	po.i18n.video = "<@spring.message code='video' />";
 	po.i18n.dashboardSize = "<@spring.message code='dashboardSize' />";
 	po.i18n.chartOptions = "<@spring.message code='chartOptions' />";
-	po.i18n.chartAttribute = "<@spring.message code='chartAttribute' />";
+	po.i18n.chartConfig = "<@spring.message code='chartConfig' />";
 	po.i18n.chartTheme = "<@spring.message code='chartTheme' />";
 	po.i18n.style = "<@spring.message code='style' />";
 	po.i18n.elementId = "<@spring.message code='elementId' />";

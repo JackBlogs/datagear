@@ -19,25 +19,25 @@ package org.datagear.web.controller;
 
 import java.io.File;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.datagear.analysis.ChartPlugin;
 import org.datagear.analysis.ChartPluginResource;
+import org.datagear.analysis.support.html.DashboardApiVersion;
 import org.datagear.analysis.support.html.HtmlChartPlugin;
-import org.datagear.analysis.support.html.HtmlChartPluginScriptObjectWriter;
-import org.datagear.analysis.support.html.HtmlTplDashboardWidgetRenderer;
 import org.datagear.management.service.HtmlTplDashboardWidgetEntityService;
 import org.datagear.util.StringUtil;
+import org.datagear.web.analysis.ChartPluginManagerJsFactory;
+import org.datagear.web.analysis.ChartPluginManagerJsFactory.ChartPluginManagerJs;
 import org.datagear.web.util.WebUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.context.ServletContextAware;
 import org.springframework.web.context.request.WebRequest;
 
@@ -51,13 +51,29 @@ import org.springframework.web.context.request.WebRequest;
 @RequestMapping("/vres/plugin")
 public class ChartPluginVisualResController extends AbstractChartPluginAwareController implements ServletContextAware
 {
+	/**
+	 * 加载图表插件JS脚本参数名：{@linkplain ChartPluginManagerJsFactory#getByKey(String)}需要的Key参数名
+	 */
+	public static final String MANAGER_JS_KEY_PARAM = "key";
+
+	/**
+	 * 加载图表插件JS脚本参数名：块号
+	 */
+	public static final String MANAGER_JS_BLOCK_PARAM = "block";
+
+	/**
+	 * 加载图表插件JS脚本参数名：过滤的插件API版本{@linkplain HtmlChartPlugin#getApiVersion()}
+	 */
+	public static final String API_VERSION_PARAM = "api";
+
 	@Autowired
 	private File tempDirectory;
 
 	@Autowired
 	private HtmlTplDashboardWidgetEntityService htmlTplDashboardWidgetEntityService;
 
-	private HtmlChartPluginScriptObjectWriter htmlChartPluginScriptObjectWriter = new HtmlChartPluginScriptObjectWriter();
+	@Autowired
+	private ChartPluginManagerJsFactory chartPluginManagerJsFactory;
 
 	public ChartPluginVisualResController()
 	{
@@ -85,15 +101,14 @@ public class ChartPluginVisualResController extends AbstractChartPluginAwareCont
 		this.htmlTplDashboardWidgetEntityService = htmlTplDashboardWidgetEntityService;
 	}
 
-	public HtmlChartPluginScriptObjectWriter getHtmlChartPluginScriptObjectWriter()
+	public ChartPluginManagerJsFactory getChartPluginManagerJsFactory()
 	{
-		return htmlChartPluginScriptObjectWriter;
+		return chartPluginManagerJsFactory;
 	}
 
-	public void setHtmlChartPluginScriptObjectWriter(
-			HtmlChartPluginScriptObjectWriter htmlChartPluginScriptObjectWriter)
+	public void setChartPluginManagerJsFactory(ChartPluginManagerJsFactory chartPluginManagerJsFactory)
 	{
-		this.htmlChartPluginScriptObjectWriter = htmlChartPluginScriptObjectWriter;
+		this.chartPluginManagerJsFactory = chartPluginManagerJsFactory;
 	}
 
 	@RequestMapping("/resource/{pluginId:.+}/**")
@@ -117,71 +132,60 @@ public class ChartPluginVisualResController extends AbstractChartPluginAwareCont
 		writeChartPluginResource(request, response, webRequest, chartPlugin, resource);
 	}
 
-	@RequestMapping("/chartPluginManager.js")
-	public void chartPluginManagerJs(HttpServletRequest request, HttpServletResponse response, WebRequest webRequest)
-			throws Exception
+	@RequestMapping("/manager/{apiVersion}/chartPluginManager.js")
+	public void chartPluginManagerJs(HttpServletRequest request, HttpServletResponse response, WebRequest webRequest,
+			@PathVariable("apiVersion") String apiVersion,
+			@RequestParam(value = MANAGER_JS_KEY_PARAM, required = false) String key,
+			@RequestParam(value = MANAGER_JS_BLOCK_PARAM, required = false) Integer block) throws Exception
 	{
-		List<HtmlChartPlugin> plugins = getDirectoryHtmlChartPluginManager().getAll(HtmlChartPlugin.class);
-		List<HtmlChartPlugin> htmlChartPlugins = new ArrayList<>(plugins.size());
-		long lastModified = -1;
+		apiVersion = DashboardApiVersion.toValidVersion(apiVersion);
+		ChartPluginManagerJs managerJs = null;
+		boolean expiredKey = false;
 
-		if (plugins != null)
+		if (StringUtil.isEmpty(key))
 		{
-			for (HtmlChartPlugin plugin : plugins)
+			managerJs = this.chartPluginManagerJsFactory.latest(WebUtils.getLocale(request), apiVersion);
+		}
+		else
+		{
+			managerJs = this.chartPluginManagerJsFactory.getByKey(key);
+
+			if (managerJs == null)
 			{
-				htmlChartPlugins.add(plugin);
-				lastModified = Math.max(lastModified, plugin.getLastModified());
+				expiredKey = true;
+				managerJs = this.chartPluginManagerJsFactory.latest(WebUtils.getLocale(request), apiVersion);
 			}
 		}
 
-		HtmlTplDashboardWidgetRenderer renderer = getHtmlTplDashboardWidgetEntityService()
-				.getHtmlTplDashboardWidgetRenderer();
-
-		HtmlChartPlugin htmlChartPluginForGetWidgetException = renderer.getHtmlChartPluginForGetWidgetException();
-		htmlChartPlugins.add(htmlChartPluginForGetWidgetException);
-		lastModified = Math.max(lastModified, htmlChartPluginForGetWidgetException.getLastModified());
-
-		if (webRequest.checkNotModified(lastModified))
+		if (webRequest.checkNotModified(managerJs.getLastModified()))
 			return;
 
-		Locale locale = WebUtils.getLocale(request);
 		response.setContentType(CONTENT_TYPE_JAVASCRIPT);
 		setCacheControlNoCache(response);
 
 		PrintWriter out = response.getWriter();
 
-		out.println("(function(global)");
-		out.println("{");
-
-		out.println("var chartFactory = (global.chartFactory || (global.chartFactory = {}));");
-		out.println(
-				"var chartPluginManager = (chartFactory.chartPluginManager || (chartFactory.chartPluginManager = {}));");
-		out.println("chartPluginManager.plugins = (chartPluginManager.plugins || {});");
-
-		// @deprecated 兼容1.8.1版本的window.chartPluginManager变量名，未来版本会移除
-		out.println();
-		out.println("global.chartPluginManager = chartPluginManager;");
-
-		out.println();
-		out.println("chartPluginManager.get = function(id){ return this.plugins[id]; };");
-		out.println();
-
-		for (int i = 0, len = htmlChartPlugins.size(); i < len; i++)
+		if (block == null)
 		{
-			HtmlChartPlugin plugin = htmlChartPlugins.get(i);
-			String pluginVar = "plugin" + i;
-
-			this.htmlChartPluginScriptObjectWriter.write(out, plugin, pluginVar, locale);
-
-			// @deprecated
-			// 兼容4.0.0版本的"+HtmlChartPlugin.PROPERTY_RENDERER_OLD+"属性名，未来版本会移除
-			out.println(pluginVar + "." + HtmlChartPlugin.PROPERTY_RENDERER_OLD + " = " + pluginVar + "."
-					+ HtmlChartPlugin.PROPERTY_RENDERER + ";");
-
-			out.println("chartPluginManager.plugins[" + StringUtil.toJavaScriptString(plugin.getId()) + "] = "
-					+ pluginVar + ";");
+			List<String> scripts = managerJs.getScripts();
+			for (String script : scripts)
+				out.println(script);
 		}
-
-		out.println("})(this);");
+		else if (expiredKey)
+		{
+			if (block.intValue() == 0)
+			{
+				List<String> scripts = managerJs.getScripts();
+				for (String script : scripts)
+					out.println(script);
+			}
+			else
+				out.write("");
+		}
+		else
+		{
+			String script = managerJs.getScript(block);
+			out.write(script == null ? "" : script);
+		}
 	}
 }

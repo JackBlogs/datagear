@@ -69,18 +69,19 @@ public abstract class AbstractChartPluginManager implements ChartPluginManager
 	/**
 	 * 注册一个{@linkplain ChartPlugin}。
 	 * <p>
-	 * 如果已存在一个更高版本的，则注册失败，返回{@code false}。
+	 * 如果{@code ignoreCheck}为{@code false}，且已存在一个更高版本的，则注册失败，返回{@code false}。
 	 * </p>
 	 * 
 	 * @param chartPlugin
+	 * @param ignoreCheck
 	 * @return
 	 */
-	protected boolean registerChartPlugin(ChartPlugin chartPlugin)
+	protected boolean registerChartPlugin(ChartPlugin chartPlugin, boolean ignoreCheck)
 	{
 		checkLegalChartPlugin(chartPlugin);
 
 		ChartPlugin old = this.chartPluginMap.get(chartPlugin.getId());
-		boolean canPut = canReplaceForSameId(chartPlugin, old);
+		boolean canPut = (ignoreCheck ? true : canReplaceForSameId(chartPlugin, old));
 
 		if (canPut)
 			this.chartPluginMap.put(chartPlugin.getId(), chartPlugin);
@@ -134,15 +135,15 @@ public abstract class AbstractChartPluginManager implements ChartPluginManager
 
 	/**
 	 * 查找指定类型的所有{@linkplain ChartPlugin}。
-	 * <p>
-	 * 返回列表已使用{@linkplain #sortChartPlugins(List)}排序。
-	 * </p>
 	 * 
 	 * @param chartPluginType
+	 * @param comparator
+	 *            允许{@code null}，排序比较器，如果未指定，返回结果将使用{@linkplain #sortChartPlugins(List)}排序。
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	protected <T extends ChartPlugin> List<T> findChartPlugins(Class<? super T> chartPluginType)
+	protected <T extends ChartPlugin> List<T> findChartPlugins(Class<? super T> chartPluginType,
+			Comparator<T> comparator)
 	{
 		List<T> reChartPlugins = new ArrayList<>();
 
@@ -154,33 +155,33 @@ public abstract class AbstractChartPluginManager implements ChartPluginManager
 				reChartPlugins.add((T) plugin);
 		}
 
-		sortChartPlugins(reChartPlugins);
+		if (comparator == null)
+			sortChartPlugins(reChartPlugins);
+		else
+			Collections.sort(reChartPlugins, comparator);
 
 		return reChartPlugins;
 	}
 
 	/**
 	 * 获取所有{@linkplain ChartPlugin}。
-	 * <p>
-	 * 返回列表已使用{@linkplain #sortChartPlugins(List)}排序。
-	 * </p>
 	 * 
+	 * @param comparator
+	 *            允许{@code null}，排序比较器，如果未指定，返回结果将使用{@linkplain #sortChartPlugins(List)}排序。
 	 * @return
 	 */
-	protected List<ChartPlugin> getAllChartPlugins()
+	protected List<ChartPlugin> getAllChartPlugins(Comparator<ChartPlugin> comparator)
 	{
 		List<ChartPlugin> reChartPlugins = new ArrayList<>();
 
 		reChartPlugins.addAll(this.chartPluginMap.values());
 
-		sortChartPlugins(reChartPlugins);
+		if (comparator == null)
+			sortChartPlugins(reChartPlugins);
+		else
+			Collections.sort(reChartPlugins, comparator);
 
 		return reChartPlugins;
-	}
-
-	protected void sortChartPlugins(List<? extends ChartPlugin> chartPlugins)
-	{
-		sort(chartPlugins);
 	}
 
 	/**
@@ -188,7 +189,7 @@ public abstract class AbstractChartPluginManager implements ChartPluginManager
 	 * 
 	 * @param chartPlugins
 	 */
-	public static void sort(List<? extends ChartPlugin> chartPlugins)
+	protected void sortChartPlugins(List<? extends ChartPlugin> chartPlugins)
 	{
 		Collections.sort(chartPlugins, new Comparator<ChartPlugin>()
 		{

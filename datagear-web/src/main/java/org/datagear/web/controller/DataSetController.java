@@ -25,10 +25,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 
 import javax.servlet.http.HttpServletRequest;
@@ -38,6 +36,7 @@ import org.datagear.analysis.DataSet;
 import org.datagear.analysis.DataSetField;
 import org.datagear.analysis.DataSetParam;
 import org.datagear.analysis.DataSetQuery;
+import org.datagear.analysis.NameAwareUtil;
 import org.datagear.analysis.ResolvedDataSetResult;
 import org.datagear.analysis.support.AbstractResolvableResourceDataSet;
 import org.datagear.analysis.support.ProfileDataSet;
@@ -62,20 +61,21 @@ import org.datagear.management.service.DataSetEntityService;
 import org.datagear.management.service.FileSourceService;
 import org.datagear.management.util.DtbsSourceConnectionFactory;
 import org.datagear.management.util.ManagementSupport;
-import org.datagear.persistence.PagingData;
 import org.datagear.util.FileUtil;
 import org.datagear.util.IDUtil;
 import org.datagear.util.IOUtil;
 import org.datagear.util.StringUtil;
 import org.datagear.util.function.OnceSupplier;
+import org.datagear.util.query.PagingData;
+import org.datagear.web.analysis.WebDashboardQueryConverter;
 import org.datagear.web.util.AnalysisProjectAwareSupport;
 import org.datagear.web.util.OperationMessage;
-import org.datagear.web.util.WebDashboardQueryConverter;
 import org.datagear.web.vo.APIDDataFilterPagingQuery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -527,9 +527,9 @@ public class DataSetController extends AbstractDtbsSourceConnController
 		entity.setId(null);
 	}
 
-	@RequestMapping("/edit")
+	@RequestMapping("/edit/{id}")
 	public String edit(HttpServletRequest request, HttpServletResponse response, Model model,
-			@RequestParam("id") String id) throws Throwable
+			@PathVariable("id") String id) throws Throwable
 	{
 		User user = getCurrentUser();
 
@@ -691,9 +691,9 @@ public class DataSetController extends AbstractDtbsSourceConnController
 		return optSuccessDataResponseEntity(request, entity);
 	}
 
-	@RequestMapping("/view")
+	@RequestMapping("/view/{id}")
 	public String view(HttpServletRequest request, HttpServletResponse response, Model model,
-			@RequestParam("id") String id) throws Throwable
+			@PathVariable("id") String id) throws Throwable
 	{
 		User user = getCurrentUser();
 		setFormAction(model, REQUEST_ACTION_VIEW, SUBMIT_ACTION_NONE);
@@ -779,10 +779,10 @@ public class DataSetController extends AbstractDtbsSourceConnController
 	@ResponseBody
 	public PagingData<DataSetEntity> pagingQueryData(HttpServletRequest request, HttpServletResponse response,
 			final Model springModel,
-			@RequestBody(required = false) APIDDataFilterPagingQuery pagingQueryParam) throws Exception
+			@RequestBody(required = false) APIDDataFilterPagingQuery pagingQuery) throws Exception
 	{
+		pagingQuery = (pagingQuery == null ? new APIDDataFilterPagingQuery() : pagingQuery);
 		User user = getCurrentUser();
-		final APIDDataFilterPagingQuery pagingQuery = inflateAPIDDataFilterPagingQuery(request, pagingQueryParam);
 
 		PagingData<DataSetEntity> pagingData = this.dataSetEntityService.pagingQuery(user, pagingQuery,
 				pagingQuery.getDataFilter(), pagingQuery.getAnalysisProjectId());
@@ -1436,65 +1436,49 @@ public class DataSetController extends AbstractDtbsSourceConnController
 		if (isEmpty(entity.getId()) || isBlank(entity.getName()))
 			throw new IllegalInputException();
 
-		List<DataSetParam> params = entity.getParams();
-		if (params != null)
-		{
-			Set<String> names = new HashSet<>();
-
-			for (DataSetParam param : params)
-			{
-				String name = param.getName();
-
-				if(isEmpty(name))
-				{
-					throw new OperationMessageException(optMsgFail(request, "paramNameRequired"));
-				}
-				else
-				{
-					// 参数名限定为：不允许忽略大小写的重名。
-					// 因为某些数据库是大小写不敏感的，如果不做此限定，存储时会因为违反存唯一约束而报错
-					String upperCaseName = name.toUpperCase();
-
-					if (names.contains(upperCaseName))
-					{
-						throw new OperationMessageException(optMsgFail(request, "paramNameMustBeUniqueIgnoreCase"));
-					}
-					else
-						names.add(upperCaseName);
-				}
-			}
-		}
-
-		List<DataSetField> fields = entity.getFields();
-		if (fields != null)
-		{
-			Set<String> names = new HashSet<>();
-
-			for (DataSetField field : fields)
-			{
-				String name = field.getName();
-
-				if(isEmpty(name))
-				{
-					throw new OperationMessageException(optMsgFail(request, "fieldNameRequired"));
-				}
-				else
-				{
-					// 字段名限定为：不允许忽略大小写的重名。
-					// 因为某些数据库是大小写不敏感的，如果不做此限定，存储时会因为违反存唯一约束而报错
-					String upperCaseName = name.toUpperCase();
-
-					if (names.contains(upperCaseName))
-					{
-						throw new OperationMessageException(optMsgFail(request, "fieldNameMustBeUniqueIgnoreCase"));
-					}
-					else
-						names.add(upperCaseName);
-				}
-			}
-		}
-
+		checkSaveDataSetParams(request, entity.getParams());
+		checkSaveDataSetFields(request, entity.getFields());
 		checkSaveRefAnalysisProject(request, user, entity, persist);
+	}
+
+	protected void checkSaveDataSetParams(HttpServletRequest request, List<DataSetParam> params)
+	{
+		if (params == null)
+			return;
+
+		// 参数名限定为：不允许忽略大小写的重名。
+		// 因为某些数据库是大小写不敏感的，如果不做此限定，存储时会因为违反存唯一约束而报错
+		boolean ignoreCase = true;
+
+		for (DataSetParam param : params)
+		{
+			if (isEmpty(param.getName()))
+				throw new OperationMessageException(optMsgFail(request, "paramNameRequired"));
+			
+			if (NameAwareUtil.findIndexes(params, param.getName(), ignoreCase).size() > 1)
+				throw new OperationMessageException(optMsgFail(request, "paramNameMustBeUniqueIgnoreCase"));
+		}
+	}
+
+	protected void checkSaveDataSetFields(HttpServletRequest request, List<DataSetField> fields)
+	{
+		if (fields == null)
+			return;
+
+		// 字段名限定为：不允许忽略大小写的重名。
+		// 因为某些数据库是大小写不敏感的，如果不做此限定，存储时会因为违反存唯一约束而报错
+		boolean ignoreCase = true;
+
+		for (DataSetField field : fields)
+		{
+			if (isEmpty(field.getName()))
+				throw new OperationMessageException(optMsgFail(request, "fieldNameRequired"));
+
+			if (NameAwareUtil.findIndexes(fields, field.getName(), ignoreCase).size() > 1)
+				throw new OperationMessageException(optMsgFail(request, "fieldNameMustBeUniqueIgnoreCase"));
+
+			checkSaveDataSetFields(request, field.getFields());
+		}
 	}
 
 	protected void trimSqlDataSetEntity(SqlDataSetEntity entity)

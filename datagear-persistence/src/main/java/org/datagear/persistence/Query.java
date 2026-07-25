@@ -21,6 +21,8 @@ import java.util.Arrays;
 
 import org.datagear.util.StringUtil;
 import org.datagear.util.query.KeywordQuery;
+import org.datagear.util.query.Order;
+import org.datagear.util.query.OrdersAware;
 
 /**
  * 查询。
@@ -28,7 +30,7 @@ import org.datagear.util.query.KeywordQuery;
  * @author datagear@163.com
  *
  */
-public class Query extends KeywordQuery
+public class Query extends KeywordQuery implements OrdersAware
 {
 	private static final long serialVersionUID = 1L;
 
@@ -92,12 +94,14 @@ public class Query extends KeywordQuery
 		return (this.orders != null && this.orders.length > 0);
 	}
 
+	@Override
 	public Order[] getOrders()
 	{
 		return orders;
 	}
 
-	public void setOrders(Order... orders)
+	@Override
+	public void setOrders(Order[] orders)
 	{
 		this.orders = orders;
 	}

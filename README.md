@@ -6,16 +6,16 @@
 	数据可视化分析平台
 </h1>
 <h2 align="center">
-	自由制作任何您想要的数据看板
+	自由制作任何数据看板
 </h2>
 
 # 简介
 
-DataGear是一款开源免费的数据可视化分析平台，自由制作任何您想要的数据看板，支持接入SQL、CSV、Excel、HTTP接口、JSON等多种数据源。
+DataGear是一款开源免费的数据可视化分析平台，自由制作任何数据看板，支持接入SQL、CSV、Excel、HTTP接口、JSON等多种数据源。
 
 系统主要功能包括：数据源管理、SQL工作台、数据导入/导出、项目管理、数据集管理、图表管理、看板管理、用户管理、角色管理、数据源驱动管理、图表插件管理等。
 
-## [DataGear 5.5.0 已发布，欢迎官网下载使用！](http://www.datagear.tech)
+## [DataGear 6.0.0 已发布，欢迎官网下载使用！](http://www.datagear.tech)
 
 ## [DataGear企业版 1.5.0 正式发布，欢迎试用！](http://www.datagear.tech/pro/)
 
@@ -199,7 +199,7 @@ SQL数据集
 
 # 版权和许可
 
-Copyright 2018-2025 datagear.tech
+Copyright 2018-2026 datagear.tech
 
 DataGear is free software: you can redistribute it and/or modify it under the terms of
 the GNU Lesser General Public License as published by the Free Software Foundation,

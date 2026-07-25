@@ -36,7 +36,7 @@
 			<#include "../include/page_current_analysis_project.ftl">
 		</div>
 		<div class="col-12" :class="pm.isSelectAction ? 'md:col-6' : 'md:col-4'">
-			<#include "../include/page_search_form_filter.ftl">
+			<#include "../include/page_search_form_sharetype.ftl">
 		</div>
 		<div class="operations col-12 flex gap-1 flex-wrap md:justify-content-end" :class="pm.isSelectAction ? 'md:col-6' : 'md:col-8'">
 			<p-button label="<@spring.message code='confirm' />" @click="onSelect" v-if="pm.isSelectAction"></p-button>
@@ -48,7 +48,7 @@
 			<p-tieredmenu id="${pid}addMenu" ref="addMenuEle" :model="pm.addMenuItems" :popup="true" v-if="!pm.isReadonlyAction" class="left-submenu-list">
 			</p-tieredmenu>
 			
-			<p-button label="<@spring.message code='edit' />" @click="onEdit" v-if="!pm.isReadonlyAction"></p-button>
+			<p-splitbutton label="<@spring.message code='edit' />" @click="onEdit" :model="pm.editBtnItems" v-if="!pm.isReadonlyAction"></p-splitbutton>
 			<p-button label="<@spring.message code='share' />" @click="onShare" v-if="!pm.isReadonlyAction"></p-button>
 			<p-button label="<@spring.message code='view' />" @click="onView" :class="{'p-button-secondary': pm.isSelectAction}"></p-button>
 			<p-button label="<@spring.message code='delete' />" @click="onDelete" class="p-button-danger" v-if="!pm.isReadonlyAction"></p-button>
@@ -183,6 +183,16 @@
 					po.handleOpenOfAction("/dataSet/copy", {width: "70vw"});
 				}
 			}
+		],
+		editBtnItems:
+		[
+			{
+				label: "<@spring.message code='editInNewWindow' />",
+				command: function()
+				{
+					po.handleOpenOfAction("/dataSet/edit", {target: "_blank", appendIdToPath: true});
+				}
+			}
 		]
 	});
 	
@@ -202,12 +212,12 @@
 		
 		onEdit: function()
 		{
-			po.handleOpenOfAction("/dataSet/edit", {width: "70vw"});
+			po.handleOpenOfAction("/dataSet/edit", {width: "70vw", appendIdToPath: true});
 		},
 		
 		onView: function()
 		{
-			po.handleOpenOfAction("/dataSet/view", {width: "70vw"});
+			po.handleOpenOfAction("/dataSet/view", {width: "70vw", appendIdToPath: true});
 		},
 
 		onShare: function()

@@ -19,6 +19,7 @@ package org.datagear.util.dirquery;
 
 import org.datagear.util.query.Order;
 import org.datagear.util.query.Paging;
+import org.datagear.util.query.PagingAware;
 
 /**
  * 目录分页查询。
@@ -26,7 +27,7 @@ import org.datagear.util.query.Paging;
  * @author datagear@163.com
  *
  */
-public class DirectoryPagingQuery extends DirectoryQuery
+public class DirectoryPagingQuery extends DirectoryQuery implements PagingAware
 {
 	private static final long serialVersionUID = 1L;
 
@@ -56,21 +57,25 @@ public class DirectoryPagingQuery extends DirectoryQuery
 		this.paging.setPage(page);
 	}
 
+	@Override
 	public int getPage()
 	{
 		return this.paging.getPage();
 	}
 
+	@Override
 	public void setPage(int page)
 	{
 		this.paging.setPage(page);
 	}
 
+	@Override
 	public int getPageSize()
 	{
 		return this.paging.getPageSize();
 	}
 
+	@Override
 	public void setPageSize(int pageSize)
 	{
 		this.paging.setPageSize(pageSize);

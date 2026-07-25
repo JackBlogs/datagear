@@ -38,8 +38,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.datagear.analysis.TplDashboardWidgetResManager;
+import org.datagear.analysis.support.html.ApiVersionAware;
+import org.datagear.analysis.support.html.DashboardApiVersion;
 import org.datagear.analysis.support.html.HtmlTplDashboardWidget;
-import org.datagear.analysis.support.html.HtmlTplDashboardWidgetRenderer;
+import org.datagear.analysis.support.html.HtmlTplDashboardWidgetHtmlRenderer;
 import org.datagear.analysis.support.html.SimpleHtmlTplOption;
 import org.datagear.management.domain.AnalysisProject;
 import org.datagear.management.domain.AnalysisProjectAwareEntity;
@@ -49,13 +51,12 @@ import org.datagear.management.domain.User;
 import org.datagear.management.service.AnalysisProjectService;
 import org.datagear.management.service.DashboardShareSetService;
 import org.datagear.management.service.HtmlTplDashboardWidgetEntityService;
-import org.datagear.persistence.PagingData;
 import org.datagear.util.FileUtil;
 import org.datagear.util.IDUtil;
 import org.datagear.util.IOUtil;
 import org.datagear.util.StringUtil;
 import org.datagear.util.function.OnceSupplier;
-import org.datagear.web.analysis.DashboardVersion;
+import org.datagear.util.query.PagingData;
 import org.datagear.web.config.ApplicationProperties;
 import org.datagear.web.util.AnalysisProjectAwareSupport;
 import org.datagear.web.util.OperationMessage;
@@ -185,6 +186,7 @@ public class DashboardController extends AbstractDataAnalysisController
 		HtmlTplDashboardWidgetEntity entity = createInstance();
 		entity.setTemplates(HtmlTplDashboardWidgetEntity.DEFAULT_TEMPLATES);
 		entity.setTemplateEncoding(HtmlTplDashboardWidget.DEFAULT_TEMPLATE_ENCODING);
+		entity.setApiVersion(DashboardApiVersion.V2);
 
 		return entity;
 	}
@@ -217,9 +219,9 @@ public class DashboardController extends AbstractDataAnalysisController
 		return optSuccessDataResponseEntity(request, entity);
 	}
 
-	@RequestMapping("/edit")
+	@RequestMapping("/edit/{id}")
 	public String edit(HttpServletRequest request, HttpServletResponse response, Model model,
-			@RequestParam("id") String id) throws Exception
+			@PathVariable("id") String id) throws Exception
 	{
 		User user = getCurrentUser();
 		setFormAction(model, REQUEST_ACTION_EDIT, SUBMIT_ACTION_SAVE_EDIT);
@@ -425,8 +427,7 @@ public class DashboardController extends AbstractDataAnalysisController
 		
 		if(!exists && (FileUtil.isExtension(resourceName, "html") || FileUtil.isExtension(resourceName, "htm")))
 		{
-			HtmlTplDashboardWidgetRenderer renderer = getHtmlTplDashboardWidgetEntityService()
-					.getHtmlTplDashboardWidgetRenderer();
+			HtmlTplDashboardWidgetHtmlRenderer renderer = getHtmlTplDashboardWidgetHtmlRenderer();
 			SimpleHtmlTplOption tplOption = buildDftSimpleHtmlTplOption(entity);
 			String templateContent = renderer.simpleTemplate(tplOption);
 
@@ -709,6 +710,7 @@ public class DashboardController extends AbstractDataAnalysisController
 	protected DashboardImportForm createImportForm(HttpServletRequest request, Model model)
 	{
 		DashboardImportForm form = new DashboardImportForm();
+		form.setApiVersion(DashboardApiVersion.V2);
 		return form;
 	}
 
@@ -894,15 +896,15 @@ public class DashboardController extends AbstractDataAnalysisController
 		entity.setTemplateSplit(form.getTemplate());
 		entity.setTemplateEncoding(templateEncoding);
 		entity.setName(form.getName());
+		entity.setApiVersion(form.getApiVersion());
 		entity.setAnalysisProject(form.getAnalysisProject());
-		entity.setVersion(form.getVersion());
 		inflateCreateUserAndTime(entity, user);
 		inflateSaveEntity(request, user, entity);
 	}
 
-	@RequestMapping("/view")
+	@RequestMapping("/view/{id}")
 	public String view(HttpServletRequest request, HttpServletResponse response, Model model,
-			@RequestParam("id") String id) throws Exception
+			@PathVariable("id") String id) throws Exception
 	{
 		User user = getCurrentUser();
 		setFormAction(model, REQUEST_ACTION_VIEW, SUBMIT_ACTION_NONE);
@@ -989,10 +991,10 @@ public class DashboardController extends AbstractDataAnalysisController
 	@ResponseBody
 	public PagingData<HtmlTplDashboardWidgetEntity> pagingQueryData(HttpServletRequest request,
 			HttpServletResponse response, final Model springModel,
-			@RequestBody(required = false) APIDDataFilterPagingQuery pagingQueryParam) throws Exception
+			@RequestBody(required = false) APIDDataFilterPagingQuery pagingQuery) throws Exception
 	{
+		pagingQuery = (pagingQuery == null ? new APIDDataFilterPagingQuery() : pagingQuery);
 		User user = getCurrentUser();
-		final APIDDataFilterPagingQuery pagingQuery = inflateAPIDDataFilterPagingQuery(request, pagingQueryParam);
 
 		PagingData<HtmlTplDashboardWidgetEntity> pagingData = this.htmlTplDashboardWidgetEntityService.pagingQuery(user,
 				pagingQuery, pagingQuery.getDataFilter(), pagingQuery.getAnalysisProjectId());
@@ -1103,7 +1105,6 @@ public class DashboardController extends AbstractDataAnalysisController
 	protected void inflateSaveEntity(HttpServletRequest request, User user, HtmlTplDashboardWidgetEntity entity)
 	{
 		trimAnalysisProjectAware(entity);
-		entity.setVersion(DashboardVersion.V_1_0);
 	}
 
 	protected HtmlTplDashboardWidgetEntity createInstance()
@@ -1364,6 +1365,12 @@ public class DashboardController extends AbstractDataAnalysisController
 		setRequestAnalysisProjectIfValid(request, this.analysisProjectService, entity);
 	}
 
+	protected HtmlTplDashboardWidgetHtmlRenderer getHtmlTplDashboardWidgetHtmlRenderer()
+	{
+		return (HtmlTplDashboardWidgetHtmlRenderer) this.htmlTplDashboardWidgetEntityService
+				.getHtmlTplDashboardWidgetRenderer();
+	}
+
 	public static class HtmlTplDashboardDesignForm implements ControllerForm
 	{
 		private static final long serialVersionUID = 1L;
@@ -1432,7 +1439,7 @@ public class DashboardController extends AbstractDataAnalysisController
 		}
 	}
 
-	public static class DashboardImportForm implements ControllerForm
+	public static class DashboardImportForm implements ControllerForm, ApiVersionAware
 	{
 		private static final long serialVersionUID = 1L;
 
@@ -1442,11 +1449,11 @@ public class DashboardController extends AbstractDataAnalysisController
 
 		private String dashboardFileName;
 
+		private String apiVersion;
+
 		private String zipFileNameEncoding;
 
 		private AnalysisProject analysisProject;
-
-		private String version;
 
 		public DashboardImportForm()
 		{
@@ -1483,6 +1490,17 @@ public class DashboardController extends AbstractDataAnalysisController
 			this.dashboardFileName = dashboardFileName;
 		}
 
+		@Override
+		public String getApiVersion()
+		{
+			return apiVersion;
+		}
+
+		public void setApiVersion(String apiVersion)
+		{
+			this.apiVersion = apiVersion;
+		}
+
 		public String getZipFileNameEncoding()
 		{
 			return zipFileNameEncoding;
@@ -1501,16 +1519,6 @@ public class DashboardController extends AbstractDataAnalysisController
 		public void setAnalysisProject(AnalysisProject analysisProject)
 		{
 			this.analysisProject = analysisProject;
-		}
-
-		public String getVersion()
-		{
-			return version;
-		}
-
-		public void setVersion(String version)
-		{
-			this.version = version;
 		}
 	}
 }

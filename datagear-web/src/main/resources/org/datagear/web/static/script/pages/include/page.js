@@ -34,6 +34,8 @@ $.vueComponents = function()
 		"p-datatable": primevue.datatable,
 		"p-column": primevue.column,
 		"p-inputtext": primevue.inputtext,
+		"p-inputnumber": primevue.inputnumber,
+		"p-inputswitch": primevue.inputswitch,
 		"p-checkbox": primevue.checkbox,
 		"p-textarea": primevue.textarea,
 		"p-card": primevue.card,
@@ -67,7 +69,11 @@ $.vueComponents = function()
 		"p-multiselect": primevue.multiselect,
 		"p-treeselect": primevue.treeselect,
 		"p-breadcrumb": primevue.breadcrumb,
-		"p-badge": primevue.badge
+		"p-badge": primevue.badge,
+		"p-accordion": primevue.accordion,
+		"p-accordion-tab": primevue.accordiontab,
+		"p-treetable": primevue.treetable,
+		"p-tag": primevue.tag
 	};
 	
 	return components;
@@ -270,7 +276,9 @@ $.inflatePageObj = function(po)
 		
 		if(options.fullUrl !== true)
 			url = this.concatContextPath(url);
-		url = $.addParam(url, this.ppidParamName, this.pid);
+		
+		if(options.target !== '_blank' || (options.target === '_blank' && options.addParentPid === true))
+			url = $.addParam(url, this.ppidParamName, this.pid);
 		
 		$.open(url, (options || {}));
 	};
@@ -368,7 +376,7 @@ $.inflatePageObj = function(po)
 	//删除操作确认
 	po.confirmDelete = function(acceptHandler, rejectHandler)
 	{
-		var msg = this.i18n.confirmDeleteAsk;
+		var msg = this.i18n.confirmDelSelectedAsk;
 		this.confirm({ message: msg, accept: acceptHandler, reject: rejectHandler });
 	};
 	
@@ -465,6 +473,16 @@ $.inflatePageObj = function(po)
 			return this._vueComponents[name];
 		else
 			this._vueComponents[name] = value;
+	};
+	
+	//自定义Vue组件
+	po.vueDefineComponent = function(component)
+	{
+		var name = component.name;
+		var cmp = Vue.defineComponent(component);
+		this.vueComponent(name, cmp);
+		
+		return cmp;
 	};
 	
 	//设置vue监听
@@ -729,7 +747,7 @@ $.inflatePageManager = function(po)
 	{
 		var id = $.propertyValue(entityOrArray, po.inflateEntityActionIdPropName);
 		
-		if($.CONTENT_TYPE_JSON == action.options.contentType)
+		if(action.options && $.CONTENT_TYPE_JSON == action.options.contentType)
 		{
 			var options = action.options;
 			if(options.data == null)
@@ -749,7 +767,15 @@ $.inflatePageManager = function(po)
 					action.url = $.addParam(action.url, po.inflateEntityActionIdParamName, id[i], true);
 			}
 			else
-				action.url = $.addParam(action.url, po.inflateEntityActionIdParamName, id);
+			{
+				if(action.options && action.options.appendIdToPath)
+				{
+					var idPathNode = (action.url.charAt(action.url.length - 1) == '/' ? "" : "/") + encodeURIComponent(id);
+					action.url += idPathNode;
+				}
+				else
+					action.url = $.addParam(action.url, po.inflateEntityActionIdParamName, id);
+			}
 		}
 	};
 	
@@ -1027,8 +1053,7 @@ $.inflatePageForm = function(po)
 		if(options.ignoreIfViewAction && (po.isViewAction || url == "#"))
 			return;
 		
-		var fm = po.vueFormModel();
-		options = $.extend(true, options, { data: po.vueRaw(fm) });
+		options = $.extend(true, options, { data: po.prepareSubmitData() });
 		
 		var successHandlers = (options.success ? [].concat(options.success) : []);
 		successHandlers.push(function(response)
@@ -1051,6 +1076,14 @@ $.inflatePageForm = function(po)
 		}
 		
 		return false;
+	};
+	
+	po.prepareSubmitData = function()
+	{
+		var fm = po.vueFormModel();
+		//默认深度复制，确保后续修改不会影响表单效果
+		var data = $.extend(true, {}, po.vueRaw(fm));
+		return data;
 	};
 	
 	//返回false会阻止表单提交
@@ -1852,8 +1885,10 @@ $.inflatePagePalette = function(po)
 			
 			onPalettePanelShow: function(e){},
 			
-			onSelectPaletteColor: function(color)
+			onSelectPaletteColor: function(color, close)
 			{
+				close = (close === undefined ? false : close);
+				
 				if(pm.palette.modelObj != null && pm.palette.modelProp != null)
 				{
 					pm.palette.value = color;
@@ -1861,7 +1896,10 @@ $.inflatePagePalette = function(po)
 					pm.palette.modelObj[pm.palette.modelProp] = color;
 				}
 				
-				//po.vueUnref(po.concatPid("palettePanelEle")).hide();
+				if(close)
+				{
+					po.vueUnref(po.concatPid("palettePanelEle")).hide();
+				}
 			},
 			
 			onSelectPaletteColorPicker: function(e)
@@ -1871,7 +1909,6 @@ $.inflatePagePalette = function(po)
 		});
 	};
 };
-
 
 //初始化page_tabview.ftl页面对象
 $.inflatePageTabView = function(po)
@@ -2047,6 +2084,3154 @@ $.inflatePageTabView = function(po)
 		
 		return re;
 	};
+};
+
+//初始化chart_config_values_form.ftl页面对象
+$.inflateChartConfigValuesForm = function(po)
+{
+	var avo = (po.avo || (po.avo = {}));
+	
+	avo.REF_ID_NAME = "$refId";
+	avo.DISABLEIF_NAME = "disableIf";
+	avo.ENABLEIF_NAME = "enableIf";
+	avo.EVAL_ENABLED_FUNC_ROOT_DATA_ARG = "$root";
+	avo.EVAL_ENABLED_FUNC_THIS_DATA_ARG = "$this";
+	
+	avo.isPropertiesAware = function(prop)
+	{
+		return (prop != null && (prop.type == avo.FormPropertyType.OBJECT || prop.properties !== undefined));
+	};
+	
+	avo.toGroupTrimPluginConfigForm = function(pluginConfigForm)
+	{
+		if(pluginConfigForm == null)
+			return pluginConfigForm;
+		
+		if(pluginConfigForm.doneGroupTrim)
+			return pluginConfigForm;
+		
+		var re = $.extend(true, {}, pluginConfigForm);
+		
+		for(var i=0; i<re.properties.length; i++)
+		{
+			avo.toTrimProperty(re.properties[i], pluginConfigForm);
+		}
+		
+		avo.groupProperties(re);
+		re.doneGroupTrim = true;
+		
+		return re;
+	};
+	
+	//将org.datagear.analysis.form.FormProperty转换为标准格式
+	avo.toTrimProperty = function(prop, pluginConfigForm)
+	{
+		pluginConfigForm = (pluginConfigForm === undefined ? prop : pluginConfigForm);
+		
+		if(prop == null)
+			return prop;
+		
+		var re = prop;
+		
+		avo.doTrimProperty(re, pluginConfigForm);
+		
+		if(avo.isPropertiesAware(re) && !$.isEmpty(re.properties))
+		{
+			for(var i=0; i<re.properties.length; i++)
+			{
+				avo.toTrimProperty(re.properties[i], pluginConfigForm);
+			}
+		}
+		
+		return re;
+	};
+	
+	avo.propertyDomIdIndex = 0;
+	
+	avo.doTrimProperty = function(prop, pluginConfigForm)
+	{
+		avo.trimPropertyTypeForV5_5_0(prop);
+		
+		prop.domId = po.concatPid("avoprop_"+ (avo.propertyDomIdIndex++));
+		prop.nameLabel = (prop.nameLabel == null ? {} : prop.nameLabel);
+		prop.nameLabel.value = ($.isEmpty(prop.nameLabel.value) ? prop.name : prop.nameLabel.value);
+		prop.nameLabel.value = ($.isEmpty(prop.nameLabel.value) ? po.i18n.unnamed : prop.nameLabel.value);
+		avo.buildEvalEnabledFunc(prop);
+		
+		if(avo.isPropertiesAware(prop))
+		{
+			if(prop.groups != null)
+			{
+				for(var i=0; i<prop.groups.length; i++)
+					avo.buildEvalEnabledFunc(prop.groups[i]);
+			}
+			
+			return;
+		}
+		
+		var rootAdditions = (pluginConfigForm ? pluginConfigForm.additions : null);
+		
+		//布尔型默认作为RADIO处理
+		if(prop.type == avo.FormPropertyType.BOOLEAN)
+		{
+			if(!prop.inputType)
+				prop.inputType = avo.FormPropertyInputType.RADIO;
+			
+			if(!prop.inputPayload)
+			{
+				var pm = po.vuePageModel();
+				prop.inputPayload = $.extend(true, [], po.vueRaw(pm.booleanOptions));
+			}
+		}
+		
+		var inputType = prop.inputType;
+		
+		//下拉框、单选、复选框：将inputPayload转换为{multiple: ..., options: [{name: ..., value: ...}, ...]}格式
+		if(inputType == avo.FormPropertyInputType.SELECT
+				|| inputType == avo.FormPropertyInputType.RADIO
+				|| inputType == avo.FormPropertyInputType.CHECKBOX)
+		{
+			//处理inputPayload中的引用
+			if(prop.inputPayload != null)
+			{
+				//处理inputPayload格式：{ "$refId": ... }
+				if(prop.inputPayload[avo.REF_ID_NAME] !== undefined)
+				{
+					var refId = prop.inputPayload[avo.REF_ID_NAME];
+					prop.inputPayload = (rootAdditions ? $.deepClonePlain(rootAdditions[refId]) : null);
+				}
+				//处理inputPayload.options格式：{ "$refId": ... }
+				else if(prop.inputPayload.options && prop.inputPayload.options[avo.REF_ID_NAME] !== undefined)
+				{
+					var refId = prop.inputPayload.options[avo.REF_ID_NAME];
+					prop.inputPayload.options = (rootAdditions ? $.deepClonePlain(rootAdditions[refId]) : null);
+				}
+			}
+			
+			var inputPayload = (prop.inputPayload || []);
+			
+			//数组、"DG_MAP"：转换为{ multiple: false, options: ... }格式
+			if($.isArray(inputPayload) || (inputPayload == avo.FormPropertyInputPayload.DG_MAP))
+				inputPayload = { multiple: false, options: inputPayload };
+			
+			//{ options: "DG_MAP" }：转换为实际地图数据options
+			avo.trimPropertyInputPayloadIfMap(prop, inputPayload);
+			
+			//默认multiple为false
+			inputPayload.multiple = (inputPayload.multiple == null ? false : inputPayload.multiple);
+			avo.trimPropertyInputOptions(prop, inputPayload);
+			
+			if(inputType == avo.FormPropertyInputType.RADIO)
+			{
+				inputPayload.multiple = false;
+			}
+			else if(inputType == avo.FormPropertyInputType.CHECKBOX)
+			{
+				inputPayload.multiple = true;
+			}
+			
+			prop.inputPayload = inputPayload;
+		}
+		//颜色框
+		else if(inputType == avo.FormPropertyInputType.COLOR)
+		{
+			var inputPayload = prop.inputPayload;
+			
+			//将5.5.0旧版inputPayload格式{ multiple: true }、"multiple"转换为prop.array=true格式
+			if(inputPayload != null)
+			{
+				if(inputPayload.multiple == true)
+				{
+					prop.array = true;
+					inputPayload.multiple = false;
+				}
+				else if(inputPayload == avo.FormPropertyInputPayload.MULTIPLE)
+				{
+					prop.array = true;
+					prop.inputPayload = null;
+				}
+			}
+		}
+		
+		//将5.5.0旧版的{inputPayload: {multiple: "repeat"}}格式转换为6.0新版的{array: true, inputPayload: {multiple: false}}
+		if(prop.inputPayload && prop.inputPayload.multiple == avo.FormPropertyInputPayload.MultipleRepeat)
+		{
+			prop.array = true;
+			prop.inputPayload.multiple = false;
+		}
+	};
+	
+	//具体参考：org.datagear.web.analysis.ChartPluginManagerJsFactory.PropertyTypeV5_5_0
+	avo.trimPropertyTypeForV5_5_0 = function(prop)
+	{
+		if(!prop)
+			return;
+		
+		if(prop.type == "STRING")
+			prop.type = avo.FormPropertyType.STRING;
+		else if(prop.type == "BOOLEAN")
+			prop.type = avo.FormPropertyType.BOOLEAN;
+		else if(prop.type == "INTEGER")
+			prop.type = avo.FormPropertyType.INTEGER;
+		else if(prop.type == "NUMBER")
+			prop.type = avo.FormPropertyType.NUMBER;
+		else if(prop.type == "OBJECT")
+			prop.type = avo.FormPropertyType.OBJECT;
+	};
+	
+	avo.trimPropertyInputPayloadIfMap = function(inputProp, inputPayload)
+	{
+		var options = inputPayload.options;
+		
+		//内置地图
+		if(options == avo.FormPropertyInputPayload.DG_MAP)
+		{
+			//只有下拉列表才使用树形结构，单选框、复选框只能使用平铺数组
+			if(inputPayload.treeSelect == null
+					&& inputProp.inputType == avo.FormPropertyInputType.SELECT)
+			{
+				inputPayload.treeSelect = true;
+			}
+			
+			inputPayload.options = avo.propertyInputOptionsForMap(inputPayload.treeSelect);
+		}
+	};
+	
+	avo.trimPropertyInputOptions = function(inputProp, inputPayload)
+	{
+		if(!inputPayload.options)
+			inputPayload.options = [];
+		
+		//支持非数组格式
+		if(!$.isArray(inputPayload.options))
+			inputPayload.options = [ inputPayload.options ];
+		
+		var options = inputPayload.options;
+		
+		//转换为标准的[ {name: ..., value: ...}, ... ]格式
+		$.each(options, function(i, io)
+		{
+			//支持元素为基本类型
+			if(io == null || $.isTypeString(io) || $.isTypeNumber(io) || $.isTypeBoolean(io))
+			{
+				options[i] = { name: io, value: io };
+			}
+			
+			//支持{value: ...}格式的元素
+			if(io.name == null)
+				io.name = (io.value == null ? "null" : io.value);
+		});
+	};
+	
+	avo.propertyInputOptionsForMap = function(asTree)
+	{
+		if(po.getChartConfigInputOptionsForMap != null)
+			return po.getChartConfigInputOptionsForMap(asTree);
+		
+		//树
+		if(asTree)
+		{
+			var listener =
+			{
+				added: function(node, parent, rootArray)
+				{
+					//转换为UI组件所需的结构
+					node.key = node.mapName;
+					node.label = node.mapLabel;
+					if(parent && !parent.children)
+						parent.children = parent.mapChildren;
+				}
+			};
+			
+			return dashboardFactory.getStdBuiltinMapTree(listener);
+		}
+		//数组
+		else
+		{
+			var listener =
+			{
+				added: function(node, rootArray)
+				{
+					//转换为UI组件所需的结构
+					node.value = node.mapName;
+					node.name = node.mapLabel;
+				}
+			};
+			
+			return dashboardFactory.getStdBuiltinMapArray(listener);
+		}
+	};
+	
+	//将org.datagear.analysis.form.GroupFormProperties.properties分组整理至groupProps中
+	avo.groupProperties = function(gfpObj)
+	{
+		if(gfpObj == null)
+			return;
+		
+		if(gfpObj.isGrouped)
+			return;
+		
+		gfpObj.isGrouped = true;
+		
+		if($.isEmpty(gfpObj.properties))
+			return;
+		
+		var oldGroups = avo.resolveOldGroup(gfpObj.properties);
+		if(oldGroups.length > 0)
+		{
+			gfpObj.groups = (gfpObj.groups == null ? [] : gfpObj.groups);
+			gfpObj.groups = gfpObj.groups.concat(oldGroups);
+		}
+		
+		var groupProps = [];
+		var groups = (gfpObj.groups || []);
+		var props = gfpObj.properties;
+		
+		for(var i=0; i<props.length; i++)
+		{
+			var prop = props[i];
+			var myGroup = null;
+			var groupIdx = avo.findGroupIdxByPropName(groupProps, prop.name);
+			
+			if(groupIdx >= 0)
+				myGroup = groupProps[groupIdx];
+			else
+			{
+				groupIdx = avo.findGroupIdxByPropName(groups, prop.name);
+				if(groupIdx >= 0)
+				{
+					myGroup = groups[groupIdx];
+					groupProps.push(myGroup);
+				}
+			}
+			
+			if(myGroup == null)
+			{
+				if(groupProps.length > 0 && groupProps[groupProps.length-1].virtual)
+				{
+					myGroup = groupProps[groupProps.length-1];
+				}
+				else
+				{
+					myGroup = { nameLabel: { value: po.i18n.ungrouped }, virtual: true };
+					groupProps.push(myGroup);
+				}
+			}
+			
+			myGroup.isGroup = true;
+			myGroup.nameLabel = (myGroup.nameLabel == null ? {} : myGroup.nameLabel);
+			myGroup.nameLabel.value = ($.isEmpty(myGroup.nameLabel.value) ? po.i18n.unnamed : myGroup.nameLabel.value);
+			myGroup.properties = (myGroup.properties == null ? [] : myGroup.properties);
+			myGroup.properties.push(prop);
+			
+			if(avo.isPropertiesAware(prop))
+				avo.groupProperties(prop);
+		}
+		
+		for(var i=0; i<groupProps.length; i++)
+		{
+			avo.buildEvalEnabledFunc(groupProps[i]);
+			groupProps[i].groupCollapsed = (i != 0);
+		}
+		
+		gfpObj.groupProps = groupProps;
+	};
+	
+	avo.findGroupIdxByPropName = function(groups, propName)
+	{
+		if(groups == null)
+			return -1;
+		
+		for(var i=0; i<groups.length; i++)
+		{
+			if(groups[i].names && groups[i].names.indexOf(propName) > -1)
+				return i;
+		}
+		
+		return -1;
+	};
+	
+	//兼容处理5.5.0版本的org.datagear.analysis.ChartPluginAttribute.group
+	avo.resolveOldGroup = function(props)
+	{
+		var groups = [];
+		
+		for(var i=0; i<props.length; i++)
+		{
+			var prop = props[i];
+			
+			if(!prop || !prop.additions || !prop.additions[avo.INPUT_PROPERTY_ADDITION_OLD_GROUP])
+				continue;
+			
+			var oldGroup = prop.additions[avo.INPUT_PROPERTY_ADDITION_OLD_GROUP];
+			
+			var group =
+			{
+				nameLabel: { value: "" }, names: []
+			};
+			
+			if(!$.isEmpty(oldGroup.name))
+				group.nameLabel.value = oldGroup.name;
+			else if(oldGroup.nameLabel && !$.isEmpty(oldGroup.nameLabel.value))
+				group.nameLabel.value = oldGroup.nameLabel.value;
+			
+			//无分组名称标签的，只在末尾分组相同时才使用，否则新建
+			if($.isEmpty(group.nameLabel.value))
+			{
+				group.nameLabel.value = po.i18n.ungrouped;
+				var groupTail = (groups.length > 0 ? groups[groups.length - 1] : null);
+				
+				if(groupTail && groupTail.nameLabel && groupTail.nameLabel.value == group.nameLabel.value)
+				{
+					group = groupTail;
+				}
+				else
+				{
+					groups.push(group);
+				}
+			}
+			//有分组名称标签的，查找或新建
+			else
+			{
+				var existIdx = -1;
+				
+				for(var j=0; j<groups.length; j++)
+				{
+					if(groups[j].nameLabel && groups[j].nameLabel.value == group.nameLabel.value)
+					{
+						existIdx = j;
+						break;
+					}
+				}
+				
+				if(existIdx >= 0)
+				{
+					group = groups[existIdx];
+				}
+				else
+				{
+					groups.push(group);
+				}
+			}
+			
+			group.names.push(prop.name);
+		}
+		
+		return groups;
+	};
+	
+	avo.buildEvalEnabledFunc = function(additionsAware)
+	{
+		if(additionsAware == null || additionsAware.additions == null)
+			return;
+		
+		var additions = additionsAware.additions;
+		var disableIf = additions[avo.DISABLEIF_NAME];
+		var enableIf = additions[avo.ENABLEIF_NAME];
+		
+		if($.isEmpty(disableIf) && $.isEmpty(enableIf))
+			return;
+		
+		var funcBody = "try{ ";
+		
+		//仅允许disableIf和enableIf的其中之一有效，且disableIf优先
+		if(!$.isEmpty(disableIf))
+		{
+			funcBody += "if(("+disableIf+") === true) { return false; } else { return true; }";
+		}
+		else if(!$.isEmpty(enableIf))
+		{
+			funcBody += "if(("+enableIf+") === true) { return true; } else { return false; }";
+		}
+		
+		funcBody += " } catch(e) { return true; }";
+		
+		additionsAware.evalEnabledFunc = new Function(avo.EVAL_ENABLED_FUNC_ROOT_DATA_ARG, avo.EVAL_ENABLED_FUNC_THIS_DATA_ARG, funcBody);
+	};
+	
+	avo.ctrlPropName = po.concatPid("avoctlprop");
+	avo.unrelatedPropName = po.concatPid("unrelatedProp");
+	
+	//图表配置值对象转换为org.datagear.analysis.ChartPluginConfigForm的表单数据模型
+	avo.configValuesToFormData = function(configValues, formData, pluginConfigForm, initDftValue)
+	{
+		configValues = (configValues || {});
+		formData = (formData || {});
+		initDftValue = (initDftValue === undefined ? true : initDftValue);
+		
+		if(pluginConfigForm == null)
+		{
+			formData = $.extend(true, formData, configValues);
+		}
+		else
+		{
+			pluginConfigForm = avo.toGroupTrimPluginConfigForm(pluginConfigForm);
+			formData = $.extend(true, formData, configValues);
+			avo.doConfigValuesToFormData(formData, pluginConfigForm, initDftValue);
+		}
+		
+		return formData;
+	};
+	
+	avo.doConfigValuesToFormData = function(configValues, propertiesAware, initDftValue)
+	{
+		initDftValue = (initDftValue === undefined ? true : initDftValue);
+		
+		if(configValues == null || propertiesAware == null || $.isEmpty(propertiesAware.properties))
+			return;
+		
+		var data = configValues;
+		var props = propertiesAware.properties;
+		
+		data[avo.ctrlPropName] = { propEnableds: {}, propCollapseds: {}, propViewValues: {}, propBakValues: {}, propEnableIfs: {} };
+		var propEnableds = data[avo.ctrlPropName].propEnableds;
+		var propCollapseds = data[avo.ctrlPropName].propCollapseds;
+		var propViewValues = data[avo.ctrlPropName].propViewValues;
+		
+		for(var i=0; i<props.length; i++)
+		{
+			var prop = props[i];
+			var v = data[prop.name];
+			
+			if(avo.isPropertiesAware(prop))
+			{
+				//null必填项应在这里初始化，即使在avo.evalEnableIf()函数中有相关逻辑，不然avo.clearFormData()逻辑不对
+				if(v == null && prop.required)
+					v = (prop.array ? [] : {});
+				
+				if(v != null)
+				{
+					if(prop.array)
+					{
+						if(!$.isArray(v))
+							v = [ v ];
+						
+						for(var j=0; j<v.length; j++)
+							avo.doConfigValuesToFormData(v[j], prop, initDftValue);
+					}
+					else
+					{
+						avo.doConfigValuesToFormData(v, prop, initDftValue);
+					}
+				}
+				
+				propEnableds[prop.name] = (v != null);
+				propCollapseds[prop.name] = !prop.required;
+			}
+			else
+			{
+				//为null且非数组时，使用默认值
+				if(initDftValue && v == null && !prop.array)
+					v = avo.clonePropDefaultValue(prop);
+				
+				v = avo.trimChartConfigValueArray(prop, v);
+				
+				//不能采用直接转换v的方式，因为enableIf/disableIf功能需要访问标准数据结构
+				if(avo.isPropTreeSelectInput(prop))
+				{
+					propViewValues[prop.name] = avo.encodeConfigValueTreeModel(prop, v);
+				}
+			}
+			
+			data[prop.name] = v;
+		};
+		
+		return data;
+	};
+	
+	avo.clonePropDefaultValue = function(prop)
+	{
+		var dftValue = prop.defaultValue;
+		return $.deepClonePlain(dftValue);
+	};
+	
+	avo.isPropTreeSelectInput = function(prop)
+	{
+		return (prop && prop.inputPayload && prop.inputPayload.treeSelect == true);
+	};
+	
+	//图表配置值转换为树组件Model
+	// "v0" -> { v0: true }
+	// [ "v0", "v1", ... ] -> { v0: true, v1: true, ... }、[ { v0: true }, { v1: true }, ... ]
+	// [ [ "v0", "v1" ], ... ] -> [ { v0: true, v1: true, ... }, ... ]
+	avo.encodeConfigValueTreeModel = function(inputProp, value, handleArrayProp)
+	{
+		handleArrayProp = (handleArrayProp === undefined ? true : handleArrayProp);
+		
+		if(value == null)
+			return value;
+		
+		var isTreeSelect = avo.isPropTreeSelectInput(inputProp);
+		
+		if(!isTreeSelect)
+			return value;
+		
+		value = ($.isArray(value) ? value : [ value ]);
+		
+		var re;
+		
+		if(handleArrayProp && inputProp.array)
+		{
+			re = [];
+			
+			value.forEach((vi) =>
+			{
+				if(vi == null)
+					return;
+				
+				var rei = {};
+				
+				if($.isArray(vi))
+				{
+					vi.forEach((vii) =>
+					{
+						if(vii != null)
+							rei[vii] = true;
+					});
+				}
+				else
+				{
+					rei[vi] = true;
+				}
+				
+				re.push(rei);
+			});
+		}
+		else
+		{
+			re = {};
+			
+			value.forEach((vi) =>
+			{
+				if(vi != null)
+					re[vi] = true;
+			});
+		}
+		
+		return re;
+	};
+	
+	//将由avo.configValuesToFormData()函数生成的表单数据转换为图表配置值对象，执行类型转换、选项值限定等
+	avo.formDataToConfigValues = function(formData, pluginConfigForm, strictMode, retainNull)
+	{
+		formData = (formData || {});
+		
+		var re;
+		
+		if(pluginConfigForm == null)
+			pluginConfigForm = { properties: [] };
+		
+		pluginConfigForm = avo.toGroupTrimPluginConfigForm(pluginConfigForm);
+		re = $.extend(true, {}, formData);
+		avo.doFormDataToConfigValues(re, pluginConfigForm, strictMode, retainNull);
+		
+		return re;
+	};
+	
+	avo.doFormDataToConfigValues = function(formData, propertiesAware, strictMode, retainNull)
+	{
+		if(formData == null)
+			return formData;
+		
+		var data = formData;
+		var props = (propertiesAware == null ? null : propertiesAware.properties);
+		props = (props == null ? [] : props);
+		var propNameMap = {};
+		
+		var propEnableIfs = (data[avo.ctrlPropName] ? data[avo.ctrlPropName].propEnableIfs : null);
+		
+		for(var i=0; i<props.length; i++)
+		{
+			var prop = props[i];
+			var propName = prop.name;
+			var v = data[propName];
+			
+			propNameMap[propName] = true;
+			
+			if(v == null)
+			{
+			}
+			else if(avo.isPropertiesAware(prop))
+			{
+				if($.isArray(v))
+				{
+					for(var j=0; j<v.length; j++)
+						avo.doFormDataToConfigValues(v[j], prop, true, false);
+				}
+				else
+				{
+					avo.doFormDataToConfigValues(v, prop, true, false);
+				}
+			}
+			else
+			{
+				v = avo.trimChartConfigValueArray(prop, v);
+				v = avo.toChartConfigTypeValue(prop, v);
+			}
+			
+			if(propEnableIfs != null && propEnableIfs[propName] === false)
+				v = null;
+			
+			if(v == null)
+			{
+				if(retainNull)
+				{
+					if(v === undefined)
+						v = null;
+					
+					data[propName] = v;
+				}
+				else
+				{
+					//不必要时删除null值，以免占用空间
+					delete data[propName];
+				}
+			}
+			else
+			{
+				data[propName] = v;
+			}
+		};
+		
+		//严格模式，删除未定义的属性值
+		if(strictMode)
+		{
+			for(var p in data)
+			{
+				if(propNameMap[p] !== true)
+					delete data[p];
+			}
+		}
+		
+		delete data[avo.ctrlPropName];
+	};
+	
+	//树组件Model转换为图表配置值，另参考avo.encodeConfigValueTreeModel()函数
+	avo.decodeConfigValueTreeModel = function(inputProp, value)
+	{
+		if(value == null)
+			return value;
+		
+		var isTreeSelect = avo.isPropTreeSelectInput(inputProp);
+		
+		if(!isTreeSelect)
+			return value;
+		
+		var isArray = inputProp.array;
+		var isMultiple = (inputProp.inputPayload && inputProp.inputPayload.multiple == true);
+		
+		if($.isPlainObject(value))
+			value = [ value ];
+		
+		var re;
+		
+		if($.isArray(value))
+		{
+			re = [];
+			
+			value.forEach((vi) =>
+			{
+				if(vi == null)
+					return;
+				
+				if($.isPlainObject(vi))
+				{
+					var rei = [];
+					
+					for(var vip in vi)
+					{
+						if(vip != null)
+							rei.push(vip);
+					}
+					
+					if(rei.length > 0)
+					{
+						if(isMultiple)
+							re.push(rei);
+						else
+						{
+							re.push(rei[0]);
+						}
+					}
+				}
+				else
+				{
+					re.push(vi);
+				}
+			});
+			
+			if(!isArray)
+				re = re[0];
+		}
+		else
+			re = value;
+		
+		return re;
+	};
+	
+	avo.trimChartConfigValueArray = function(inputProp, value)
+	{
+		if(value == null)
+			return value;
+		
+		if(!$.isArray(value))
+		{
+			if(inputProp.inputPayload && inputProp.inputPayload.multiple == true)
+				value = [ value ];
+			
+			if(inputProp.array)
+				value = [ value ];
+		}
+		
+		return value;
+	};
+	
+	avo.toChartConfigTypeValue = function(inputProp, value)
+	{
+		var type = inputProp.type;
+		
+		//对于UI输入框，空字符串应视为null
+		if(value === "")
+			value = null;
+		
+		if(value == null)
+		{
+			return value;
+		}
+		else if($.isArray(value))
+		{
+			var re = [];
+			
+			value.forEach((vi) =>
+			{
+				vi = avo.toChartConfigTypeValue(inputProp, vi);
+				//数组中的null元素应保留
+				re.push(vi);
+			});
+			
+			//对于UI输入框，空数组应视为null
+			return (re.length > 0 ? re : null);
+		}
+		else
+		{
+			if(type == avo.FormPropertyType.BOOLEAN)
+			{
+				value = (value == true || value === "true" || value === "1" ? true : false);
+			}
+			else if(type == avo.FormPropertyType.INTEGER)
+			{
+				value = $.parseIntWithDefault(value, null);
+			}
+			else if(type == avo.FormPropertyType.NUMBER)
+			{
+				value = $.parseToNumber(value);
+				value = (isNaN(value) ? null : value);
+			}
+			
+			if(value != null)
+			{
+				//应将值限定为待选值集合内，比如图表插件升级后inputPayload有所删减，那么这里的旧值应删除
+				var inputPayload = inputProp.inputPayload;
+				var payloadOptions = (inputPayload && inputPayload.options ? inputPayload.options : null);
+				var isTreeSelect = avo.isPropTreeSelectInput(inputProp);
+				
+				if(payloadOptions != null && $.isArray(payloadOptions))
+				{
+					if(isTreeSelect)
+					{
+						if($.findTreeArrayById(payloadOptions, value, "key") == null)
+							value = null;
+					}
+					else
+					{
+						if($.inArrayById(payloadOptions, value, "value") < 0)
+							value = null;
+					}
+				}
+			}
+			
+			return value;
+		}
+	};
+	
+	avo.setFormConfigValues = function(configValues, initDftValue)
+	{
+		var pm = po.vuePageModel();
+		var pluginConfigForm = pm.avoModel.pluginConfigForm;
+		var formData = pm.avoModel.formData;
+		
+		for(var p in formData)
+			delete formData[p];
+		
+		avo.configValuesToFormData(configValues, formData, pluginConfigForm, initDftValue);
+	};
+	
+	avo.clearFormData = function()
+	{
+		avo.setFormConfigValues({}, false);
+	};
+	
+	avo.clearConfigValuesIfNoConfigForm = function(configValues, pluginConfigForm)
+	{
+		var re = (configValues || {});
+		
+		if(pluginConfigForm == null || $.isEmpty(pluginConfigForm.properties))
+			re = {};
+		
+		return re;
+	};
+	
+	avo.moveUpArrayValEle = function(formData, prop, idx)
+	{
+		var array = formData[prop.name];
+		
+		if(idx > 0)
+		{
+			var me = array[idx];
+			var prev = array[idx-1];
+			array[idx-1] = me;
+			array[idx] = prev;
+		}
+	},
+	
+	avo.moveDownArrayValEle = function(formData, prop, idx)
+	{
+		var array = formData[prop.name];
+		
+		if(idx < (array.length -1))
+		{
+			var me = array[idx];
+			var next = array[idx+1];
+			array[idx+1] = me;
+			array[idx] = next;
+		}
+	},
+	
+	avo.insertArrayValEle = function(formData, prop, idx)
+	{
+		var array = formData[prop.name];
+		
+		if(array == null)
+			formData[prop.name] = (array = []);
+		
+		var ele = null;
+		var isTreeSelect = false;
+		
+		if(avo.isPropertiesAware(prop))
+		{
+			ele = avo.doConfigValuesToFormData({}, prop);
+		}
+		else
+		{
+			ele = avo.clonePropDefaultValue(prop);
+			isTreeSelect = avo.isPropTreeSelectInput(prop);
+		}
+		
+		//undefined应置为null，因为数组的undefined元素表示空槽，不符合这里的需求
+		if(ele === undefined)
+			ele = null;
+		
+		if(idx == null)
+			array.push(ele);
+		else
+			array.splice(idx, 0, ele);
+		
+		if(isTreeSelect)
+		{
+			var propViewValues = formData[avo.ctrlPropName].propViewValues;
+			var viewArray = propViewValues[prop.name];
+			
+			if(viewArray == null)
+				propViewValues[prop.name] = (viewArray = []);
+			
+			var treeEle = avo.encodeConfigValueTreeModel(prop, ele, false);
+			
+			if(idx == null)
+				viewArray.push(treeEle);
+			else
+				viewArray.splice(idx, 0, treeEle);
+		}
+	},
+	
+	avo.removeArrayValEle = function(formData, prop, idx)
+	{
+		var array = formData[prop.name];
+		
+		if(array == null)
+			return;
+		
+		if(avo.isPropertiesAware(prop))
+		{
+			po.confirm(
+			{
+				message: po.i18n.confirmDeleteThisDataAsk,
+				accept: function()
+				{
+					array.splice(idx, 1);
+				}
+			});
+		}
+		else
+		{
+			array.splice(idx, 1);
+			
+			var isTreeSelect = avo.isPropTreeSelectInput(prop);
+			if(isTreeSelect)
+			{
+				var propViewValues = formData[avo.ctrlPropName].propViewValues;
+				var viewArray = propViewValues[prop.name];
+				
+				if(viewArray != null)
+					viewArray.splice(idx, 1);
+			}
+		}
+	};
+	
+	avo.concatPropNamePath = function(propNamePath, name)
+	{
+		if($.isTypeNumber(name))
+			return (propNamePath ? propNamePath : "") + "["+name+"]";
+		else
+			return (propNamePath ? propNamePath+"." : "") + $.escapePropPathEle(name);
+	};
+	
+	avo.evalEnableIf = function(rootFormData, formData, enableHandler, parentEnableHandler)
+	{
+		var enable = avo.doEvalEnableIfWithParent(rootFormData, formData, enableHandler, parentEnableHandler);
+		
+		var ctrlPropName = this.ctrlPropName;
+		var propEnableIfs = formData[ctrlPropName].propEnableIfs;
+		var propEnableIfsRaw = null;
+		var props = null;
+		
+		//同步propEnableIfs信息
+		//注意：不要在这里执行其他写响应式模型的操作，会导致死循环
+		
+		//分组
+		if(enableHandler.isGroup == true)
+		{
+			props = (enableHandler.properties || []);
+			
+			for(var i=0; i<props.length; i++)
+			{
+				var prop = props[i];
+				var propName = prop.name;
+				
+				if(propEnableIfs[propName] !== enable)
+				{
+					//必须转化为raw后再执行写操作，不然可能导致响应式死循环
+					if(propEnableIfsRaw == null)
+						propEnableIfsRaw = po.vueRaw(propEnableIfs);
+					
+					propEnableIfsRaw[propName] = enable;
+				}
+			}
+		}
+		//属性
+		else if(enableHandler.name !== undefined)
+		{
+			var propName = enableHandler.name;
+			
+			if(propEnableIfs[propName] !== enable)
+			{
+				//必须转化为raw后再执行写操作，不然可能导致响应式UI死循环
+				if(propEnableIfsRaw == null)
+					propEnableIfsRaw = po.vueRaw(propEnableIfs);
+				
+				propEnableIfsRaw[propName] = enable;
+			}
+		}
+		
+		return enable;
+	};
+	
+	avo.doEvalEnableIfWithParent = function(rootFormData, formData, enableHandler, parentEnableHandler)
+	{
+		var enabled = true;
+		
+		if(parentEnableHandler != null)
+			enabled = avo.doEvalEnableIf(rootFormData, formData, parentEnableHandler);
+		
+		if(enabled)
+			enabled = avo.doEvalEnableIf(rootFormData, formData, enableHandler);
+		
+		return enabled;
+	};
+	
+	avo.doEvalEnableIf = function(rootFormData, formData, enableHandler)
+	{
+		if(enableHandler == null || enableHandler.evalEnabledFunc == null)
+			return true;
+		
+		//函数体里的this应指向formData
+		var re = (enableHandler.evalEnabledFunc.call(formData, rootFormData, formData) !== false);
+		return re;
+	};
+	
+	avo.handleEnableObjProp = function(formData, objProp)
+	{
+		var propName = objProp.name;
+		var ctrlPropName = this.ctrlPropName;
+		var ctrlObj = formData[ctrlPropName];
+		var propEnableds = ctrlObj.propEnableds;
+		var propCollapseds = ctrlObj.propCollapseds;
+		var propBakValues = ctrlObj.propBakValues;
+		
+		if(propEnableds[propName])
+		{
+			if(propBakValues[propName] != null)
+				formData[propName] = propBakValues[propName];
+			else
+				formData[propName] = (objProp.array ? [] : avo.doConfigValuesToFormData({}, objProp));
+			
+			propCollapseds[propName] = false;
+		}
+		else
+		{
+			avo.delAndBakPropValue(formData, propName, propBakValues);
+			propEnableds[propName] = false;
+			propCollapseds[propName] = true;
+		}
+	};
+	
+	avo.delAndBakPropValue = function(formData, propName, propBakValues)
+	{
+		var value = formData[propName];
+		
+		if(value !== undefined)
+		{
+			if(value != null)
+				propBakValues[propName] = value;
+			
+			delete formData[propName];
+		}
+	};
+	
+	avo.validateConfigValuesRequired = function(configValues, pluginConfigForm)
+	{
+		pluginConfigForm = avo.toGroupTrimPluginConfigForm(pluginConfigForm);
+		
+		var formData = configValues;
+		formData = (formData == null ? {} : formData);
+		
+		var groupProps = (pluginConfigForm.groupProps || []);
+		
+		for(var i=0; i<groupProps.length; i++)
+		{
+			var group = groupProps[i];
+			var props = (group.properties || []);
+			
+			for(var j=0; j<props.length; j++)
+			{
+				var prop = props[j];
+				var enable = avo.doEvalEnableIfWithParent(formData, formData, prop, group);
+				
+				if(enable && prop.required && $.isEmpty(formData[prop.name]))
+					return false;
+			}
+		}
+		
+		return true;
+	};
+	
+	po.setupChartConfigValuesForm = function(pluginConfigForm, configValues, options)
+	{
+		options = $.extend(
+		{
+			submitHandler: null,
+			showClearBtn: true,
+			buttons: [],
+			readonly: false,
+			strictSubmitData: false,
+			retainDataNullProp: false
+		},
+		options);
+		
+		pluginConfigForm = avo.toGroupTrimPluginConfigForm(pluginConfigForm);
+		
+		var pm = po.vuePageModel();
+		pm.avoModel.pluginConfigForm = pluginConfigForm;
+		pm.avoModel.buttons = options.buttons;
+		pm.avoModel.readonly = options.readonly;
+		pm.avoModel.showClearBtn = options.showClearBtn;
+		avo.setFormConfigValues(configValues);
+		
+		var form = po.elementOfId(avo.chartConfigValuesFormEleId, document.body);
+		po.setupSimpleForm(form, pm.avoModel.formData,
+		{
+			submitHandler: function()
+			{
+				if(options && options.submitHandler)
+				{
+					var pluginConfigForm = pm.avoModel.pluginConfigForm;
+					var data = po.vueRaw(pm.avoModel.formData);
+					var configValues = avo.formDataToConfigValues(data, pluginConfigForm, options.strictSubmitData, options.retainDataNullProp);
+					options.submitHandler(configValues);
+				}
+			}
+		});
+	};
+	
+	po.vuePageModel(
+	{
+		avoModel:
+		{
+			FormPropertyType: avo.FormPropertyType,
+			FormPropertyInputType: avo.FormPropertyInputType,
+			pluginConfigForm: { groupProps: [] },
+			formData: {},
+			showClearBtn: true,
+			readonly: false,
+			buttons: [],
+			i18n: po.i18n,
+			ctrlPropName: avo.ctrlPropName,
+			enableOptions:
+			[
+				{name: po.i18n.enable, value: true},
+				{name: po.i18n.disable, value: false}
+			]
+		}
+	});
+	
+	po.vueMethod(
+	{
+		onClearChartConfigValuesForm: function()
+		{
+			po.confirm(
+			{
+				message: po.i18n.confirmClearAllChartConfig,
+				accept: function()
+				{
+					avo.clearFormData();
+				} 
+			});
+		}
+	});
+	
+	var inputPropFieldCmp = po.vueDefineComponent(
+	{
+		name: "dg-input-prop-field",
+		props:
+		{
+			inputProp: { type: Object },
+			propNamePath: { type: String },
+			formData: { type: Object },
+			rootFormData: { type: Object },
+			readonly: { type: Boolean },
+			propTypeDef: { type: Object },
+			propInputTypeDef: { type: Object },
+			i18n: { type: Object },
+			ctrlPropName: { type: String }
+		},
+		template:
+		`
+		<div class="field grid">
+			<label :for="inputProp.domId+'.'+propNamePath+'.'+inputProp.name" class="field-label col-12 mb-2"
+				:class="{'required-label': inputProp.required}"
+				:title="inputProp.descLabel && inputProp.descLabel.value ? inputProp.descLabel.value : null">
+				<span>{{inputProp.nameLabel.value}}</span>
+				<span class="text-color-secondary text-sm ml-1">{{inputProp.name}}</span>
+			</label>
+			<div class="field-input col-12">
+				<div v-if="inputProp.inputType == propInputTypeDef.SELECT">
+					<div class="input p-inputtext p-component flex flex-column gap-1" v-if="inputProp.array">
+						<div v-for="(vi, viIdx) in formData[inputProp.name]" class="flex gap-2">
+							<div class="flex-grow-1 flex" v-if="inputProp.inputPayload.multiple">
+								<p-treeselect v-model="formData[ctrlPropName].propViewValues[inputProp.name][viIdx]" :options="inputProp.inputPayload.options"
+									selection-mode="multiple" class="w-full" :placeholder="i18n.none" @change="onTreeSelectChange($event, formData, inputProp)"
+									v-if="inputProp.inputPayload.treeSelect == true">
+								</p-treeselect>
+								<p-multiselect v-model="formData[inputProp.name][viIdx]" :options="inputProp.inputPayload.options"
+									option-label="name" option-value="value" :show-clear="true" class="w-full"
+									v-else>
+								</p-multiselect>
+							</div>
+							<div class="flex-grow-1 flex" v-else>
+								<p-treeselect v-model="formData[ctrlPropName].propViewValues[inputProp.name][viIdx]" :options="inputProp.inputPayload.options"
+									class="w-full" :placeholder="i18n.none" @change="onTreeSelectChange($event, formData, inputProp)"
+									v-if="inputProp.inputPayload.treeSelect == true">
+								</p-treeselect>
+								<p-dropdown v-model="formData[inputProp.name][viIdx]" :options="inputProp.inputPayload.options"
+									option-label="name" option-value="value" class="flex-grow-1"
+									v-else>
+								</p-dropdown>
+							</div>
+							<div class="flex align-items-center gap-1" v-if="!readonly">
+								<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+									@click="insertArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+								<p-button type="button" icon="pi pi-minus" severity="danger" outlined 
+									@click="removeArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+							</div>
+						</div>
+						<div v-if="!readonly">
+							<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+								@click="insertArrayValEle(formData, inputProp)">
+							</p-button>
+						</div>
+					</div>
+					<div v-else-if="inputProp.inputPayload.multiple">
+						<p-treeselect v-model="formData[ctrlPropName].propViewValues[inputProp.name]" :options="inputProp.inputPayload.options"
+							selection-mode="multiple" class="input w-full" :placeholder="i18n.none" @change="onTreeSelectChange($event, formData, inputProp)"
+							v-if="inputProp.inputPayload.treeSelect == true">
+						</p-treeselect>
+						<p-multiselect v-model="formData[inputProp.name]" :options="inputProp.inputPayload.options"
+							option-label="name" option-value="value" :show-clear="true" class="input w-full"
+							v-else>
+						</p-multiselect>
+					</div>
+					<div v-else>
+						<p-treeselect v-model="formData[ctrlPropName].propViewValues[inputProp.name]" :options="inputProp.inputPayload.options"
+							class="input w-full" :placeholder="i18n.none" @change="onTreeSelectChange($event, formData, inputProp)"
+							 v-if="inputProp.inputPayload.treeSelect == true">
+						</p-treeselect>
+						<p-dropdown v-model="formData[inputProp.name]" :options="inputProp.inputPayload.options"
+							option-label="name" option-value="value" :show-clear="!inputProp.required" class="input w-full"
+							v-else>
+						</p-dropdown>
+					</div>
+				</div>
+				<div v-else-if="inputProp.inputType == propInputTypeDef.COLOR">
+					<div class="input p-inputtext p-component flex flex-column gap-1" v-if="inputProp.array">
+						<div v-for="(vi, viIdx) in formData[inputProp.name]" class="flex gap-2">
+							<div class="flex-grow-1 flex gap-1">
+								<p-inputtext v-model="formData[inputProp.name][viIdx]" type="text"
+									class="flex-grow-1" maxlength="200">
+								</p-inputtext>
+								<p-button type="button" :style="{'background-color': formData[inputProp.name][viIdx]}"
+									class="palette-btn surface-border"
+									@click="showPalettePanel($event, formData[inputProp.name], viIdx)"></p-button>
+							</div>
+							<div class="flex align-items-center gap-1" v-if="!readonly">
+								<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+									@click="insertArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+								<p-button type="button" icon="pi pi-minus" severity="danger" outlined
+									@click="removeArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+							</div>
+						</div>
+						<div v-if="!readonly">
+							<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+								@click="insertArrayValEle(formData, inputProp)">
+							</p-button>
+						</div>
+					</div>
+					<div class="flex gap-1" v-else>
+						<p-inputtext v-model="formData[inputProp.name]" type="text"
+							class="input flex-grow-1" maxlength="200">
+						</p-inputtext>
+						<p-button type="button" :style="{'background-color': formData[inputProp.name]}" class="palette-btn surface-border"
+							@click="showPalettePanel($event, formData, inputProp.name)"></p-button>
+					</div>
+				</div>
+				<div v-else-if="inputProp.inputType == propInputTypeDef.RADIO || inputProp.inputType == propInputTypeDef.CHECKBOX">
+					<div class="input p-inputtext p-component flex flex-column gap-1" v-if="inputProp.array">
+						<div v-for="(vi, viIdx) in formData[inputProp.name]" class="flex gap-2">
+							<div class="flex-grow-1 p-inputtext p-component p-2 flex gap-3">
+								<div v-for="(opt, optIdx) in inputProp.inputPayload.options" class="inline-flex align-items-center gap-1">
+									<p-radiobutton :input-id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name+'.'+optIdx+'.'+viIdx"
+										:value="opt.value" v-model="formData[inputProp.name][viIdx]"
+										 v-if="inputProp.inputType == propInputTypeDef.RADIO">
+									</p-radiobutton>
+									<p-checkbox :input-id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name+'.'+optIdx+'.'+viIdx"
+										:value="opt.value" v-model="formData[inputProp.name][viIdx]"
+										v-else>
+									</p-checkbox>
+									<label :for="inputProp.domId+'.'+propNamePath+'.'+inputProp.name+'.'+optIdx+'.'+viIdx">{{opt.name}}</label>
+								</div>
+							</div>
+							<div class="flex align-items-center gap-1" v-if="!readonly">
+								<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+									@click="insertArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+								<p-button type="button" icon="pi pi-minus" severity="danger" outlined
+									@click="removeArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+							</div>
+						</div>
+						<div v-if="!readonly">
+							<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+								@click="insertArrayValEle(formData, inputProp)">
+							</p-button>
+						</div>
+					</div>
+					<div class="input p-inputtext p-component p-2 flex gap-3" v-else>
+						<div v-for="(opt, optIdx) in inputProp.inputPayload.options" class="inline-flex align-items-center gap-1">
+							<p-radiobutton :input-id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name+'.'+optIdx"
+								:value="opt.value" v-model="formData[inputProp.name]"
+								 v-if="inputProp.inputType == propInputTypeDef.RADIO">
+							</p-radiobutton>
+							<p-checkbox :input-id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name+'.'+optIdx"
+								:value="opt.value" v-model="formData[inputProp.name]"
+								v-else>
+							</p-checkbox>
+							<label :for="inputProp.domId+'.'+propNamePath+'.'+inputProp.name+'.'+optIdx">{{opt.name}}</label>
+						</div>
+					</div>
+				</div>
+				<div v-else>
+					<div class="input p-inputtext p-component flex flex-column gap-1" v-if="inputProp.array">
+						<div v-for="(vi, viIdx) in formData[inputProp.name]" class="flex gap-2">
+							<p-inputnumber v-model="formData[inputProp.name][viIdx]" :use-grouping="false" class="flex-grow-1"
+								v-if="inputProp.type == propTypeDef.INTEGER">
+							</p-inputnumber>
+							<p-inputnumber v-model="formData[inputProp.name][viIdx]" :use-grouping="false" class="flex-grow-1"
+								:min-fraction-digits="0" :max-fraction-digits="20"
+								v-else-if="inputProp.type == propTypeDef.NUMBER">
+							</p-inputnumber>
+							<p-textarea v-model="formData[inputProp.name][viIdx]" class="flex-grow-1"
+								v-else-if="inputProp.inputType == propInputTypeDef.TEXTAREA">
+							</p-textarea>
+							<p-inputtext v-model="formData[inputProp.name][viIdx]" type="text" class="flex-grow-1"
+								v-else>
+							</p-inputtext>
+							<div class="flex align-items-center gap-1" v-if="!readonly">
+								<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+									@click="insertArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+								<p-button type="button" icon="pi pi-minus" severity="danger" outlined
+									@click="removeArrayValEle(formData, inputProp, viIdx)">
+								</p-button>
+							</div>
+						</div>
+						<div v-if="!readonly">
+							<p-button type="button" icon="pi pi-plus" severity="secondary" outlined
+								@click="insertArrayValEle(formData, inputProp)">
+							</p-button>
+						</div>
+					</div>
+					<p-inputnumber :input-id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name"
+						v-model="formData[inputProp.name]" :use-grouping="false" class="input w-full"
+						v-else-if="inputProp.type == propTypeDef.INTEGER">
+					</p-inputnumber>
+					<p-inputnumber :input-id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name"
+						v-model="formData[inputProp.name]" :use-grouping="false" class="input w-full"
+						:min-fraction-digits="0" :max-fraction-digits="20"
+						v-else-if="inputProp.type == propTypeDef.NUMBER">
+					</p-inputnumber>
+					<p-textarea :id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name"
+						v-model="formData[inputProp.name]" class="input w-full"
+						v-else-if="inputProp.inputType == propInputTypeDef.TEXTAREA">
+					</p-textarea>
+					<p-inputtext :id="inputProp.domId+'.'+propNamePath+'.'+inputProp.name"
+						v-model="formData[inputProp.name]" type="text" class="input w-full"
+						v-else>
+					</p-inputtext>
+				</div>
+	        	<div class="validate-msg">
+	        		<input :name="concatPropNamePath(propNamePath, inputProp.name)" type="text" class="validate-proxy"
+	        			:detailrequired="inputProp.required ? 'true' : null"
+	        			:integer="inputProp.type == propTypeDef.INTEGER ? 'true' : null"
+	        			:number="inputProp.type == propTypeDef.NUMBER ? 'true' : null"
+	        			:minlength="inputProp.type == propTypeDef.STRING && inputProp.additions && inputProp.additions['minLength'] != null ? inputProp.additions['minLength'] : null"
+	        			:maxlength="inputProp.type == propTypeDef.STRING && inputProp.additions && inputProp.additions['maxLength'] != null ? inputProp.additions['maxLength'] : null"
+	        			:min="(inputProp.type == propTypeDef.INTEGER || inputProp.type == propTypeDef.NUMBER) && inputProp.additions && inputProp.additions['min'] != null ? inputProp.additions['min'] : null"
+	        			:max="(inputProp.type == propTypeDef.INTEGER || inputProp.type == propTypeDef.NUMBER) && inputProp.additions && inputProp.additions['max'] != null ? inputProp.additions['max'] : null"
+	        			:minsize="inputProp.array && inputProp.additions && inputProp.additions['minSize'] != null ? inputProp.additions['minSize'] : null"
+	        			:maxsize="inputProp.array && inputProp.additions && inputProp.additions['maxSize'] != null ? inputProp.additions['maxSize'] : null" />
+	        	</div>
+			</div>
+		</div>
+		`,
+		
+		methods:
+		{
+			concatPropNamePath: function(propNamePath, name)
+			{
+				return avo.concatPropNamePath(propNamePath, name);
+			},
+			insertArrayValEle: function(formData, prop, idx)
+			{
+				avo.insertArrayValEle(formData, prop, idx);
+			},
+			removeArrayValEle: function(formData, prop, idx)
+			{
+				avo.removeArrayValEle(formData, prop, idx);
+			},
+			showPalettePanel: function(e, modelObj, modelProp)
+			{
+				po.showPalettePanel(e, modelObj, modelProp);
+			},
+			onTreeSelectChange: function(e, formData, prop)
+			{
+				var propName = prop.name;
+				var ctrlPropName = this.ctrlPropName;
+				var ctrlObj = formData[ctrlPropName];
+				var propViewValues = ctrlObj.propViewValues;
+				formData[propName] = avo.decodeConfigValueTreeModel(prop, propViewValues[propName]);
+			}
+		},
+		
+		components: $.vueComponents()
+	});
+	
+	var objPropFieldCmpDepends = $.vueComponents();
+	objPropFieldCmpDepends["dg-input-prop-field"] = inputPropFieldCmp;
+
+	po.vueDefineComponent(
+	{
+		name: "dg-obj-prop-field",
+		props:
+		{
+			objProp: { type: Object },
+			propNamePath: { type: String },
+			formData: { type: Object },
+			rootFormData: { type: Object },
+			readonly: { type: Boolean },
+			propTypeDef: { type: Object },
+			propInputTypeDef: { type: Object },
+			i18n: { type: Object },
+			ctrlPropName: { type: String },
+			enableOptions: { type: Object }
+		},
+		template:
+		`
+		<div class="flex flex-column">
+			<p-panel :toggleable="false" v-for="(group, groupIdx) in objProp.groupProps" class="sm-header-y-padding panel-icon-align-center invalid-indicator"
+				:class="{'disable-p-panel': group.virtual, 'mb-3': !group.virtual, 'hide-panel-content': (!group.virtual && group.groupCollapsed), 'hidden': (evalEnableIf(rootFormData, formData, group) == false)}">
+				<template #header>
+					<label class='font-bold color-for-invalid'>{{group.nameLabel.value}}</label>
+				</template>
+				<template #icons>
+					<div class="inline-flex align-items-center gap-3 text-sm">
+						<p-button type="button" :icon="group.groupCollapsed ? 'pi pi-angle-down' : 'pi pi-angle-up'"
+							severity="secondary" text rounded @click="onToggleGroupPanel(group)" v-if="!group.virtual">
+						</p-button>
+					</div>
+				</template>
+				<div>
+					<div v-for="(prop, propIdx) in group.properties">
+						<div v-if="evalEnableIf(rootFormData, formData, prop, group)">
+							<div class="mb-3" v-if="prop.type == propTypeDef.OBJECT && prop.array">
+								<p-panel :toggleable="false"
+									class="sm-header-y-padding panel-icon-align-center invalid-indicator" :class="{'hide-panel-content': formData[ctrlPropName].propCollapseds[prop.name]}">
+									<template #header>
+										<label :class="{'required-label': prop.required, 'opacity-60': formData[prop.name] == null}" class="color-for-invalid">
+											<span class="font-bold">{{prop.nameLabel.value}}</span>
+											<span class="text-color-secondary text-sm ml-1">
+												{{formData[prop.name] == null ? '' : formData[prop.name].length}}
+											</span>
+										</label>
+									</template>
+									<template #icons>
+										<div class="inline-flex align-items-center gap-3 text-sm">
+											<p-inputswitch v-model="formData[ctrlPropName].propEnableds[prop.name]" :title="i18n.activeOrClear"
+												@change="onEnableObjProp(formData, prop)" v-if="!readonly && !prop.required">
+											</p-inputswitch>
+											<p-button type="button" :icon="formData[ctrlPropName].propCollapseds[prop.name] ? 'pi pi-angle-down' : 'pi pi-angle-up'"
+												severity="secondary" text rounded @click="onToggleObjPropPanel(formData, prop)" :disabled="formData[prop.name] == null">
+											</p-button>
+										</div>
+									</template>
+									<div class="flex flex-column gap-3 mb-2"  v-if="formData[prop.name] != null">
+										<p-panel v-for="(propDataEle, propDataEleIdx) in formData[prop.name]"
+											:toggleable="true" class="sm-header-y-padding panel-icon-align-center invalid-indicator">
+											<template #header>
+												<label class="color-for-invalid">
+													<span class="font-bold">{{prop.nameLabel.value}}</span>
+													<span class="text-color-secondary text-sm ml-1">
+														{{(propDataEleIdx+1)+'/'+formData[prop.name].length}}
+													</span>
+												</label>
+											</template>
+											<template #icons>
+												<div class="inline-flex gap-1 mx-2 text-sm" v-if="!readonly">
+													<p-button type="button" severity="secondary" icon="pi pi-arrow-up" :title="i18n.moveUp"
+														@click="moveUpArrayValEle(formData, prop, propDataEleIdx)">
+													</p-button>
+													<p-button type="button" severity="secondary" icon="pi pi-arrow-down" :title="i18n.moveDown"
+														@click="moveDownArrayValEle(formData, prop, propDataEleIdx)">
+													</p-button>
+													<p-button type="button" severity="secondary" icon="pi pi-plus" :title="i18n.insert"
+														@click="insertArrayValEle(formData, prop, propDataEleIdx)">
+													</p-button>
+													<p-button type="button" severity="danger" icon="pi pi-minus" :title="i18n.del"
+														@click="removeArrayValEle(formData, prop, propDataEleIdx)">
+													</p-button>
+												</div>
+											</template>
+											<dg-obj-prop-field :obj-prop="prop" :prop-name-path="concatPropNamePath(concatPropNamePath(propNamePath, prop.name), propDataEleIdx)"
+												:form-data="propDataEle" :root-form-data="rootFormData" :prop-type-def="propTypeDef" :prop-input-type-def="propInputTypeDef" :i18n="i18n"
+												:ctrl-prop-name="ctrlPropName" :enable-options="enableOptions"
+												:readonly="readonly">
+											</dg-obj-prop-field>
+										</p-panel>
+										<div>
+											<div class="text-sm" v-if="!readonly">
+												<p-button type="button" icon="pi pi-plus" :label="prop.nameLabel.value"
+													severity="secondary" @click="insertArrayValEle(formData, prop)">
+												</p-button>
+											</div>
+											<div class="field-input" v-if="group.required">
+									        	<div class="validate-msg">
+									        		<input :name="prop.name" required type="text" class="validate-proxy" />
+									        	</div>
+								        	</div>
+							        	</div>
+						        	</div>
+						        </p-panel>
+							</div>
+							<div class="mb-3" v-else-if="prop.type == propTypeDef.OBJECT">
+								<p-panel :toggleable="false" class="sm-header-y-padding panel-icon-align-center invalid-indicator"
+									:class="{'hide-panel-content': formData[ctrlPropName].propCollapseds[prop.name]}">
+									<template #header>
+										<label class="font-bold color-for-invalid" :class="{'required-label': prop.required, 'opacity-60': formData[prop.name] == null}">
+											{{prop.nameLabel.value}}
+										</label>
+									</template>
+									<template #icons>
+										<div class="inline-flex align-items-center gap-3 text-sm">
+											<p-inputswitch v-model="formData[ctrlPropName].propEnableds[prop.name]" :title="i18n.activeOrClear"
+												@change="onEnableObjProp(formData, prop)" v-if="!readonly && !prop.required">
+											</p-inputswitch>
+											<p-button type="button" :icon="formData[ctrlPropName].propCollapseds[prop.name] ? 'pi pi-angle-down' : 'pi pi-angle-up'"
+												severity="secondary" text rounded @click="onToggleObjPropPanel(formData, prop)" :disabled="formData[prop.name] == null">
+											</p-button>
+										</div>
+									</template>
+									<dg-obj-prop-field :obj-prop="prop" :prop-name-path="concatPropNamePath(propNamePath, prop.name)"
+										:form-data="formData[prop.name]" :root-form-data="rootFormData"
+										:prop-type-def="propTypeDef" :prop-input-type-def="propInputTypeDef" :i18n="i18n"
+										:ctrl-prop-name="ctrlPropName" :enable-options="enableOptions"
+										:readonly="readonly" v-if="formData[prop.name] != null">
+									</dg-obj-prop-field>
+								</p-panel>
+							</div>
+							<div v-else>
+								<dg-input-prop-field :input-prop="prop" :prop-name-path="propNamePath"
+									:form-data="formData" :root-form-data="rootFormData"
+									:prop-type-def="propTypeDef" :prop-input-type-def="propInputTypeDef" :i18n="i18n"
+									:ctrl-prop-name="ctrlPropName" :readonly="readonly">
+								</dg-input-prop-field>
+							</div>
+						</div>
+					</div>
+				</div>
+			</p-panel>
+		</div>
+		`,
+		
+		methods:
+		{
+			concatPropNamePath: function(propNamePath, name)
+			{
+				return avo.concatPropNamePath(propNamePath, name);
+			},
+			moveUpArrayValEle: function(formData, prop, idx)
+			{
+				avo.moveUpArrayValEle(formData, prop, idx);
+			},
+			moveDownArrayValEle: function(formData, prop, idx)
+			{
+				avo.moveDownArrayValEle(formData, prop, idx);
+			},
+			insertArrayValEle: function(formData, prop, idx)
+			{
+				avo.insertArrayValEle(formData, prop, idx);
+			},
+			removeArrayValEle: function(formData, prop, idx)
+			{
+				avo.removeArrayValEle(formData, prop, idx);
+			},
+			onEnableObjProp: function(formData, objProp)
+			{
+				avo.handleEnableObjProp(formData, objProp);
+			},
+			onToggleObjPropPanel: function(formData, prop)
+			{
+				var ctrlPropName = this.ctrlPropName;
+				var ctrlObj = formData[ctrlPropName];
+				var propCollapseds = ctrlObj.propCollapseds;
+				propCollapseds[prop.name] = !propCollapseds[prop.name];
+			},
+			onToggleGroupPanel: function(group)
+			{
+				group.groupCollapsed = !group.groupCollapsed;
+			},
+			evalEnableIf: function(rootFormData, formData, enableHandler, parentEnableHandler)
+			{
+				return avo.evalEnableIf(rootFormData, formData, enableHandler, parentEnableHandler);
+			}
+		},
+		
+		components: objPropFieldCmpDepends
+	});
+};
+
+//填充chart_form.ftl
+$.inflateChartForm = function(po)
+{
+	//内置简化数据标记字段匹配器定义
+	//匹配器结构规范：
+	//{ inTypes: null、"..."、[ "...", ... ], notInTypes: null、"..."、[ "...", ... ], array: null、true、false, evaluated: null、true、false }
+	//只要其中任一属性不匹配，则表示匹配器不通过，null表示此属性匹配通过
+	po.DATASIGN_FIELD_MATCHERS =
+	{
+		//类型
+		"s": { inTypes: [ po.DataSetFieldType.STRING ] },
+		"n": { inTypes: [ po.DataSetFieldType.NUMBER ] },
+		"i": { inTypes: [ po.DataSetFieldType.INTEGER ] },
+		"d": { inTypes: [ po.DataSetFieldType.DATE ] },
+		"t": { inTypes: [ po.DataSetFieldType.TIME ] },
+		"ts": { inTypes: [ po.DataSetFieldType.TIMESTAMP ] },
+		"b": { inTypes: [ po.DataSetFieldType.BOOLEAN ] },
+		"o": { inTypes: [ po.DataSetFieldType.OBJECT ] },
+		"u": { inTypes: [ po.DataSetFieldType.UNKNOWN ] },
+		//类型：基本类
+		"P": { notInTypes: [ po.DataSetFieldType.OBJECT, po.DataSetFieldType.UNKNOWN ] },
+		//类型：数值类
+		"N": { inTypes: [ po.DataSetFieldType.NUMBER, po.DataSetFieldType.INTEGER ] },
+		//类型：日期类
+		"D": { inTypes: [ po.DataSetFieldType.DATE, po.DataSetFieldType.TIME, po.DataSetFieldType.TIMESTAMP ] },
+		//数组
+		"array": { array: true },
+		//计算字段
+		"evaluated": { evaluated: true }
+	};
+	
+	po.inSaveAndShowAction = function(val)
+	{
+		if(val === undefined)
+			return (po._inSaveAndShowAction == true);
+		
+		po._inSaveAndShowAction = val;
+	};
+	
+	po.prepareSubmitData = function()
+	{
+		var fm = po.vueFormModel();
+		var data = $.extend({}, po.vueRaw(fm));
+		
+		for(var p in data)
+		{
+			var v = data[p];
+			
+			if(p == "dataSetBindVOs")
+			{
+				var dsbs = $.extend([], v);
+				v = dsbs;
+				
+				for(var i=0; i<dsbs.length; i++)
+				{
+					dsbs[i] = $.extend({}, dsbs[i]);
+					
+					po.restoreDataSetBind(dsbs[i], data.pluginVo);
+					dsbs[i].summaryDataSetEntity = dsbs[i].dataSet;
+					dsbs[i].dataSet = undefined;
+				}
+			}
+			else
+				v = $.deepClonePlain(v);
+			
+			data[p] = v;
+		}
+
+		var pm = po.vuePageModel();
+		if(pm.enableResultDataFormat)
+			data.resultDataFormat = po.vueRaw(pm.resultDataFormat);
+		else
+			data.resultDataFormat = undefined;
+		
+		data.configValues = po.avo.clearConfigValuesIfNoConfigForm(data.configValues, data.pluginVo.configForm);
+		data.pluginVo = (data.pluginVo ? { id: data.pluginVo.id } : null);
+		
+		return data;
+	};
+	
+	po.beforeSubmitForm = function(action)
+	{
+		action.options.saveAndShowAction = po.inSaveAndShowAction();
+	};
+	
+	po.isEmptyPluginConfigForm = function(plugin)
+	{
+		return (!plugin || !plugin.configForm || !plugin.configForm.properties || plugin.configForm.properties.length==0);
+	};
+	
+	po.pluginDataSigns = function(chartPlugin)
+	{
+		if(chartPlugin == null || chartPlugin.dataSignSpec == null)
+			return null;
+			
+		return chartPlugin.dataSignSpec.dataSigns;
+	};
+	
+	po.validateDataSetBindDataSign = function(chart)
+	{
+		var chartPlugin = chart.pluginVo;
+
+		if(chartPlugin == null || $.isEmpty(po.pluginDataSigns(chartPlugin)))
+			return true;
+		
+		var dataSetBinds = (chart.dataSetBindVOs || []);
+		
+		var requiredDataSetSigns = po.findCandidateDataSignsForDataSet(chartPlugin);
+		requiredDataSetSigns = po.getRequiredDataSigns(requiredDataSetSigns);
+		
+		for(var i=0; i<requiredDataSetSigns.length; i++)
+		{
+			var requiredSign = requiredDataSetSigns[i];
+			var contains = false;
+			
+			for(var j=0; j<dataSetBinds.length; j++)
+			{
+				var dsb = dataSetBinds[j];
+				
+				if(dsb.attachment == true)
+					continue;
+				
+				if($.inArrayById(dsb.bindDataSigns, requiredSign.fullname, "fullname") > -1)
+				{
+					contains = true;
+					break;
+				}
+			}
+			
+			if(!contains)
+			{
+				var invalidInfo = { type: "dataset", dataSign: requiredSign };
+				return invalidInfo;
+			}
+		}
+		
+		for(var i=0; i<dataSetBinds.length; i++)
+		{
+			var dsb = dataSetBinds[i];
+			
+			if(dsb.attachment == true)
+				continue;
+			
+			var invalidInfo = po.validateDataSetFieldDataSign(chartPlugin, dsb, dsb.fieldNodes);
+			
+			if(invalidInfo !== true)
+				return invalidInfo;
+		}
+		
+		return true;
+	};
+	
+	po.validateDataSetFieldDataSign = function(chartPlugin, dataSetBind, dataSetFieldNodes)
+	{
+		if(chartPlugin == null || $.isEmpty(po.pluginDataSigns(chartPlugin)) || dataSetBind == null)
+		{
+			return true;
+		}
+		
+		var fieldParentNode = ($.isEmpty(dataSetFieldNodes) ? null : dataSetFieldNodes[0].parentNode);
+		var requiredDataSigns = po.findCandidateDataSignsForField(chartPlugin, dataSetBind, fieldParentNode);
+		requiredDataSigns = po.getRequiredDataSigns(requiredDataSigns);
+		
+		for(var i=0; i<requiredDataSigns.length; i++)
+		{
+			var requiredDataSign = requiredDataSigns[i];
+			var bind = false;
+			
+			for(var j=0; j<dataSetFieldNodes.length; j++)
+			{
+				var dataSetFieldNode = dataSetFieldNodes[j];
+				var bindDataSigns = (dataSetFieldNode.bindDataSigns || []);
+				
+				if($.inArrayById(bindDataSigns, requiredDataSign.fullname, "fullname") >= 0)
+				{
+					bind = true;
+					break;
+				}
+			}
+			
+			if(!bind)
+			{
+				var invalidInfo = {  type: "field", dataSet: dataSetBind.dataSet, dataSign: requiredDataSign };
+				return invalidInfo;
+			}
+		}
+		
+		for(var i=0; i<dataSetFieldNodes.length; i++)
+		{
+			var dataSetFieldNode = dataSetFieldNodes[i];
+
+			if(dataSetFieldNode.children)
+			{
+				var invalidInfo = po.validateDataSetFieldDataSign(chartPlugin, dataSetBind, dataSetFieldNode.children);
+
+				if(invalidInfo !== true)
+					return invalidInfo;
+			}
+		}
+		
+		return true;
+	};
+	
+	po.getRequiredDataSigns = function(dataSigns)
+	{
+		var re = [];
+		
+		if(!dataSigns)
+			return re;
+		
+		$.each(dataSigns, function(idx, dataSign)
+		{
+			if(dataSign.required == true)
+				re.push(dataSign);
+		});
+		
+		return re;
+	};
+	
+	po.hasDataSetSigned = function(dataSetBinds, dataSign)
+	{
+		dataSetBinds = (dataSetBinds == null ? [] : dataSetBinds);
+		
+		for(var i=0; i<dataSetBinds.length; i++)
+		{
+			var bindDataSigns = dataSetBinds[i].bindDataSigns;
+			
+			if($.inArrayById(bindDataSigns, dataSign.fullname, "fullname") > -1)
+				return true;
+		}
+		
+		return false;
+	};
+	
+	po.hasSubDataSetFieldSigned = function(parentNode, dataSign)
+	{
+		var subNodes = null;
+		
+		//parentNode是数据集绑定
+		if(parentNode.fieldNodes != null)
+			subNodes = parentNode.fieldNodes;
+		//parentNode是数据集字段节点
+		else if(parentNode.children != null)
+			subNodes = parentNode.children;
+		
+		if(subNodes == null)
+			return false;
+		
+		for(var i=0; i<subNodes.length; i++)
+		{
+			var subNode = subNodes[i];
+			if($.inArrayById(subNode.bindDataSigns, dataSign.fullname, "fullname") > -1)
+				return true;
+		}
+		
+		return false;
+	};
+	
+	po.assembleDataSetBinds = function(chart)
+	{
+		var dsbs = (chart.dataSetBindVOs || []);
+		$.each(dsbs, function(idx, dsb)
+		{
+			po.assembleDataSetBind(dsb, chart.pluginVo);
+		});
+	};
+	
+	po.assembleDataSetBind = function(dataSetBind, chartPlugin)
+	{
+		var fields = (dataSetBind.dataSet ? dataSetBind.dataSet.fields : []);
+		var dataSigns = (po.pluginDataSigns(chartPlugin) || []);
+		
+		dataSetBind.fieldNodes = (po.dataSetFieldsToTreeNodes(fields, dataSetBind, chartPlugin) || []);
+		dataSetBind.bindDataSigns = [];
+		
+		if(dataSetBind.dataSetSigns)
+		{
+			$.each(dataSetBind.dataSetSigns, function(idx, signName)
+			{
+				var dataSign = po.findDataSignByFullname(dataSigns, signName, false);
+				if(dataSign != null)
+					dataSetBind.bindDataSigns.push(dataSign);
+			});
+		}
+	};
+	
+	po.dataSetFieldsToTreeNodes = function(fields, dataSetBind, chartPlugin, parentNode)
+	{
+		if(fields == null)
+			return null;
+		
+		var re = [];
+		
+		for(var i=0; i<fields.length; i++)
+		{
+			var field = fields[i];
+			re[i] = po.dataSetFieldToTreeNode(field, dataSetBind, chartPlugin, parentNode);
+		}
+		
+		return re;
+	};
+	
+	po.dataSetFieldToTreeNode = function(field, dataSetBind, chartPlugin, parentNode)
+	{
+		var dataSigns = (po.pluginDataSigns(chartPlugin) || []);
+		
+		var node =
+		{
+			key: field.fullname, data: field, leaf: po.isLeafDataSetField(field), parentNode: parentNode,
+			fullname: field.fullname,
+			bindDataSigns: [], alias: (dataSetBind.fieldAliases ? dataSetBind.fieldAliases[field.fullname] : null),
+			order: (dataSetBind.fieldOrders ? dataSetBind.fieldOrders[field.fullname] : null)
+		};
+		
+		var bindDataSigns = [];
+		
+		var fieldSigns = (dataSetBind.fieldSigns ? (dataSetBind.fieldSigns[field.fullname] || []) : []);
+		$.each(fieldSigns, function(fsIdx, signName)
+		{
+			var dataSign = po.findDataSignByFullname(dataSigns, signName);
+			if(dataSign != null && po.isDataSignMatchesField(dataSign, field))
+				bindDataSigns.push(dataSign);
+		});
+		
+		node.bindDataSigns = bindDataSigns;
+		
+		if(!node.leaf)
+			node.children = po.dataSetFieldsToTreeNodes(field.fields, dataSetBind, chartPlugin, node);
+		
+		return node;
+	};
+	
+	po.isLeafDataSetField = function(field)
+	{
+		return $.isEmpty(field.fields);
+	};
+
+	po.restoreDataSetBinds = function(chart)
+	{
+		var dsbs = (chart.dataSetBindVOs || []);
+		$.each(dsbs, function(idx, dsb)
+		{
+			po.restoreDataSetBind(dsb, chart.pluginVo);
+		});
+	};
+	
+	po.restoreDataSetBind = function(dataSetBind, chartPlugin)
+	{
+		po.restoreDataSetFields(dataSetBind.fieldNodes, dataSetBind, chartPlugin);
+		
+		var dataSigns = (po.pluginDataSigns(chartPlugin) || []);
+		dataSetBind.dataSetSigns = [];
+		
+		if(dataSetBind.bindDataSigns)
+		{
+			$.each(dataSetBind.bindDataSigns, function(idx, bindDataSign)
+			{
+				var dataSign = po.findDataSignByFullname(dataSigns, bindDataSign.fullname, false);
+				if(dataSign != null)
+					dataSetBind.dataSetSigns.push(bindDataSign.fullname);
+			});
+		}
+		
+		dataSetBind.fieldNodes = undefined;
+		dataSetBind.bindDataSigns = undefined;
+	};
+	
+	po.restoreDataSetFields = function(fieldNodes, dataSetBind, chartPlugin)
+	{
+		if(fieldNodes == null)
+			return;
+		
+		var dataSigns = (po.pluginDataSigns(chartPlugin) || []);
+		dataSetBind.fieldSigns = (dataSetBind.fieldSigns || {});
+		dataSetBind.fieldAliases = (dataSetBind.fieldAliases || {});
+		dataSetBind.fieldOrders = (dataSetBind.fieldOrders || {});
+		
+		$.each(fieldNodes, function(idx, fieldNode)
+		{
+			var bindDataSigns = (fieldNode.bindDataSigns || []);
+			
+			var fieldSigns = [];
+			$.each(bindDataSigns, function(fsIdx, bindDataSign)
+			{
+				if(po.findDataSignByFullname(dataSigns, bindDataSign.fullname) != null)
+					fieldSigns.push(bindDataSign.fullname);
+			});
+			
+			if(fieldSigns.length > 0)
+				dataSetBind.fieldSigns[fieldNode.fullname] = fieldSigns;
+			else
+				dataSetBind.fieldSigns[fieldNode.fullname] = undefined;
+			
+			if(!$.isEmpty(fieldNode.alias))
+				dataSetBind.fieldAliases[fieldNode.fullname] = fieldNode.alias;
+			
+			if(!$.isEmpty(fieldNode.order))
+			{
+				var order = parseInt(fieldNode.order);
+				dataSetBind.fieldOrders[fieldNode.fullname] = (isNaN(order) ? undefined : order);
+			}
+			
+			if(fieldNode.children)
+				po.restoreDataSetFields(fieldNode.children, dataSetBind, chartPlugin);
+		});
+	};
+	
+	po.assemblePlugin = function(plugin)
+	{
+		if(plugin == null || plugin.dataSignSpec == null || plugin.dataSignSpec.dataSigns == null)
+			return;
+		
+		plugin.dataSignSpec.dataSigns = po.assemblePluginDataSigns(plugin.dataSignSpec.dataSigns);
+	};
+	
+	po.assemblePluginDataSigns = function(dataSigns, parent)
+	{
+		dataSigns = (dataSigns ? dataSigns : []);
+		parent = (parent == null ? null : parent);
+		
+		for(var i=0; i<dataSigns.length; i++)
+		{
+			var dsn = dataSigns[i];
+			dsn.extLabel = (parent && parent.extLabel ?
+					(parent.extLabel + "." + po.formatDataSignLabel(dsn)) : po.formatDataSignLabel(dsn));
+			
+			if(dsn.children)
+				po.assemblePluginDataSigns(dsn.children, dsn);
+		}
+		
+		return dataSigns;
+	};
+	
+	po.pluginHasDataSetSign = function(plugin)
+	{
+		var dataSigns = po.pluginDataSigns(plugin);
+		
+		if(!dataSigns)
+			return false;
+		
+		for(var i=0; i<dataSigns.length; i++)
+		{
+			if(po.isDataSignTargetDataSet(dataSigns[i]))
+			{
+				return true;
+			}
+		}
+		
+		return false;
+	};
+	
+	po.findDataSignByFullname = function(dataSigns, fullname, deepSearch)
+	{
+		deepSearch = (deepSearch == null ? true : deepSearch);
+		
+		if(!dataSigns)
+			return null;
+		
+		//应该先广度搜索、再深度搜索
+		for(var i=0; i<dataSigns.length; i++)
+		{
+			if(dataSigns[i].fullname == fullname)
+				return dataSigns[i];
+		}
+		
+		for(var i=0; i<dataSigns.length; i++)
+		{
+			if(dataSigns[i].children)
+			{
+				var d = po.findDataSignByFullname(dataSigns[i].children, fullname);
+				if(d != null)
+					return d;
+			}
+		}
+		
+		return null;
+	};
+
+	po.findCandidateDataSignsForDataSet = function(chartPlugin)
+	{
+		var re = [];
+		var dataSigns = po.pluginDataSigns(chartPlugin);
+		
+		if(!dataSigns)
+			return re;
+		
+		for(var i=0; i<dataSigns.length; i++)
+		{
+			var dsi = dataSigns[i];
+			
+			if(po.isDataSignTargetDataSet(dsi))
+			{
+				re.push(dsi);
+			}
+		}
+		
+		return re;
+	};
+	
+	po.findCandidateDataSignsForField = function(chartPlugin, dataSetBind, fieldParentNode)
+	{
+		var re = [];
+		
+		var parentBindDataSigns = null;
+		
+		//子级字段只能使用父字段绑定数据标记的子级数据标记
+		if(fieldParentNode != null)
+		{
+			parentBindDataSigns = fieldParentNode.bindDataSigns;
+		}
+		//顶级字段可以使用插件的顶级数据标记、以及所属数据集绑定的数据标记的子级数据标记
+		else
+		{
+			parentBindDataSigns = dataSetBind.bindDataSigns;
+			
+			var pluginDataSigns = po.pluginDataSigns(chartPlugin);
+			if(pluginDataSigns != null)
+			{
+				for(var i=0; i<pluginDataSigns.length; i++)
+				{
+					if(po.isDataSignTargetField(pluginDataSigns[i]))
+						re.push(pluginDataSigns[i]);
+				}
+			}
+		}
+		
+		if(parentBindDataSigns != null)
+		{
+			for(var i=0; i<parentBindDataSigns.length; i++)
+			{
+				var children = parentBindDataSigns[i].children;
+				if(children != null)
+					re = re.concat(children);
+			}
+		}
+		
+		return re;
+	};
+	
+	po.evalDataSignMatchInfoForDataSet = function(chartPlugin, dataSetBind)
+	{
+		var dataSigns = po.findCandidateDataSignsForDataSet(chartPlugin);
+		
+		var re = [];
+		
+		if($.isEmpty(dataSigns))
+			return re;
+		
+		for(var i=0; i<dataSigns.length; i++)
+		{
+			var dataSign = dataSigns[i];
+			var rei = { dataSign: dataSign, matches: true };
+			re.push(rei);
+		}
+		
+		return re;
+	};
+	
+	po.evalDataSignMatchInfoForField = function(chartPlugin, dataSetBind, dataSetFieldNode)
+	{
+		var dataSigns = po.findCandidateDataSignsForField(chartPlugin, dataSetBind, dataSetFieldNode.parentNode);
+		
+		var re = [];
+		
+		if($.isEmpty(dataSigns))
+			return re;
+		
+		var dataSetField = dataSetFieldNode.data;
+		
+		for(var i=0; i<dataSigns.length; i++)
+		{
+			var dataSign = dataSigns[i];
+			var rei = { dataSign: dataSign, matches: po.isDataSignMatchesField(dataSign, dataSetField) };
+			re.push(rei);
+		}
+		
+		return re;
+	};
+	
+	/**
+	 * 判断数据标记是否匹配给定字段。
+	 * dataSign.fieldMatcher支持如下格式：
+	 * matcher
+	 * [ matcher, ... ] 它们之间是【或】关系
+	 * 其中，matcher支持如下格式：
+	 * "..."		比如："(s || d) && !array"，字符含义参考po.DATASIGN_FIELD_MATCHERS
+	 * { ... }		格式参考po.DATASIGN_FIELD_MATCHERS
+	 * [ ... ]		元素可以是："..."、{ ... }，它们之间是【且】的关系
+	 */
+	po.isDataSignMatchesField = function(dataSign, dataSetField)
+	{
+		var fieldMatcher = dataSign.fieldMatcher;
+		
+		//未定义时应返回true
+		if($.isEmpty(fieldMatcher))
+			return true;
+		
+		fieldMatcher = ($.isArray(fieldMatcher) ? fieldMatcher : [ fieldMatcher ]);
+		
+		for(var i=0; i<fieldMatcher.length; i++)
+		{
+			//只要任一匹配即认为匹配
+			if(po.isDataSignMatchersMatchesField(dataSetField, fieldMatcher[i]))
+				return true;
+		}
+		
+		return false;
+	};
+	
+	po.isDataSignMatchersMatchesField = function(dataSetField, matchers)
+	{
+		//此时未定义的应返回false
+		if($.isEmpty(matchers))
+			return false;
+		
+		matchers = ($.isArray(matchers) ? matchers : [ matchers ]);
+		
+		for(var i=0; i<matchers.length; i++)
+		{
+			//只要任一不匹配即认为不匹配
+			if(!po.isDataSignMatcherMatchesField(dataSetField, matchers[i]))
+				return false;
+		}
+		
+		return true;
+	}
+	
+	po.isDataSignMatcherMatchesField = function(dataSetField, matcher)
+	{
+		//此时未定义的应返回false
+		if($.isEmpty(matcher))
+			return false;
+		
+		if($.isTypeString(matcher))
+			return po.isDataSignMatcherStrMatchesField(dataSetField, matcher);
+		else
+			return po.isDataSignMatcherObjMatchesField(dataSetField, matcher);
+	};
+	
+	po.isDataSignMatcherStrMatchesField = function(dataSetField, matcher)
+	{
+		//此时未定义的应返回false
+		if($.isEmpty(matcher))
+			return false;
+		
+		var matchesObj = {};
+		var fnBody = "";
+		
+		for(var n in po.DATASIGN_FIELD_MATCHERS)
+		{
+			matchesObj[n] = po.isDataSignMatcherObjMatchesField(dataSetField, po.DATASIGN_FIELD_MATCHERS[n]);
+			fnBody += "var " + n + " = matchesObj['" + n + "'];\n";
+		}
+		
+		fnBody += "return ("+matcher+");";
+		
+		try
+		{
+			var func = new Function("matchesObj", fnBody);
+			return func(matchesObj);
+		}
+		catch(e)
+		{
+			chartFactory.logException(e);
+			return false;
+		}
+	};
+	
+	po.isDataSignMatcherObjMatchesField = function(dataSetField, matcher)
+	{
+		//此时未定义的应返回false
+		if($.isEmpty(matcher))
+			return false;
+		
+		var fieldType = dataSetField.type;
+		var fieldArray = dataSetField.array;
+		var fieldEvaluated = dataSetField.evaluated;
+		
+		if(matcher.inTypes != null)
+		{
+			var inTypes = ($.isArray(matcher.inTypes) ? matcher.inTypes : [ matcher.inTypes ]);
+			if($.inArray(fieldType, inTypes) < 0)
+				return false;
+		}
+		
+		if(matcher.notInTypes != null)
+		{
+			var notInTypes = ($.isArray(matcher.notInTypes) ? matcher.notInTypes : [ matcher.notInTypes ]);
+			if($.inArray(fieldType, notInTypes) >= 0)
+				return false;
+		}
+		
+		if(matcher.array != null)
+		{
+			if(fieldArray != matcher.array)
+				return false;
+		}
+		
+		if(matcher.evaluated != null)
+		{
+			if(fieldEvaluated != matcher.evaluated)
+				return false;
+		}
+		
+		return true;
+	};
+	
+	po.isDataSignTargetField = function(dataSign)
+	{
+		var targets = dataSign.targets;
+		
+		//兼容旧版逻辑
+		if(targets == null || targets.length == 0)
+			return true;
+		
+		return ($.inArray(po.DS_TARGET_FIELD, targets) > -1);
+	};
+	
+	po.isDataSignTargetDataSet = function(dataSign)
+	{
+		var targets = dataSign.targets;
+		
+		//兼容旧版逻辑
+		if(targets == null || targets.length == 0)
+			return false;
+		
+		return ($.inArray(po.DS_TARGET_DATASET, targets) > -1);
+	};
+	
+	po.formatDataSignLabel = function(dataSign)
+	{
+		if(dataSign.nameLabel && dataSign.nameLabel.value)
+			return dataSign.nameLabel.value;
+		else
+			return dataSign.name;
+	};
+	
+	po.removeBindDataSign = function(node, fullname)
+	{
+		if(node == null || fullname == null || node.bindDataSigns == null)
+			return;
+		
+		var bindDataSigns = node.bindDataSigns;
+		var removed = $.removeById(bindDataSigns, fullname, "fullname");
+		
+		//子节点也要同步删除
+		if(removed && removed.children)
+		{
+			var subDataSigns = removed.children;
+			var subNodes = null;
+			
+			//node是数据集绑定
+			if(node.fieldNodes != null)
+				subNodes = node.fieldNodes;
+			//node是数据集字段节点
+			else if(node.children != null)
+				subNodes = node.children;
+			
+			if(subNodes != null)
+			{
+				for(var i =0; i<subNodes.length; i++)
+				{
+					var subNode = subNodes[i];
+					
+					for(var j=0; j<subDataSigns.length; j++)
+					{
+						po.removeBindDataSign(subNode, subDataSigns[j].fullname, "fullname");
+					}
+				}
+			}
+		}
+	};
+	
+	po.inflateParamPanel = function(dataSetBind)
+	{
+		var wrapper = $(".paramvalue-form-wrapper", po.elementOfId(po.concatPid("paramPanel"), document.body));
+		var pm = po.vuePageModel();
+		
+		if(!dataSetBind.query)
+			dataSetBind.query = {};
+		
+		var formOptions =
+		{
+			submitText: po.i18n.confirm,
+			yesText: po.i18n.yes,
+			noText: po.i18n.no,
+			paramValues: po.vueRaw(dataSetBind.query.paramValues),
+			readonly: pm.isReadonlyAction,
+			rendered: function(form)
+			{
+				$(".dg-dspform-input:not([type='radio'],[type='checkbox']), .dg-dspform-inputs-wrapper", this).addClass("p-inputtext p-component w-full");
+				$(".dg-date-widget-inputs select", this).addClass("p-inputtext p-component");
+				$(".dg-dspform-content button", this).addClass("p-button p-button-secondary p-component");
+				$(".dg-dspform-foot button", this).addClass("p-button p-component");
+				$.focusOnFirstInput(this);
+			},
+			submit: function(formData)
+			{
+				dataSetBind.query.paramValues = formData;
+				po.vueUnref(po.concatPid("paramPanelEle")).hide();
+			}
+		};
+		
+		wrapper.empty();
+		
+		var params = $.extend(true, [], po.vueRaw(dataSetBind.dataSet.params));
+		chartFactory.chartTool.renderDataSetParamForm(wrapper[0], params, formOptions);
+	};
+	
+	$.validator.addMethod("dataSetSignRequired", function(context, element)
+	{
+		var po = context.po;
+		var chart = context.chart;
+		var re = po.validateDataSetBindDataSign(chart);
+		
+		if(re == true)
+		{
+			$(element).removeData("invalidMsg");
+			return true;
+		}
+		else
+		{
+			var msg = "Unknown";
+			
+			if(re.type == "dataset")
+			{
+				msg = $.validator.format(po.i18n["chart.dataSetSign.required"], re.dataSign.extLabel);
+			}
+			else if(re.type == "field")
+			{
+				msg = $.validator.format(po.i18n["chart.fieldSign.required"], re.dataSet.name, re.dataSign.extLabel);
+			}
+			
+			$(element).data("invalidMsg", msg);
+			return false;
+		}
+	});
+
+	$.validator.addMethod("validateDataSetRange", function(context, element)
+	{
+		var po = context.po;
+		var chart = context.chart;
+		
+		var re = true;
+		
+		var dsr = (chart.pluginVo ? chart.pluginVo.dataSetRange : null);
+		var dsbs = (chart.dataSetBindVOs || []);
+		var mainCount = 0;
+		var attachmentCount = 0;
+		
+		$.each(dsbs, function(i, dsb)
+		{
+			if(dsb.attachment)
+				attachmentCount++;
+			else
+				mainCount++;
+		});
+		
+		var msg = "";
+		var minMsg = po.i18n.noLimit;
+		var maxMsg = po.i18n.noLimit;
+		
+		if(re && dsr && dsr.main)
+		{
+			if(dsr.main.min != null)
+			{
+				minMsg = dsr.main.min;
+				re = (re ? (mainCount >= dsr.main.min) : false);
+			}
+			
+			if(dsr.main.max != null)
+			{
+				maxMsg = dsr.main.max;
+				re = (re ? (mainCount <= dsr.main.max) : false);
+			}
+			
+			if(!re)
+				msg = $.validator.format(po.i18n["chart.validateDataSetRange.main"], minMsg, maxMsg, mainCount);
+		}
+		
+		if(re && dsr && dsr.attachment)
+		{
+			if(dsr.attachment.min != null)
+			{
+				minMsg = dsr.attachment.min;
+				re = (re ? (attachmentCount >= dsr.attachment.min) : false);
+			}
+			
+			if(dsr.attachment.max != null)
+			{
+				maxMsg = dsr.attachment.max;
+				re = (re ? (attachmentCount <= dsr.attachment.max) : false);
+			}
+			
+			if(!re)
+				msg = $.validator.format(po.i18n["chart.validateDataSetRange.attachment"], minMsg, maxMsg, attachmentCount);
+		}
+		
+		if(re)
+			$(element).removeData("invalidMsg");
+		else
+			$(element).data("invalidMsg", msg);
+		
+		return re;
+	});
+	
+	$.validator.addMethod("validateChartConfigValues", function(context)
+	{
+		var po = context.po;
+		var chart = context.chart;
+		var configForm = (chart.pluginVo ? chart.pluginVo.configForm : null);
+		
+		if(configForm == null)
+			return true;
+		
+		var fm = po.vueFormModel();
+		
+		return po.avo.validateConfigValuesRequired(fm.configValues, configForm);
+	});
+	
+	var formModel = po.formModel;
+	formModel.pluginVo = (formModel.pluginVo == null ? {} : formModel.pluginVo);
+	po.assemblePlugin(formModel.pluginVo);
+	formModel.analysisProject = (formModel.analysisProject == null ? {} : formModel.analysisProject);
+	formModel.dataSetBindVOs = (formModel.dataSetBindVOs == null ? [] : formModel.dataSetBindVOs);
+	formModel.plugin = undefined;
+	formModel.dataSetBinds = undefined;
+	formModel.configValues = (formModel.configValues || {});
+	po.assembleDataSetBinds(formModel);
+	
+	po.setupForm(formModel,
+	{
+		success : function(response)
+		{
+			var fm = po.vueFormModel();
+			var chart = response.data;
+			
+			fm.id = chart.id;
+			
+			var options = this;
+			if(options.saveAndShowAction)
+				window.open(po.concatContextPath("/cv/"+encodeURIComponent(chart.id)+"/"), "show-chart-"+chart.id);
+		}
+	},
+	{
+		rules:
+		{
+			updateInterval: {"integer": true},
+			dataSetSignCheckVal: { "dataSetSignRequired": true },
+			validateDataSetRangeVal: { "validateDataSetRange": true },
+			chartConfigValuesCheckVal: { "validateChartConfigValues": true }
+		},
+		customNormalizers:
+		{
+			dataSetSignCheckVal: function()
+			{
+				var context = { po: po, chart: po.vueFormModel() };
+				return context;
+			},
+			validateDataSetRangeVal: function()
+			{
+				var context = { po: po, chart: po.vueFormModel() };
+				return context;
+			},
+			chartConfigValuesCheckVal: function()
+			{
+				var context = { po: po, chart: po.vueFormModel() };
+				return context;
+			}
+		},
+		messages:
+		{
+			dataSetSignCheckVal:
+			{
+				dataSetSignRequired: function(val, element)
+				{
+					return $(element).data("invalidMsg");
+				}
+			},
+			validateDataSetRangeVal:
+			{
+				validateDataSetRange: function(val, element)
+				{
+					return $(element).data("invalidMsg");
+				}
+			},
+			chartConfigValuesCheckVal: po.i18n["chart.configValues.editRequired"]
+		}
+	});
+	
+	po.vuePageModel(
+	{
+		disableSaveShow: po.disableSaveShow,
+		pluginHasDataSetSign: po.pluginHasDataSetSign(formModel.pluginVo),
+		candidateDataSignInfos: [],
+		candidateDataSignTarget: "",
+		dataSignDetail: { label: "", detail: "" },
+		dataSignDetailShown: false,
+		dataSignTarget: "field",
+		dataSetBindForSign: null,
+		dataSetFieldNodeForSign: null,
+		updateIntervalType: (formModel.updateInterval > -1 ? "interval" : "none"),
+		updateIntervalTypeOptions: po.updateIntervalTypeOptions,
+		resultDataFormat: po.initResultDataFormat,
+		enableResultDataFormat: po.enableResultDataFormat,
+		dateOrTimeTypeOptions: po.dateOrTimeTypeOptions,
+		optionsFormModel: { options: "" },
+		configValuesPanelShown: false
+	});
+	
+	po.vueRef(po.concatPid("dataSignsPanelEle"), null);
+	po.vueRef(po.concatPid("dataSignDetailPanelEle"), null);
+	po.vueRef(po.concatPid("paramPanelEle"), null);
+	po.vueRef(po.concatPid("dataFormatPanelEle"), null);
+	po.vueRef(po.concatPid("pluginVoDescEle"), null);
+	po.vueRef(po.concatPid("optionsPanelEle"), null);
+	po.vueRef(po.concatPid("fieldMorePanelEle"), null);
+	
+	po.vueMethod(
+	{
+		formatChartPlugin: function(chartPlugin)
+		{
+			return $.toChartPluginHtml(chartPlugin, po.contextPath,
+						{
+							justifyContent: "start", showVersion:true, showApiVersion:true, showPlatformVersion: true,
+							apiVersionDesc: po.i18n["chartPlugin.apiVersion.desc"],
+							platformVersionDesc: po.i18n["chartPlugin.platformVersion.desc"]
+						});
+		},
+		
+		formatChartPluginDesc: function(chartPlugin)
+		{
+			if(chartPlugin && chartPlugin.descLabel && chartPlugin.descLabel.value)
+				return chartPlugin.descLabel.value;
+			else
+				return po.i18n.emptyDesc;
+		},
+		
+		formatDataSetFieldType: function(type)
+		{
+			return $.findNameByValue(po.dataSetFieldTypeOptions, type);
+		},
+		
+		isDataSignTargetField: function(dataSign)
+		{
+			return po.isDataSignTargetField(dataSign);
+		},
+		
+		isDataSignTargetDataSet: function(dataSign)
+		{
+			return po.isDataSignTargetDataSet(dataSign);
+		},
+		
+		isEmptyPluginConfigForm: function(plugin)
+		{
+			return po.isEmptyPluginConfigForm(plugin);
+		},
+		
+		dsbParamValuesCount: function(dataSetBind)
+		{
+			var re = 0;
+			var pvs = (dataSetBind.query ? dataSetBind.query.paramValues : null);
+			
+			if(pvs != null)
+			{
+				for(var p in pvs)
+					re++;
+			}
+			
+			return re;
+		},
+		
+		onDeleteAnalysisProject: function()
+		{
+			var fm = po.vueFormModel();
+			fm.analysisProject = {};
+		},
+		
+		onSelectAnalysisProject: function()
+		{
+			po.handleOpenSelectAction("/analysisProject/select", function(analysisProject)
+			{
+				var fm = po.vueFormModel();
+				fm.analysisProject = analysisProject;
+			});
+		},
+		
+		onSelectChartPlugin: function()
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			
+			var oldPluginId = (fm.pluginVo ? fm.pluginVo.id : "");
+			
+			po.handleOpenSelectAction("/chartPlugin/select", function(plugin)
+			{
+				po.getJson("/chartPlugin/detailValue/"+encodeURIComponent(plugin.id), function(plugin)
+				{
+					po.assemblePlugin(plugin);
+					
+					fm.pluginVo = plugin;
+					po.restoreDataSetBinds(fm);
+					po.assembleDataSetBinds(fm);
+					pm.pluginHasDataSetSign = po.pluginHasDataSetSign(fm.pluginVo);
+					
+					po.bakPluginConfigValuesMap[oldPluginId] = fm.configValues;
+					
+					if(po.bakPluginConfigValuesMap[plugin.id] != null)
+						fm.configValues = po.bakPluginConfigValuesMap[plugin.id];
+					else
+						fm.configValues = {};
+					
+					if(plugin && po.DashboardApiVersion.LATEST_VERSION != plugin.apiVersion)
+					{
+						var msg = $.validator.format(po.i18n["chart.plugin.apiVersion.deprecated"],
+								plugin.apiVersion, po.DashboardApiVersion.LATEST_VERSION);
+						$.tipWarn(msg);
+					}
+				});
+			});
+		},
+		
+		onAddDataSet: function()
+		{
+			po.handleOpenSelectAction("/dataSet/select?multiple", function(dataSets)
+			{
+				var data = $.propertyValueParam(dataSets, "id");
+				
+				po.getJson("/dataSet/getProfileDataSetByIds", data, function(dataSets)
+				{
+					var fm = po.vueFormModel();
+					
+					$.each(dataSets, function(idx, dataSet)
+					{
+						var dsb =
+						{
+							dataSet: dataSet,
+							dataSetSigns: [],
+							fieldSigns: {},
+							fieldAliases: {},
+							fieldOrders: {},
+							attachment: false
+						};
+						
+						po.assembleDataSetBind(dsb);
+						fm.dataSetBindVOs.push(dsb);
+					});
+				});
+			});
+		},
+		
+		onMoveUpDataSetBind: function(e, dsbIdx)
+		{
+			var fm = po.vueFormModel();
+			if(dsbIdx > 0)
+			{
+				var prev = fm.dataSetBindVOs[dsbIdx - 1];
+				fm.dataSetBindVOs[dsbIdx - 1] = fm.dataSetBindVOs[dsbIdx];
+				fm.dataSetBindVOs[dsbIdx] = prev;
+			}
+		},
+		
+		onMoveDownDataSetBind: function(e, dsbIdx)
+		{
+			var fm = po.vueFormModel();
+			if((dsbIdx + 1) < fm.dataSetBindVOs.length)
+			{
+				var next = fm.dataSetBindVOs[dsbIdx + 1];
+				fm.dataSetBindVOs[dsbIdx + 1] = fm.dataSetBindVOs[dsbIdx];
+				fm.dataSetBindVOs[dsbIdx] = next;
+			}
+		},
+		
+		onDeleteDataSetBind: function(e, dsbIdx)
+		{
+			po.confirm(
+			{
+				message: po.i18n["chart.confirmDelThisDsb"],
+				accept: function()
+				{
+					var fm = po.vueFormModel();
+					fm.dataSetBindVOs.splice(dsbIdx, 1);
+				}
+			});
+		},
+		
+		onShowDataSignPanel: function(e, dataSetBind, dataSetFieldNode)
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			var chartPlugin = fm.pluginVo;
+			
+			//直接show会导致面板还停留在上一个元素上
+			po.vueUnref(po.concatPid("dataSignsPanelEle")).hide();
+			po.vueNextTick(function()
+			{
+				pm.dataSignTarget = (dataSetFieldNode != null ? "field" : "dataset");
+				pm.dataSetBindForSign = dataSetBind;
+				pm.dataSetFieldNodeForSign = (dataSetFieldNode != null ? dataSetFieldNode : null);
+				
+				if(dataSetFieldNode != null)
+				{
+					pm.candidateDataSignInfos = po.evalDataSignMatchInfoForField(chartPlugin, dataSetBind, dataSetFieldNode);
+					pm.candidateDataSignTarget = "field";
+				}
+				else
+				{
+					pm.candidateDataSignInfos = po.evalDataSignMatchInfoForDataSet(chartPlugin, dataSetBind);
+					pm.candidateDataSignTarget = "dataset";
+				}
+				
+				po.vueUnref(po.concatPid("dataSignsPanelEle")).show(e);
+			});
+		},
+		
+		onShowDataSignDetail: function(e, dataSign)
+		{
+			var pm = po.vuePageModel();
+			
+			//直接show会导致面板还停留在上一个元素上
+			po.vueUnref(po.concatPid("dataSignDetailPanelEle")).hide();
+			po.vueNextTick(function()
+			{
+				pm.dataSignDetail.label = dataSign.extLabel;
+				pm.dataSignDetail.detail = (dataSign.descLabel ? (dataSign.descLabel.value || "") : "");
+				
+				po.vueUnref(po.concatPid("dataSignDetailPanelEle")).show(e);
+			});
+		},
+		
+		onDataSignDetailPanelShow: function(e)
+		{
+			var pm = po.vuePageModel();
+			pm.dataSignDetailShown = true;
+		},
+		
+		onDataSignDetailPanelHide: function(e)
+		{
+			var pm = po.vuePageModel();
+			pm.dataSignDetailShown = false;
+		},
+		
+		onUpdateDataSignDetailPanel: function(e, dataSign)
+		{
+			var pm = po.vuePageModel();
+			if(pm.dataSignDetailShown)
+			{
+				pm.dataSignDetail.label = dataSign.extLabel;
+				pm.dataSignDetail.detail = (dataSign.descLabel ? (dataSign.descLabel.value || "") : "");
+			}
+		},
+		
+		onAddDataSign: function(e, dataSign)
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			
+			if(pm.dataSignTarget == "dataset")
+			{
+				if(pm.dataSetBindForSign)
+				{
+					if(!dataSign.multiple && po.hasDataSetSigned(fm.dataSetBindVOs, dataSign))
+					{
+						var msg = $.validator.format(po.i18n["chart.dataSetWithSignExist"], dataSign.extLabel);
+						$.tipWarn(msg);
+						return;
+					}
+					
+					var bindDataSigns = pm.dataSetBindForSign.bindDataSigns;
+					
+					if($.inArrayById(bindDataSigns, dataSign.fullname, "fullname") < 0)
+						bindDataSigns.push(dataSign);
+					
+					po.vueUnref(po.concatPid("dataSignsPanelEle")).hide();
+				}
+			}
+			else if(pm.dataSignTarget == "field")
+			{
+				if(pm.dataSetBindForSign && pm.dataSetFieldNodeForSign)
+				{
+					var parentNode = (pm.dataSetFieldNodeForSign.parentNode != null ? pm.dataSetFieldNodeForSign.parentNode : pm.dataSetBindForSign);
+					if(!dataSign.multiple && po.hasSubDataSetFieldSigned(parentNode, dataSign))
+					{
+						var msg = $.validator.format(po.i18n["chart.fieldWithSignExist"],
+								pm.dataSetBindForSign.dataSet.name, dataSign.extLabel);
+						$.tipWarn(msg);
+						return;
+					}
+					
+					var bindDataSigns = pm.dataSetFieldNodeForSign.bindDataSigns;
+					
+					if($.inArrayById(bindDataSigns, dataSign.fullname, "fullname") < 0)
+						bindDataSigns.push(dataSign);
+					
+					po.vueUnref(po.concatPid("dataSignsPanelEle")).hide();
+				}
+			}
+		},
+		
+		onRemoveDataSetSign: function(dataSetBind, dataSigName)
+		{
+			po.removeBindDataSign(dataSetBind, dataSigName);
+		},
+		
+		onRemoveDataSetFieldSign: function(dataSetFieldNode, dataSigName)
+		{
+			po.removeBindDataSign(dataSetFieldNode, dataSigName);
+		},
+		
+		onUpdateIntervalTypeChange: function(e)
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			
+			if(e.value == "none")
+			{
+				po._updateIntervalBackup = fm.updateInterval;
+				fm.updateInterval = -1;
+			}
+			else if(e.value == "interval")
+			{
+				if(po._updateIntervalBackup != null && po._updateIntervalBackup > -1)
+					fm.updateInterval = po._updateIntervalBackup;
+				else
+					fm.updateInterval = 1000;
+			}
+		},
+		
+		onShowParamPanel: function(e, dataSetBind)
+		{
+			po._currentDataSetBindForParam = dataSetBind;
+			po.vueUnref(po.concatPid("paramPanelEle")).toggle(e);
+		},
+		
+		onParamPanelShow: function(e)
+		{
+			if(po._currentDataSetBindForParam)
+				po.inflateParamPanel(po._currentDataSetBindForParam);
+		},
+		
+		onParamPanelHide: function(e)
+		{
+			var wrapper = $(".paramvalue-form-wrapper", po.elementOfId(po.concatPid("paramPanel"), document.body));
+			chartFactory.chartTool.destroyDataSetParamForm(wrapper[0]);
+		},
+		
+		onClearParamValues: function(e, dataSetBind)
+		{
+			dataSetBind.query.paramValues = {};
+		},
+		
+		onShowDataFormatPanel: function(e)
+		{
+			po.vueUnref(po.concatPid("dataFormatPanelEle")).toggle(e);
+		},
+		
+		onShowChartPluginDesc: function(e)
+		{
+			po.vueUnref(po.concatPid("pluginVoDescEle")).toggle(e);
+		},
+		
+		onShowChartPluginDetail: function()
+		{
+			var fm = po.vueFormModel();
+			if(fm.pluginVo && fm.pluginVo.id)
+			{
+				po.open("/chartPlugin/view/" + encodeURIComponent(fm.pluginVo.id), { target: "_blank" });
+			}
+		},
+		
+		onShowConfigValuesPanel: function(e)
+		{
+			var pm = po.vuePageModel();
+			pm.configValuesPanelShown = true;
+		},
+		
+		onConfigValuesPanelShow: function()
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			var pluginConfigForm = po.vueRaw(fm.pluginVo ? fm.pluginVo.configForm : {});
+			var configValues = po.vueRaw(fm.configValues);
+			po.setupChartConfigValuesForm(pluginConfigForm, configValues,
+			{
+				submitHandler: function(avs)
+				{
+					fm.configValues = avs;
+					pm.configValuesPanelShown = false;
+				},
+				readonly: pm.isReadonlyAction,
+				//此时不允许自由编辑图表配置，因此应是严格数据模式
+				strictSubmitData: true,
+				//此时不存在继承复制场景，不必保留null值
+				retainDataNullProp: false
+			});
+		},
+		
+		onShowOptionsPanel: function(e)
+		{
+			po.vueUnref(po.concatPid("optionsPanelEle")).toggle(e);
+		},
+		
+		onOptionsPanelShow: function()
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			var options = po.vueRaw(fm.options);
+			
+			var form = po.elementOfId(po.concatPid("optionsForm"), document.body);
+			var codeEditorEle = po.elementOfId(po.concatPid("optionsContentCodeEditor"), form);
+			
+			var editorOptions =
+			{
+				value: "",
+				matchBrackets: true,
+				autoCloseBrackets: true,
+				mode: {name: "javascript", json: true}
+			};
+			
+			codeEditorEle.empty();
+			var codeEditor = po.createCodeEditor(codeEditorEle, editorOptions);
+			po.setCodeTextTimeout(codeEditor, (options || ""), true);
+			
+			po.setupSimpleForm(form, pm.optionsFormModel, function()
+			{
+				pm.optionsFormModel.options = po.getCodeText(codeEditor);
+				fm.options = pm.optionsFormModel.options;
+				po.vueUnref(po.concatPid("optionsPanelEle")).hide();
+			});
+		},
+		
+		onShowFieldMorePanel: function(e, dataSetFieldNode)
+		{
+			var pm = po.vuePageModel();
+			
+			//直接show会导致面板还停留在上一个元素上
+			po.vueUnref(po.concatPid("fieldMorePanelEle")).hide();
+			po.vueNextTick(function()
+			{
+				pm.dataSetFieldNodeForSign = dataSetFieldNode;
+				po.vueUnref(po.concatPid("fieldMorePanelEle")).show(e);
+			});
+		},
+		
+		onFieldMorePanelShow: function()
+		{
+			var fm = po.vueFormModel();
+			var pm = po.vuePageModel();
+			
+			var form = po.elementOfId(po.concatPid("fielMoreForm"), document.body);
+			
+			po.setupSimpleForm(form, pm.dataSetFieldNodeForSign, function()
+			{
+				po.vueUnref(po.concatPid("fieldMorePanelEle")).hide();
+			});
+		},
+		
+		onSaveAndShow: function(e)
+		{
+			try
+			{
+				po.inSaveAndShowAction(true);
+				po.form().submit();
+			}
+			finally
+			{
+				po.inSaveAndShowAction(false);
+			}
+		}
+	});
+	
+	po.setupPalette();
 };
 
 })

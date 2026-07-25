@@ -17,7 +17,6 @@
  *
 -->
 <#assign HtmlTplDashboardWidgetEntity=statics['org.datagear.management.domain.HtmlTplDashboardWidgetEntity']>
-<#assign AbstractDataAnalysisController=statics['org.datagear.web.controller.AbstractDataAnalysisController']>
 <#include "../include/page_import.ftl">
 <#include "../include/html_doctype.ftl">
 <html>
@@ -37,7 +36,7 @@
 			<#include "../include/page_current_analysis_project.ftl">
 		</div>
 		<div class="col-12" :class="pm.isSelectAction ? 'md:col-6' : 'md:col-4'">
-			<#include "../include/page_search_form_filter.ftl">
+			<#include "../include/page_search_form_sharetype.ftl">
 		</div>
 		<div class="operations col-12 flex gap-1 flex-wrap md:justify-content-end" :class="pm.isSelectAction ? 'md:col-6' : 'md:col-8'">
 			<p-button label="<@spring.message code='confirm' />" @click="onSelect" v-if="pm.isSelectAction"></p-button>
@@ -66,7 +65,7 @@
 			<p-column :selection-mode="pm.selectionMode" :frozen="true" class="col-check"></p-column>
 			<p-column field="id" header="<@spring.message code='id' />" class="col-id"></p-column>
 			<p-column field="name" header="<@spring.message code='name' />" :sortable="true" class="col-name"></p-column>
-			<!--<p-column field="version" header="<@spring.message code='version' />" :sortable="true" class="col-version"></p-column>-->
+			<p-column field="apiVersion" header="<@spring.message code='apiVersion' />" :sortable="true" class="col-version"></p-column>
 			<p-column field="analysisProject.name" header="<@spring.message code='ownerProject' />" :sortable="true" class="col-name"></p-column>
 			<p-column field="createUser.realName" header="<@spring.message code='createUser' />" :sortable="true" class="col-user"></p-column>
 			<p-column field="createTime" header="<@spring.message code='createTime' />" :sortable="true" class="col-datetime col-last"></p-column>
@@ -89,8 +88,6 @@
 
 	po.buildIframeNestCode = function(url)
 	{
-		url = $.addParam(url, "${AbstractDataAnalysisController.DASHBOARD_SHOW_PARAM_SAFE_SESSION}",
-								"${AbstractDataAnalysisController.DASHBOARD_SHOW_PARAM_SAFE_SESSION_VALUE_1}");
 		return "<iframe src=\""+ url +"\" style=\"width:100%;height:100%;border:0;\"></iframe>";
 	};
 	
@@ -164,7 +161,7 @@
 		
 		onEdit: function()
 		{
-			po.handleOpenOfAction("/dashboard/edit");
+			po.handleOpenOfAction("/dashboard/edit", {appendIdToPath: true});
 		},
 		
 		onDesign: function()
@@ -177,7 +174,7 @@
 		
 		onView: function()
 		{
-			po.handleOpenOfAction("/dashboard/view", {width: "90vw"});
+			po.handleOpenOfAction("/dashboard/view", {width: "90vw", appendIdToPath: true});
 		},
 
 		onShare: function()

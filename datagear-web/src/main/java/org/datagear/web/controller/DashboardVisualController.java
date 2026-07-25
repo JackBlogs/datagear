@@ -39,6 +39,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.datagear.analysis.ChartDefinition;
 import org.datagear.analysis.DashboardResult;
 import org.datagear.analysis.RenderContext;
 import org.datagear.analysis.TplDashboardWidgetResManager;
@@ -51,7 +52,7 @@ import org.datagear.analysis.support.html.HtmlTitleHandler;
 import org.datagear.analysis.support.html.HtmlTplDashboard;
 import org.datagear.analysis.support.html.HtmlTplDashboardRenderContext;
 import org.datagear.analysis.support.html.HtmlTplDashboardWidgetRenderer;
-import org.datagear.analysis.support.html.LoadableChartWidgets;
+import org.datagear.analysis.support.html.LoadChartPolicy;
 import org.datagear.management.domain.Authorization;
 import org.datagear.management.domain.DashboardShareSet;
 import org.datagear.management.domain.HtmlTplDashboardWidgetEntity;
@@ -63,21 +64,21 @@ import org.datagear.management.service.PermissionDeniedException;
 import org.datagear.management.service.UserService;
 import org.datagear.util.FileUtil;
 import org.datagear.util.Global;
-import org.datagear.util.IDUtil;
 import org.datagear.util.IOUtil;
 import org.datagear.util.StringUtil;
 import org.datagear.util.html.DefaultFilterHandler;
 import org.datagear.util.html.HeadBodyAwareFilterHandler;
 import org.datagear.util.html.HtmlFilter;
 import org.datagear.util.html.RedirectWriter;
+import org.datagear.web.analysis.RenderContextAttrs;
+import org.datagear.web.analysis.SessionDashboardInfoSupport.DashboardInfo;
+import org.datagear.web.analysis.WebHtmlTplDashboardImportBuilder;
 import org.datagear.web.config.ApplicationProperties;
 import org.datagear.web.config.CoreConfigSupport;
 import org.datagear.web.controller.DashboardVisualController.DashboardShowForEdit.EditHtmlInfo;
 import org.datagear.web.controller.DashboardVisualController.DashboardShowForEdit.EditHtmlInfoFilterHandler;
 import org.datagear.web.controller.DashboardVisualController.DashboardShowForEdit.ShowHtmlFilterHandler;
 import org.datagear.web.util.OperationMessage;
-import org.datagear.web.util.SessionDashboardInfoSupport.DashboardInfo;
-import org.datagear.web.util.WebHtmlTplDashboardImportBuilder;
 import org.datagear.web.util.WebUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -118,16 +119,20 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 	public static final String UNLOAD_PARAM_DASHBOARD_ID = AbstractDataAnalysisController.UNLOAD_PARAM_DASHBOARD_ID;
 
 	/**
-	 * 看板内置渲染上下文属性名：{@linkplain EditHtmlInfo}。
+	 * 渲染上下文属性名：{@linkplain EditHtmlInfo}。
 	 */
-	public static final String DASHBOARD_BUILTIN_RENDER_CONTEXT_ATTR_EDIT_HTML_INFO = DASHBOARD_BUILTIN_RENDER_CONTEXT_ATTR_PREFIX
+	public static final String RENDER_CONTEXT_ATTR_EDIT_HTML_INFO = RenderContextAttrs.BUILTIN_ATTR_PREFIX
 			+ "EDIT_HTML_INFO";
 
 	/**
-	 * 看板分享密码占位。
+	 * 看板展示URL的请求参数名：编辑模板。仅用于可视化编辑看板模板功能。
 	 */
-	public static final String DASHBOARD_SHARE_SET_PASSWORD_PLACEHOLDER = "DSP-PLACEHOLDER-"
-			+ IDUtil.randomIdOnTime20();
+	public static final String SHOW_PARAM_EDIT_TEMPLATE = ChartDefinition.BUILTIN_NAME_PREFIX + "EDIT_TEMPLATE";
+
+	/**
+	 * 看板展示URL的请求参数名：自定义模板内容。仅用于可视化编辑看板模板功能。
+	 */
+	public static final String SHOW_PARAM_TEMPLATE_CONTENT = ChartDefinition.BUILTIN_NAME_PREFIX + "TEMPLATE_CONTENT";
 
 	public static final String DASHBOARD_SHOW_AUTH_PARAM_NAME = "name";
 
@@ -281,9 +286,6 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 			redirectPath = FileUtil.concatPath(redirectPath, name, FileUtil.PATH_SEPARATOR_SLASH, false);
 		}
 
-		redirectPath = addSessionIdParamIfNeed(redirectPath, request);
-		submitPath = addSessionIdParamIfNeed(submitPath, request);
-
 		boolean authed = isShowAuthed(request, user, dashboardWidget);
 
 		Map<String, Object> authModel = new HashMap<String, Object>();
@@ -403,8 +405,6 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 	{
 		resName = appendRequestQueryString((resName == null ? "" : resName), request);
 		String authPath = WebUtils.getContextPath(request) + resolveAuthPath(request, id);
-		authPath = addSessionIdParamIfNeed(authPath, request);
-		authPath = addSafeSessionParamIfNeed(authPath, request);
 
 		if (!StringUtil.isEmpty(resName))
 		{
@@ -482,7 +482,6 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 		if (requestPath.indexOf(correctPath) < 0)
 		{
 			String redirectPath = correctPath;
-			redirectPath = addSessionIdParamIfNeed(redirectPath, request);
 			redirectPath = appendRequestQueryString(redirectPath, request);
 			response.sendRedirect(redirectPath);
 		}
@@ -505,7 +504,6 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 			if (subPathSlashIdx > 0 && subPathSlashIdx < firstTemplate.length() - 1)
 			{
 				String redirectPath = correctPath + WebUtils.encodePathURL(firstTemplate);
-				redirectPath = addSessionIdParamIfNeed(redirectPath, request);
 				redirectPath = appendRequestQueryString(redirectPath, request);
 
 				response.sendRedirect(redirectPath);
@@ -553,7 +551,6 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 			{
 				String redirectPath = WebUtils.getContextPath(request) + resolveShowPath(request, id)
 						+ WebUtils.encodePathURL(resName);
-				redirectPath = addSessionIdParamIfNeed(redirectPath, request);
 				redirectPath = appendRequestQueryString(redirectPath, request);
 
 				response.sendRedirect(redirectPath);
@@ -710,7 +707,7 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 			String template, boolean isShowForEdit) throws Exception
 	{
 		String showHtml = (isShowForEdit
-				? buildShowForEditShowHtml(request.getParameter(DASHBOARD_SHOW_PARAM_TEMPLATE_CONTENT))
+				? buildShowForEditShowHtml(request.getParameter(SHOW_PARAM_TEMPLATE_CONTENT))
 				: "");
 		EditHtmlInfo editHtmlInfo = (isShowForEdit ? buildShowForEditEditHtmlInfo(showHtml) : null);
 
@@ -739,13 +736,14 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 			HtmlTitleHandler htmlTitleHandler = getShowDashboardHtmlTitleHandler(request, response, currentUser,
 					dashboardWidget);
 			HtmlTplDashboardRenderContext renderContext = createRenderContext(request, response, template, out,
-					createWebContext(request), importBuilder, htmlTitleHandler);
+					importBuilder, htmlTitleHandler);
+			inflateWebRenderContext(request, renderContext);
 
 			// 移除参数中的模板内容，一是它不应该传入页面，二是它可能包含"</script>"子串，传回浏览器端时会导致页面解析出错
-			renderContext.removeAttribute(DASHBOARD_SHOW_PARAM_TEMPLATE_CONTENT);
+			renderContext.remove(SHOW_PARAM_TEMPLATE_CONTENT);
 
 			if (isShowForEdit)
-				renderContext.setAttribute(DASHBOARD_BUILTIN_RENDER_CONTEXT_ATTR_EDIT_HTML_INFO, editHtmlInfo);
+				renderContext.put(RENDER_CONTEXT_ATTR_EDIT_HTML_INFO, editHtmlInfo);
 
 			if (showHtmlIn != null)
 			{
@@ -874,14 +872,14 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 			placeholderSources = fh.getPlaceholderSources();
 		}
 
-		return new EditHtmlInfo(escapeDashboardRenderContextAttrValue(beforeBodyHtml),
-				escapeDashboardRenderContextAttrValue(bodyHtml), escapeDashboardRenderContextAttrValue(afterBodyHtml),
-				escapeDashboardRenderContextAttrValue(placeholderSources));
+		return new EditHtmlInfo(escapeDashboardRenderContextValue(beforeBodyHtml),
+				escapeDashboardRenderContextValue(bodyHtml), escapeDashboardRenderContextValue(afterBodyHtml),
+				escapeDashboardRenderContextValue(placeholderSources));
 	}
 
 	protected boolean isDashboardShowForEditParam(HttpServletRequest request)
 	{
-		String editTemplate = request.getParameter(DASHBOARD_SHOW_PARAM_EDIT_TEMPLATE);
+		String editTemplate = request.getParameter(SHOW_PARAM_EDIT_TEMPLATE);
 		// 有编辑模板请求参数
 		return StringUtil.toBoolean(editTemplate);
 	}
@@ -954,7 +952,7 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 
 		try
 		{
-			handleLoadChartPattern(user, dashboardInfo, dashboardWidget, chartWidgetIds, chartWidgets,
+			handleLoadChartPolicy(user, dashboardInfo, dashboardWidget, chartWidgetIds, chartWidgets,
 					dashboardWidgetRenderer, loadChartForEditor);
 
 			for (int i = 0; i < chartWidgetIds.length; i++)
@@ -981,38 +979,38 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 		}
 	}
 
-	protected void handleLoadChartPattern(User currentUser, DashboardInfo dashboardInfo,
+	protected void handleLoadChartPolicy(User currentUser, DashboardInfo dashboardInfo,
 			HtmlTplDashboardWidgetEntity dashboardWidget, String[] chartWidgetIds, HtmlChartWidget[] chartWidgets,
 			HtmlTplDashboardWidgetRenderer renderer, boolean loadChartForEditor) throws Throwable
 	{
-		LoadableChartWidgets lcws = null;
+		LoadChartPolicy policy = null;
 
 		// 看板可视编辑模式时，插入图表操作不应受看板内定义的异步加载权限控制
 		if (loadChartForEditor)
 		{
 			// 看板展示时是根据创建用户权限加载图表的，这里也应保持一致
 			if (Authorization.canEdit(dashboardWidget.getDataPermission()))
-				lcws = LoadableChartWidgets.all();
+				policy = LoadChartPolicy.all();
 			else
-				lcws = LoadableChartWidgets.none();
+				policy = LoadChartPolicy.none();
 		}
 		else
 		{
-			lcws = dashboardInfo.getLoadableChartWidgets();
+			policy = dashboardInfo.getLoadChartPolicy();
 
 			// 默认应设为permitted，防止用户在看板内异步加载任意图表部件
-			if (lcws == null)
-				lcws = LoadableChartWidgets.permitted();
+			if (policy == null)
+				policy = LoadChartPolicy.permitted();
 		}
 
 		// 可异步加载看板创建者有权限的所有图表
-		if (lcws.isPatternAll())
+		if (policy.isPatternAll())
 		{
 			// 使用看板创建用户
 			ChartWidgetSourceContext.set(createChartWidgetSourceContextForCreator(dashboardWidget));
 		}
 		// 不可异步加载任何图表
-		else if (lcws.isPatternNone())
+		else if (policy.isPatternNone())
 		{
 			for (int i = 0; i < chartWidgetIds.length; i++)
 			{
@@ -1023,19 +1021,19 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 			}
 		}
 		// 仅可异步加载当前用户有权限的图表
-		else if (lcws.isPatternPermitted())
+		else if (policy.isPatternPermitted())
 		{
 			// 使用当前用户
 			ChartWidgetSourceContext.set(new ChartWidgetSourceContext(currentUser));
 		}
 		// 仅可异步加载看板创建者有权限的、且在指定列表内的图表
-		else if (lcws.isPatternList())
+		else if (policy.isPatternList())
 		{
 			for (int i = 0; i < chartWidgetIds.length; i++)
 			{
 				String chartWidgetId = chartWidgetIds[i];
 
-				if (!lcws.inList(chartWidgetId))
+				if (!policy.inList(chartWidgetId))
 				{
 					PermissionDeniedException e = new PermissionDeniedException("Permission denied");
 					chartWidgets[i] = renderer.getHtmlChartWidgetForException(chartWidgetId, e);
@@ -1053,7 +1051,7 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 				String chartWidgetId = chartWidgetIds[i];
 
 				PermissionDeniedException e = new PermissionDeniedException(
-						"Permission denied for unknown pattern '" + lcws.getPattern() + "'");
+						"Permission denied for unknown pattern '" + policy.getPattern() + "'");
 				chartWidgets[i] = renderer.getHtmlChartWidgetForException(chartWidgetId, e);
 			}
 		}
@@ -1099,17 +1097,16 @@ public class DashboardVisualController extends AbstractDataAnalysisController im
 		return super.handleUnloadDashboard(request, response, dashboardId);
 	}
 
-	protected WebContext createWebContext(HttpServletRequest request)
+	@Override
+	protected void inflateWebRenderContext(HttpServletRequest request, RenderContext renderContext)
 	{
-		WebContext webContext = createInitWebContext(request);
+		super.inflateWebRenderContext(request, renderContext);
 
-		addUpdateDataValue(request, webContext, resolveDataPath(request));
-		addLoadChartValue(request, webContext, resolveLoadChartPath(request));
-		addHeartBeatValue(request, webContext, resolveHeartbeatPath(request));
-		addUnloadValue(request, webContext, resolveUnloadPath(request));
-		addPluginResUrlPrefixValue(request, webContext, resolvePluginResPathPrefix(request));
-
-		return webContext;
+		addFetchDataUrlValue(request, renderContext, resolveDataPath(request));
+		addLoadChartUrlValue(request, renderContext, resolveLoadChartPath(request));
+		addHeartBeatUrlValue(request, renderContext, resolveHeartbeatPath(request));
+		addUnloadUrlValue(request, renderContext, resolveUnloadPath(request));
+		addPluginResUrlPrefixValue(request, renderContext, resolvePluginResPathPrefix(request));
 	}
 
 	/**

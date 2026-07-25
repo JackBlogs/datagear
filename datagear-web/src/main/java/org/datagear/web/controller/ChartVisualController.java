@@ -27,23 +27,29 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.datagear.analysis.ChartPlugin;
+import org.datagear.analysis.ChartPluginManager;
 import org.datagear.analysis.DashboardResult;
+import org.datagear.analysis.RenderContext;
 import org.datagear.analysis.TplDashboardWidgetResManager;
 import org.datagear.analysis.support.ErrorMessageDashboardResult;
+import org.datagear.analysis.support.html.DashboardApiVersion;
 import org.datagear.analysis.support.html.DefaultHtmlTitleHandler;
+import org.datagear.analysis.support.html.HtmlChartPlugin;
 import org.datagear.analysis.support.html.HtmlTitleHandler;
 import org.datagear.analysis.support.html.HtmlTplDashboard;
 import org.datagear.analysis.support.html.HtmlTplDashboardRenderContext;
 import org.datagear.analysis.support.html.HtmlTplDashboardWidget;
 import org.datagear.analysis.support.html.HtmlTplDashboardWidgetHtmlRenderer;
-import org.datagear.analysis.support.html.LoadableChartWidgets;
+import org.datagear.analysis.support.html.LoadChartPolicy;
 import org.datagear.analysis.support.html.SimpleHtmlTplOption;
 import org.datagear.management.domain.HtmlChartWidgetEntity;
 import org.datagear.management.domain.User;
 import org.datagear.management.service.HtmlChartWidgetEntityService;
 import org.datagear.management.service.HtmlChartWidgetEntityService.ChartWidgetSourceContext;
 import org.datagear.util.IOUtil;
-import org.datagear.web.util.SessionDashboardInfoSupport.DashboardInfo;
+import org.datagear.util.version.VersionPattern;
+import org.datagear.web.analysis.SessionDashboardInfoSupport.DashboardInfo;
 import org.datagear.web.util.WebUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -76,6 +82,11 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 
 	@Autowired
 	private TplDashboardWidgetResManager tplDashboardWidgetResManager;
+
+	@Autowired
+	private ChartPluginManager chartPluginManager;
+
+	private VersionPattern versionPattern = new VersionPattern();
 
 	private ServletContext servletContext;
 
@@ -115,6 +126,26 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 		this.tplDashboardWidgetResManager = tplDashboardWidgetResManager;
 	}
 
+	public ChartPluginManager getChartPluginManager()
+	{
+		return chartPluginManager;
+	}
+
+	public void setChartPluginManager(ChartPluginManager chartPluginManager)
+	{
+		this.chartPluginManager = chartPluginManager;
+	}
+
+	public VersionPattern getVersionPattern()
+	{
+		return versionPattern;
+	}
+
+	public void setVersionPattern(VersionPattern versionPattern)
+	{
+		this.versionPattern = versionPattern;
+	}
+
 	public ServletContext getServletContext()
 	{
 		return servletContext;
@@ -131,12 +162,11 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 	 * 
 	 * @param request
 	 * @param response
-	 * @param model
 	 * @param id
 	 * @throws Exception
 	 */
 	@RequestMapping({ "/{id}/", "/{id}" })
-	public void show(HttpServletRequest request, HttpServletResponse response, org.springframework.ui.Model model,
+	public void show(HttpServletRequest request, HttpServletResponse response,
 			@PathVariable("id") String id) throws Exception
 	{
 		String requestPath = resolvePathAfter(request, "");
@@ -147,7 +177,6 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 		if (requestPath.indexOf(correctPath) < 0)
 		{
 			String redirectPath = correctPath;
-			redirectPath = addSessionIdParamIfNeed(redirectPath, request);
 			redirectPath = appendRequestQueryString(redirectPath, request);
 			response.sendRedirect(redirectPath);
 		}
@@ -156,7 +185,7 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 			User user = getCurrentUser();
 			HtmlChartWidgetEntity chart = this.htmlChartWidgetEntityService.getById(user, id);
 
-			showChart(request, response, model, user, chart);
+			showChart(request, response, user, chart);
 		}
 	}
 
@@ -166,13 +195,12 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 	 * @param request
 	 * @param response
 	 * @param webRequest
-	 * @param model
 	 * @param id
 	 * @throws Exception
 	 */
 	@RequestMapping("/{id}/**")
 	public void showResource(HttpServletRequest request, HttpServletResponse response, WebRequest webRequest,
-			org.springframework.ui.Model model, @PathVariable("id") String id) throws Exception
+			@PathVariable("id") String id) throws Exception
 	{
 		User user = getCurrentUser();
 		HtmlChartWidgetEntity chart = this.htmlChartWidgetEntityService.getById(user, id);
@@ -181,7 +209,7 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 
 		if (isEmpty(resName))
 		{
-			showChart(request, response, model, user, chart);
+			showChart(request, response, user, chart);
 		}
 		else
 		{
@@ -214,14 +242,13 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 	 * 
 	 * @param request
 	 * @param response
-	 * @param model
 	 * @param id
 	 * @throws Exception
 	 */
 	@RequestMapping(value = "/data", produces = CONTENT_TYPE_JSON)
 	@ResponseBody
 	public ErrorMessageDashboardResult showData(HttpServletRequest request, HttpServletResponse response,
-			org.springframework.ui.Model model, @RequestBody DashboardQueryForm form) throws Exception
+			@RequestBody DashboardQueryForm form) throws Exception
 	{
 		// 此处获取ChartWidget不再需要权限控制，应显式移除线程变量
 		ChartWidgetSourceContext.remove();
@@ -277,12 +304,11 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 	 * 
 	 * @param request
 	 * @param response
-	 * @param model
 	 * @param id
 	 * @throws Exception
 	 */
 	protected void showChart(HttpServletRequest request, HttpServletResponse response,
-			org.springframework.ui.Model model, User user, HtmlChartWidgetEntity chart) throws Exception
+			User user, HtmlChartWidgetEntity chart) throws Exception
 	{
 		if (chart == null)
 			throw new RecordNotFoundException();
@@ -296,7 +322,7 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 		{
 			String id = chart.getId();
 			HtmlTplDashboardWidget dashboardWidget = buildHtmlTplDashboardWidget(id);
-			SimpleHtmlTplOption tplOption = buildShowSimpleHtmlTplOption(chart, dashboardWidget);
+			SimpleHtmlTplOption tplOption = buildShowSimpleHtmlTplOption(request, chart, dashboardWidget);
 			String simpleTemplate = this.htmlTplDashboardWidgetHtmlRenderer.simpleTemplate(tplOption);
 			templateIn = IOUtil.getReader(simpleTemplate);
 
@@ -307,10 +333,11 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 
 			HtmlTitleHandler htmlTitleHandler = getShowChartHtmlTitleHandler(request, response, user, chart);
 			HtmlTplDashboardRenderContext renderContext = createRenderContext(request, response,
-					dashboardWidget.getFirstTemplate(), out, createWebContext(request),
-					buildWebHtmlTplDashboardImportBuilderForShow(request), htmlTitleHandler);
+					dashboardWidget.getFirstTemplate(), out, buildWebHtmlTplDashboardImportBuilderForShow(request),
+					htmlTitleHandler);
 			renderContext.setTemplateReader(templateIn);
 			renderContext.setTemplateLastModified(HtmlTplDashboardRenderContext.TEMPLATE_LAST_MODIFIED_NONE);
+			inflateWebRenderContext(request, renderContext);
 
 			HtmlTplDashboard dashboard = dashboardWidget.render(renderContext);
 			getSessionDashboardInfoSupport().setDashboardInfo(request, new DashboardInfo(dashboard, false));
@@ -323,14 +350,19 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 		}
 	}
 
-	protected SimpleHtmlTplOption buildShowSimpleHtmlTplOption(HtmlChartWidgetEntity entity,
+	protected SimpleHtmlTplOption buildShowSimpleHtmlTplOption(HttpServletRequest request, HtmlChartWidgetEntity entity,
 			HtmlTplDashboardWidget dashboardWidget)
 	{
+		String apiVersion = resolveShowApiVersion(request, entity, dashboardWidget);
+		boolean isV1 = DashboardApiVersion.isV1(apiVersion);
 		SimpleHtmlTplOption tplOption = new SimpleHtmlTplOption();
 		String htmlTitle = entity.getName();
 		// 图表展示页面应禁用异步加载功能，避免越权访问隐患
-		String htmlAttr = this.htmlTplDashboardWidgetHtmlRenderer.getAttrNameLoadableChartWidgets() + "=\""
-				+ LoadableChartWidgets.PATTERN_NONE + "\"";
+		String htmlAttr = this.htmlTplDashboardWidgetHtmlRenderer.getAttrNameLoadChartPolicy() + "=\""
+				+ LoadChartPolicy.PATTERN_NONE + "\" "
+				+ this.htmlTplDashboardWidgetHtmlRenderer.getAttrNameApiVersion() + "=\"" + apiVersion + "\"";
+		// 看板页面端API-1.0中默认不自动调整尺寸，需要明确设置
+		String bodyAttr = (isV1 ? HtmlTplDashboardWidgetHtmlRenderer.ATTR_NAME_CHART_AUTO_RESIZE + "=\"true\"" : "");
 		tplOption.setHtmlAttr(htmlAttr);
 		tplOption.setCharset(IOUtil.CHARSET_UTF_8);
 		// 默认应设置html元素的height为100%，不然css渐变背景可能没效果
@@ -338,12 +370,39 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 		tplOption.setTitle(htmlTitle);
 		tplOption.setBodyStyleName(
 				this.htmlTplDashboardWidgetHtmlRenderer.getDashboardStyleName() + " dg-dashboard-for-show-chart");
+		tplOption.setBodyAttr(bodyAttr);
 		tplOption.setChartWidgetIds(new String[] { entity.getId() });
 		tplOption.setChartEleStyleName(
 				"dg-chart-for-show-chart " + this.htmlTplDashboardWidgetHtmlRenderer.getChartStyleName());
-		tplOption.setChartEleAttr("dg-chart-disable-setting=\"false\"");
+
+		if (isV1)
+			tplOption.setChartEleAttr("dg-chart-disable-setting=\"false\"");
+		else
+			tplOption.setChartEleAttr("dg-chart-disable-tool=\"false\"");
 
 		return tplOption;
+	}
+
+	protected String resolveShowApiVersion(HttpServletRequest request, HtmlChartWidgetEntity entity,
+			HtmlTplDashboardWidget dashboardWidget)
+	{
+		String apiVersion = DashboardApiVersion.V2;
+
+		ChartPlugin plugin = entity.getPluginVo();
+		String pluginId = (plugin == null ? null : plugin.getId());
+		plugin = (pluginId == null ? null : this.chartPluginManager.get(pluginId));
+
+		if (plugin == null || !(plugin instanceof HtmlChartPlugin))
+		{
+			apiVersion = DashboardApiVersion.V2;
+		}
+		else
+		{
+			apiVersion = ((HtmlChartPlugin) plugin).getApiVersion();
+			apiVersion = DashboardApiVersion.trimVersion(apiVersion);
+		}
+		
+		return apiVersion;
 	}
 
 	protected HtmlTitleHandler getShowChartHtmlTitleHandler(HttpServletRequest request, HttpServletResponse response,
@@ -366,17 +425,16 @@ public class ChartVisualController extends AbstractDataAnalysisController implem
 				this.tplDashboardWidgetResManager);
 	}
 
-	protected WebContext createWebContext(HttpServletRequest request)
+	@Override
+	protected void inflateWebRenderContext(HttpServletRequest request, RenderContext renderContext)
 	{
-		WebContext webContext = createInitWebContext(request);
+		super.inflateWebRenderContext(request, renderContext);
 
-		addUpdateDataValue(request, webContext, resolveDataPath(request));
-		addLoadChartValue(request, webContext, resolveLoadChartPath(request));
-		addHeartBeatValue(request, webContext, resolveHeartbeatPath(request));
-		addUnloadValue(request, webContext, resolveUnloadPath(request));
-		addPluginResUrlPrefixValue(request, webContext, resolvePluginResPathPrefix(request));
-
-		return webContext;
+		addFetchDataUrlValue(request, renderContext, resolveDataPath(request));
+		addLoadChartUrlValue(request, renderContext, resolveLoadChartPath(request));
+		addHeartBeatUrlValue(request, renderContext, resolveHeartbeatPath(request));
+		addUnloadUrlValue(request, renderContext, resolveUnloadPath(request));
+		addPluginResUrlPrefixValue(request, renderContext, resolvePluginResPathPrefix(request));
 	}
 
 	/**

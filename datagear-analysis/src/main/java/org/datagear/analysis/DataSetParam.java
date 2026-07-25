@@ -33,8 +33,11 @@ public class DataSetParam extends AbstractNameTypeAware implements NameTypeInput
 	/** 是否必须 */
 	private boolean required;
 
+	/** 展示标签 */
+	private String label = null;
+
 	/** 参数描述 */
-	private String desc;
+	private String desc = null;
 
 	/** 界面输入框类型 */
 	private String inputType;
@@ -49,8 +52,16 @@ public class DataSetParam extends AbstractNameTypeAware implements NameTypeInput
 
 	public DataSetParam(String name, String type, boolean required)
 	{
-		super(name, type);
+		// 这里需要规范类型，以兼容5.5.0版遗留type枚举定义数据
+		super(name, DataType.normalize(type));
 		this.required = required;
+	}
+
+	@Override
+	public void setType(String type)
+	{
+		// 这里需要规范类型，以兼容5.5.0版遗留type枚举定义数据
+		super.setType(DataType.normalize(type));
 	}
 
 	@Override
@@ -62,6 +73,16 @@ public class DataSetParam extends AbstractNameTypeAware implements NameTypeInput
 	public void setRequired(boolean required)
 	{
 		this.required = required;
+	}
+
+	public String getLabel()
+	{
+		return label;
+	}
+
+	public void setLabel(String label)
+	{
+		this.label = label;
 	}
 
 	public boolean hasDesc()
@@ -104,8 +125,8 @@ public class DataSetParam extends AbstractNameTypeAware implements NameTypeInput
 	@Override
 	public String toString()
 	{
-		return getClass().getSimpleName() + " [required=" + required + ", desc=" + desc + ", inputType=" + inputType
-				+ ", inputPayload=" + inputPayload + "]";
+		return getClass().getSimpleName() + " [required=" + required + ", label=" + label + ", desc=" + desc
+				+ ", inputType=" + inputType + ", inputPayload=" + inputPayload + "]";
 	}
 
 	/**
@@ -117,13 +138,60 @@ public class DataSetParam extends AbstractNameTypeAware implements NameTypeInput
 	public static class DataType
 	{
 		/** 字符串 */
-		public static final String STRING = "STRING";
+		public static final String STRING = "string";
 
 		/** 布尔值 */
-		public static final String BOOLEAN = "BOOLEAN";
+		public static final String BOOLEAN = "boolean";
+
+		/** 整数 */
+		public static final String INTEGER = "integer";
 
 		/** 数值 */
-		public static final String NUMBER = "NUMBER";
+		public static final String NUMBER = "number";
+
+		/** 对象 */
+		public static final String OBJECT = "object";
+
+		/**
+		 * 规范类型。
+		 * 
+		 * @param type
+		 * @return
+		 */
+		public static String normalize(String type)
+		{
+			return normalize(type, STRING);
+		}
+
+		/**
+		 * 规范类型。
+		 * 
+		 * @param type
+		 * @param dftType
+		 * @return
+		 */
+		public static String normalize(String type, String dftType)
+		{
+			if (type == null)
+				return dftType;
+
+			if (STRING.equalsIgnoreCase(type))
+				return STRING;
+
+			if (BOOLEAN.equalsIgnoreCase(type))
+				return BOOLEAN;
+
+			if (INTEGER.equalsIgnoreCase(type))
+				return INTEGER;
+
+			if (NUMBER.equalsIgnoreCase(type))
+				return NUMBER;
+
+			if (OBJECT.equalsIgnoreCase(type))
+				return OBJECT;
+
+			return dftType;
+		}
 	}
 
 	/**

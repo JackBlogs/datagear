@@ -25,6 +25,7 @@ import org.datagear.analysis.RenderContext;
 import org.datagear.analysis.RenderException;
 import org.datagear.analysis.support.AbstractChartPlugin;
 import org.datagear.util.i18n.Label;
+import org.datagear.util.version.VersionPattern;
 
 /**
  * HTML图表插件。
@@ -57,23 +58,50 @@ import org.datagear.util.i18n.Label;
  * @author datagear@163.com
  *
  */
-public class HtmlChartPlugin extends AbstractChartPlugin
+public class HtmlChartPlugin extends AbstractChartPlugin implements ApiVersionAware
 {
 	private static final long serialVersionUID = 1L;
 
-	/** 图表渲染器属性名 */
 	public static final String PROPERTY_RENDERER = "renderer";
-	
-	/**
-	 * 旧版本（4.0.0及以前版本）图表渲染器属性名，将在未来版本移除。
-	 */
-	public static final String PROPERTY_RENDERER_OLD = "chartRenderer";
-	
+	public static final String PROPERTY_PLATFORM_VERSION = "platformVersion";
+	public static final String PROPERTY_API_VERSION = "apiVersion";
+	public static final String PROPERTY_USE = "use";
+
 	/** HTML换行符 */
 	public static final String HTML_NEW_LINE = "\n";
 
 	/** JS图表渲染器 */
-	private JsChartRenderer renderer;
+	private JsChartRenderer renderer = null;
+
+	/**
+	 * 支持的平台版本模式，比如：{@code >=6.0}。
+	 * <p>
+	 * 详细格式参考：{@linkplain VersionPattern}。
+	 * </p>
+	 * <p>
+	 * {@code null}或空字符串表示没有限制
+	 * </p>
+	 */
+	private String platformVersion = "";
+
+	/**
+	 * 支持的看板页面端API版本，比如：{@code 1.0}、{@code 2.0}。
+	 * <p>
+	 * 这里应该指定明确的版本号，而非版本模式，因为不同的看板页面端API版本是不兼容的，一个插件不应支持多个不兼容版本。
+	 * </p>
+	 * <p>
+	 * {@code null}或空字符串表示未定义
+	 * </p>
+	 */
+	private String apiVersion = "";
+
+	/**
+	 * 插件用途。
+	 * <p>
+	 * 默认需为{@linkplain HtmlChartPluginUse#NORMAL}
+	 * </p>
+	 */
+	private String use = HtmlChartPluginUse.NORMAL;
 
 	private HtmlChartPluginScriptObjectWriter pluginWriter;
 
@@ -106,6 +134,29 @@ public class HtmlChartPlugin extends AbstractChartPlugin
 		this.chartWriter = chartWriter;
 	}
 
+	public HtmlChartPlugin(HtmlChartPlugin plugin)
+	{
+		this(plugin.getId(), plugin.getNameLabel(), plugin.getRenderer(), plugin.getPluginWriter(),
+				plugin.getRenderContextWriter(), plugin.getChartWriter());
+
+		setUse(plugin.getUse());
+		setDescLabel(plugin.getDescLabel());
+		setResources(plugin.getResources());
+		setIcons(plugin.getIcons());
+		setConfigForm(plugin.getConfigForm());
+		setDataSignSpec(plugin.getDataSignSpec());
+		setDataSetRange(plugin.getDataSetRange());
+		setVersion(plugin.getVersion());
+		setOrder(plugin.getOrder());
+		setCategoryInfos(plugin.getCategoryInfos());
+		setAuthor(plugin.getAuthor());
+		setContact(plugin.getContact());
+		setIssueDate(plugin.getIssueDate());
+		setPlatformVersion(plugin.getPlatformVersion());
+		setApiVersion(plugin.getApiVersion());
+		setAdditions(plugin.getAdditions());
+	}
+
 	public JsChartRenderer getRenderer()
 	{
 		return renderer;
@@ -114,6 +165,37 @@ public class HtmlChartPlugin extends AbstractChartPlugin
 	public void setRenderer(JsChartRenderer renderer)
 	{
 		this.renderer = renderer;
+	}
+
+	public String getPlatformVersion()
+	{
+		return platformVersion;
+	}
+
+	public void setPlatformVersion(String platformVersion)
+	{
+		this.platformVersion = platformVersion;
+	}
+
+	@Override
+	public String getApiVersion()
+	{
+		return apiVersion;
+	}
+
+	public void setApiVersion(String apiVersion)
+	{
+		this.apiVersion = apiVersion;
+	}
+
+	public String getUse()
+	{
+		return use;
+	}
+
+	public void setUse(String use)
+	{
+		this.use = use;
 	}
 
 	public HtmlChartPluginScriptObjectWriter getPluginWriter()

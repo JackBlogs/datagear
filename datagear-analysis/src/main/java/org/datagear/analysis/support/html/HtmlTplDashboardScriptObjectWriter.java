@@ -34,6 +34,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  */
 public class HtmlTplDashboardScriptObjectWriter extends AbstractHtmlScriptObjectWriter
 {
+	public static final HtmlTplDashboardScriptObjectWriter INSTANCE = new HtmlTplDashboardScriptObjectWriter();
+
 	public HtmlTplDashboardScriptObjectWriter()
 	{
 		super();
@@ -90,18 +92,18 @@ public class HtmlTplDashboardScriptObjectWriter extends AbstractHtmlScriptObject
 					new TplDashboardWidgetJson(dashboard.getWidget()), dashboard.getVarName());
 
 			setCharts(Collections.EMPTY_LIST);
-			setVersion(dashboard.getVersion());
+			setApiVersion(dashboard.getApiVersion());
 			
-			LoadableChartWidgets lcws = dashboard.getLoadableChartWidgets();
-			setLoadableChartWidgets(lcws == null ? null : new LoadableChartWidgetsJson(lcws));
+			LoadChartPolicy lp = dashboard.getLoadChartPolicy();
+			setLoadChartPolicy(lp == null ? null : new LoadChartPolicyJson(lp));
 		}
 	}
 	
-	protected static class LoadableChartWidgetsJson extends LoadableChartWidgets
+	protected static class LoadChartPolicyJson extends LoadChartPolicy
 	{
 		private static final long serialVersionUID = 1L;
 
-		public LoadableChartWidgetsJson(LoadableChartWidgets pattern)
+		public LoadChartPolicyJson(LoadChartPolicy pattern)
 		{
 			super(pattern.getPattern());
 			setChartWidgetIds(pattern.getChartWidgetIds());
@@ -149,7 +151,6 @@ public class HtmlTplDashboardScriptObjectWriter extends AbstractHtmlScriptObject
 		public TplDashboardWidgetJson(HtmlTplDashboardWidget dashboardWidget)
 		{
 			super(dashboardWidget.getId(), dashboardWidget.getTemplates(), null, null);
-			setVersion(dashboardWidget.getVersion());
 		}
 
 		@JsonIgnore

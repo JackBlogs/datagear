@@ -1,0 +1,72 @@
+chartFactory.init() -> chartFactory.create() 返回新图表对象
+dashboardFactory.init() -> dashboardFactory.create() 返回新图表对象
+图表元素上的dg-chart-listener不再继承<body>元素上的
+chart.off()函数必须指定要解绑的handler函数
+chart.render()、update()函数仅接受图表结果对象参数
+chart.resetDataSetParamValuesFirst()	x
+chart.resetDataSetParamValues()			x
+chart.dataSetFieldOfSign()函数取消nonNull参数逻辑，chart.dataSetFieldsOfSign()函数取消nonEmpty参数逻辑
+chart.echartsThemeName() x
+chart.elementJquery()	x
+chart.id -> chart.id()
+chart.name -> chart.name()
+chart.updateInterval -> chart.updateInterval()
+chart.plugin -> chart.plugin()
+chart.renderContext -> chart.renderContext()
+chart.renderContextAttr() -> chart.renderContextValue()
+chart.dataSetFieldSign	->	dataSetFieldSigns()
+chart.loadMap()		x
+chart.echartsInit()		x
+chart.echartsOptions()	x
+chart.echartsMapRegistered()	x
+chart.echartsLoadMap()		x
+chart.eventData()		x
+chart.eventOriginalData()	x
+chart.renderOptions()		x
+chart.updateOptions()		x
+chart.inflateOptions()			+
+chart.inflateRenderOptions()	x
+chart.inflateUpdateOptions()	x
+chart.registerEventHandlerDelegation()	-> chart.registerEventHandlerDelegate()
+chart.removeEventHandlerDelegation()	-> chart.removeEventHandlerDelegate()
+chart.findEventHandlerDelegates()	+
+chart.callEventHandler()			x
+chart.echartsOffEventHandler()	x
+chart.echartsGetThemeName()	x
+chart.originalDataIndexes()		x
+chart.originalDataIndex()		x
+chart.eventOriginalDataIndex()	x
+chart.eventNew()				x
+chart.updateResults()			x
+chart.updateResult()			+
+chart.dashboard	-> chart.dashboard()
+chart.handleChartEventLink()	x
+chart.bindLinksEventHanders() -> chart.bindLinkEventHanders()
+chart.resultValueDatas()		x
+chart.elementStyle()			x
+chart.styleString()				x
+chart.refreshData()	-> chart.refresh()
+chart.disableSetting() -> chart.disableTool()
+chart.resultDataCell()			x
+
+dashboard.id -> dashboard.id()
+dashboard.charts -> dashboard.charts()
+dashboard.chartOf() -> dashboard.chart()
+dashboard.renderContext -> dashboard.renderContext()
+dashboard.renderContextAttr() -> dashboard.renderContextValue()
+dashboard.loadChart()	*
+dashboard.loadCharts()	*
+dashboard.loadUnsolvedCharts()	*
+dashboard.originalDataIndex()	x
+dashboard.refreshData()			x
+dashboard.renderContext()	返回对象格式由{attributes:{...}}改为{...}
+dashboard.resizeAllCharts() -> dashboard.resizeCharts()
+
+dg-chart-auto-resize默认值为true
+dg-chart-disable-setting改名为dg-chart-disable-tool
+
+图表监听器函数render()改名为rendered()，update()改名为updated()，destroy()改名为destroyed()
+看板监听器函数render()改名为rendered()，destroy()改名为destroyed()
+内置图表选项builtinSetting改名为builtinTool；
+移除内置图表选项disableSetting，改为在builtinTool.disable选项支持；
+图表渲染器additions仅允许{ ... }结构，不再支持function(){}函数结构；

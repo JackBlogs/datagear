@@ -59,6 +59,10 @@ public abstract class ApplicationProperties implements Serializable
 	@Value("${chartPluginRootDirectory}")
 	private String chartPluginRootDirectory;
 
+	/** 刷新图表插件主目录间隔 */
+	@Value("${refreshChartPluginRootDirInterval}")
+	private String refreshChartPluginRootDirInterval;
+
 	/** 看板主目录 */
 	@Value("${dashboardRootDirectory}")
 	private String dashboardRootDirectory;
@@ -203,14 +207,6 @@ public abstract class ApplicationProperties implements Serializable
 	@Value("${poi.zipSecureFile.minInflateRatio}")
 	private String poiZipSecureFileMinInflateRatio = "";
 
-	/** 每条记录权限缓存存储的最多用户权限数 */
-	@Value("${permissionCacheMaxLength}")
-	private int permissionCacheMaxLength;
-
-	/** 数据源缓存表信息最大个数 */
-	@Value("${dtbsSourceTableCacheMaxLength}")
-	private int dtbsSourceTableCacheMaxLength;
-
 	/** 数据集缓存数据的最大条目数 */
 	@Value("${dataSetCacheMaxLength}")
 	private int dataSetCacheMaxLength;
@@ -303,6 +299,16 @@ public abstract class ApplicationProperties implements Serializable
 	protected void setChartPluginRootDirectory(String chartPluginRootDirectory)
 	{
 		this.chartPluginRootDirectory = chartPluginRootDirectory;
+	}
+
+	public String getRefreshChartPluginRootDirInterval()
+	{
+		return refreshChartPluginRootDirInterval;
+	}
+
+	protected void setRefreshChartPluginRootDirInterval(String refreshChartPluginRootDirInterval)
+	{
+		this.refreshChartPluginRootDirInterval = refreshChartPluginRootDirInterval;
 	}
 
 	public String getDashboardRootDirectory()
@@ -669,26 +675,6 @@ public abstract class ApplicationProperties implements Serializable
 	protected void setPoiZipSecureFileMinInflateRatio(String poiZipSecureFileMinInflateRatio)
 	{
 		this.poiZipSecureFileMinInflateRatio = poiZipSecureFileMinInflateRatio;
-	}
-
-	public int getPermissionCacheMaxLength()
-	{
-		return permissionCacheMaxLength;
-	}
-
-	public void setPermissionCacheMaxLength(int permissionCacheMaxLength)
-	{
-		this.permissionCacheMaxLength = permissionCacheMaxLength;
-	}
-
-	public int getDtbsSourceTableCacheMaxLength()
-	{
-		return dtbsSourceTableCacheMaxLength;
-	}
-
-	protected void setDtbsSourceTableCacheMaxLength(int dtbsSourceTableCacheMaxLength)
-	{
-		this.dtbsSourceTableCacheMaxLength = dtbsSourceTableCacheMaxLength;
 	}
 
 	public int getDataSetCacheMaxLength()

@@ -16,7 +16,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  *
 -->
-<#assign DashboardVersion=statics['org.datagear.web.analysis.DashboardVersion']>
+<#assign DashboardApiVersion=statics['org.datagear.analysis.support.html.DashboardApiVersion']>
 <#include "../include/page_import.ftl">
 <#include "../include/html_doctype.ftl">
 <html>
@@ -28,10 +28,10 @@
 	<#include "../include/html_app_name_suffix.ftl">
 </title>
 </head>
-<body class="p-card no-border">
+<body class="p-card no-border h-screen m-0 p-1">
 <#include "../include/page_obj.ftl">
-<div id="${pid}" class="page page-form horizontal page-form-dashboard">
-	<form id="${pid}form" class="flex flex-column" :class="{readonly: pm.isReadonlyAction}">
+<div id="${pid}" class="page page-form h-full page-form-dashboard">
+	<form id="${pid}form" class="flex flex-column h-full" :class="{readonly: pm.isReadonlyAction}">
 		<div class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
 			<div class="field grid">
 				<label for="${pid}name" class="field-label col-12 mb-2 md:col-3 md:mb-0">
@@ -41,6 +41,17 @@
 		        	<p-inputtext id="${pid}name" v-model="fm.name" type="text" class="input w-full"
 		        		name="name" required maxlength="100" autofocus>
 		        	</p-inputtext>
+		        </div>
+			</div>
+			<div class="field grid">
+				<label for="${pid}apiVersion" class="field-label col-12 mb-2 md:col-3 md:mb-0"
+					title="<@spring.message code='dashboard.apiVersion.desc' />">
+					<@spring.message code='apiVersion' />
+				</label>
+		        <div class="field-input col-12 md:col-9">
+		        	<p-dropdown id="${pid}apiVersion" v-model="fm.apiVersion"
+						:options="pm.dashboardApiVersionOptions" option-label="name" option-value="value" class="input w-full">
+					</p-dropdown>
 		        </div>
 			</div>
 			<div class="field grid">
@@ -63,24 +74,6 @@
 					</div>
 				</div>
 			</div>
-			<!--
-			<div class="field grid">
-				<label for="${pid}name" class="field-label col-12 mb-2 md:col-3 md:mb-0">
-					<@spring.message code='dashboard.version' />
-				</label>
-		        <div class="field-input col-12 md:col-9">
-		        	<p-dropdown v-model="fm.version" :options="pm.versionDropdownItems" option-label="label" option-value="value"
-		        		@change="onVersionChange" class="input w-full">
-		        	</p-dropdown>
-		        	<div class="validate-msg">
-		        		<input name="version" required type="text" class="validate-proxy" />
-		        	</div>
-		        	<div class="desc text-color-secondary">
-		        		<small><@spring.message code='dashboard.version.desc' /></small>
-		        	</div>
-		        </div>
-			</div>
-			-->
 			<div class="field grid">
 				<label for="${pid}description" class="field-label col-12 mb-2 md:col-3 md:mb-0">
 					<@spring.message code='description' />
@@ -93,8 +86,14 @@
 			</div>
 		</div>
 		<div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
-			<p-button type="submit" label="<@spring.message code='save' />"></p-button>
-			<p-button type="button" label="<@spring.message code='saveAndDesign' />" @click="onSaveAndDesign"></p-button>
+			<div class="flex gap-2" v-if="pm.isSaveAndDesignFirst">
+				<p-button type="submit" label="<@spring.message code='saveAndDesign' />"></p-button>
+				<p-button type="button" label="<@spring.message code='onlySave' />" @click="onSaveNoDesign"></p-button>
+			</div>
+			<div class="flex gap-2" v-else>
+				<p-button type="submit" label="<@spring.message code='save' />"></p-button>
+				<p-button type="button" label="<@spring.message code='saveAndDesign' />" @click="onSaveAndDesign"></p-button>
+			</div>
 		</div>
 	</form>
 </div>
@@ -108,6 +107,18 @@
 	if(po.copySourceId)
 		po.submitUrl = $.addParam(po.submitUrl, "copySourceId", po.copySourceId);
 	
+	po.dashboardApiVersionOptions =
+	[
+		{
+			name: "<@spring.message code='DashboardApiVersion.V2' />",
+			value: "${DashboardApiVersion.V2}"
+		},
+		{
+			name: "<@spring.message code='DashboardApiVersion.V1' />",
+			value: "${DashboardApiVersion.V1}"
+		}
+	];
+	
 	po.inSaveAndDesignAction = function(val)
 	{
 		if(val === undefined)
@@ -119,6 +130,11 @@
 	po.beforeSubmitForm = function(action)
 	{
 		action.options.inSaveAndDesignAction = po.inSaveAndDesignAction();
+	};
+	
+	po.isSaveAndDesignFirst = function()
+	{
+		return (po.isAddAction || po.isCopyAction);
 	};
 	
 	var formModel = $.unescapeHtmlForJson(<@writeJson var=formModel />);
@@ -140,13 +156,8 @@
 
 	po.vuePageModel(
 	{
-		versionDropdownItems:
-		[
-			{
-				label: "${DashboardVersion.V_1_0}",
-				value: "${DashboardVersion.V_1_0}"
-			}
-		]
+		dashboardApiVersionOptions: po.dashboardApiVersionOptions,
+		isSaveAndDesignFirst: po.isSaveAndDesignFirst()
 	});
 	
 	po.vueMethod(
@@ -168,6 +179,8 @@
 		
 		onSaveAndDesign: function(e)
 		{
+			var state = po.inSaveAndDesignAction();
+			
 			try
 			{
 				po.inSaveAndDesignAction(true);
@@ -175,10 +188,27 @@
 			}
 			finally
 			{
+				po.inSaveAndDesignAction(state);
+			}
+		},
+		
+		onSaveNoDesign: function(e)
+		{
+			var state = po.inSaveAndDesignAction();
+			
+			try
+			{
 				po.inSaveAndDesignAction(false);
+				po.form().submit();
+			}
+			finally
+			{
+				po.inSaveAndDesignAction(state);
 			}
 		}
 	});
+	
+	po.inSaveAndDesignAction(po.isSaveAndDesignFirst());
 })
 (${pid});
 </script>

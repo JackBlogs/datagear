@@ -17,7 +17,6 @@
  *
 -->
 <#assign HtmlChartWidgetEntity=statics['org.datagear.management.domain.HtmlChartWidgetEntity']>
-<#assign AbstractDataAnalysisController=statics['org.datagear.web.controller.AbstractDataAnalysisController']>
 <#include "../include/page_import.ftl">
 <#include "../include/html_doctype.ftl">
 <html>
@@ -37,7 +36,7 @@
 			<#include "../include/page_current_analysis_project.ftl">
 		</div>
 		<div class="col-12" :class="pm.isSelectAction ? 'md:col-6' : 'md:col-4'">
-			<#include "../include/page_search_form_filter.ftl">
+			<#include "../include/page_search_form_sharetype.ftl">
 		</div>
 		<div class="operations col-12 flex gap-1 flex-wrap md:justify-content-end" :class="pm.isSelectAction ? 'md:col-6' : 'md:col-8'">
 			<p-button label="<@spring.message code='confirm' />" @click="onSelect" v-if="pm.isSelectAction"></p-button>
@@ -96,8 +95,6 @@
 	
 	po.buildIframeNestCode = function(url)
 	{
-		url = $.addParam(url, "${AbstractDataAnalysisController.DASHBOARD_SHOW_PARAM_SAFE_SESSION}",
-								"${AbstractDataAnalysisController.DASHBOARD_SHOW_PARAM_SAFE_SESSION_VALUE_1}");
 		return "<iframe src=\""+ url +"\" style=\"width:100%;height:100%;border:0;\"></iframe>";
 	};
 	
@@ -124,7 +121,7 @@
 				label: "<@spring.message code='editInNewWindow' />",
 				command: function()
 				{
-					po.handleOpenOfAction("/chart/edit", {target: "_blank"});
+					po.handleOpenOfAction("/chart/edit", {target: "_blank", appendIdToPath: true});
 				}
 			}
 		],
@@ -170,7 +167,11 @@
 		},
 		formatChartPlugin: function(data)
 		{
-			return $.toChartPluginHtml(data.pluginVo, po.contextPath, { justifyContent: "start" });
+			return $.toChartPluginHtml(data.pluginVo, po.contextPath,
+						{
+							justifyContent: "start", showApiVersion:true,
+							apiVersionDesc: "<@spring.message code='chartPlugin.apiVersion.desc' />"
+					});
 		},
 		onAdd: function()
 		{
@@ -179,12 +180,12 @@
 		
 		onEdit: function()
 		{
-			po.handleOpenOfAction("/chart/edit", {width: "70vw"});
+			po.handleOpenOfAction("/chart/edit", {width: "70vw", appendIdToPath: true});
 		},
 		
 		onView: function()
 		{
-			po.handleOpenOfAction("/chart/view", {width: "70vw"});
+			po.handleOpenOfAction("/chart/view", {width: "70vw", appendIdToPath: true});
 		},
 
 		onShare: function()

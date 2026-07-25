@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.datagear.analysis.ChartDefinition;
+import org.datagear.analysis.TplDashboardRenderContext;
 import org.datagear.analysis.TplDashboardWidgetResManager;
 import org.datagear.analysis.support.ChartWidgetSource;
 import org.datagear.analysis.support.FileTplDashboardWidgetResManager;
@@ -155,7 +156,7 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			assertTrue(html.contains(IMPORT_CONTENT_THEME));
 			assertTrue(html.contains(IMPORT_CONTENT_STYLE));
 			assertTrue(html.contains("var datagearDashboardTmp="));
-			assertTrue(html.contains("myDashboardFactory.init(datagearDashboardTmp);"));
+			assertTrue(html.contains("myDashboardFactory.create(datagearDashboardTmp);"));
 			assertTrue(html.contains(this.renderer.getLocalGlobalVarName() + ".myDashboard=datagearDashboardTmp;"));
 			assertTrue(html.contains("datagearDashboardTmp.init();"));
 			assertTrue(html.contains("datagearDashboardTmp.render();"));
@@ -190,7 +191,7 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			assertTrue(html.contains(IMPORT_CONTENT_THEME));
 			assertTrue(html.contains(IMPORT_CONTENT_STYLE));
 			assertTrue(html.contains("var datagearDashboardTmp"));
-			assertTrue(html.contains("myDashboardFactory.init(datagearDashboardTmp);"));
+			assertTrue(html.contains("myDashboardFactory.create(datagearDashboardTmp);"));
 			assertTrue(html.contains(this.renderer.getLocalGlobalVarName() + ".myDashboard=datagearDashboardTmp;"));
 			
 			//缓存
@@ -223,7 +224,7 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			assertTrue(html.contains(IMPORT_CONTENT_THEME));
 			assertTrue(html.contains(IMPORT_CONTENT_STYLE));
 			assertTrue(html.contains("var datagearDashboardTmp"));
-			assertTrue(html.contains("myDashboardFactory.init(datagearDashboardTmp);"));
+			assertTrue(html.contains("myDashboardFactory.create(datagearDashboardTmp);"));
 			assertTrue(html.contains(this.renderer.getLocalGlobalVarName() + ".myDashboard=datagearDashboardTmp;"));
 			
 			//缓存
@@ -256,7 +257,7 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			assertFalse(html.contains(IMPORT_CONTENT_THEME));
 			assertFalse(html.contains(IMPORT_CONTENT_STYLE));
 			assertTrue(html.contains("var datagearDashboardTmp"));
-			assertTrue(html.contains("myDashboardFactory.init(datagearDashboardTmp);"));
+			assertTrue(html.contains("myDashboardFactory.create(datagearDashboardTmp);"));
 			assertTrue(html.contains(this.renderer.getLocalGlobalVarName() + ".myDashboard=datagearDashboardTmp;"));
 			
 			//缓存
@@ -288,7 +289,7 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			assertTrue(html.contains(IMPORT_CONTENT_THEME));
 			assertTrue(html.contains(IMPORT_CONTENT_STYLE));
 			assertTrue(html.contains("var datagearDashboardTmp"));
-			assertTrue(html.contains("dashboardFactory.init(datagearDashboardTmp);"));
+			assertTrue(html.contains("dashboardFactory.create(datagearDashboardTmp);"));
 			assertTrue(html.contains(this.renderer.getLocalGlobalVarName() + ".dashboard=datagearDashboardTmp;"));
 			
 			//缓存
@@ -301,7 +302,7 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			}
 		}
 
-		// 图表属性
+		// 图表元素属性
 		{
 			String template = "<html><head></head><body>" + HtmlChartPlugin.HTML_NEW_LINE
 					+ "<div id=\"element_1\" dg-chart-widget=\"chartwidget_1\"></div>" + HtmlChartPlugin.HTML_NEW_LINE
@@ -604,10 +605,35 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 				assertEquals(html, html1);
 			}
 		}
+
+		// dg-api-version
+		{
+			String template = "<html dg-api-version=\"1.2\"></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertEquals("1.2", dashboard.getApiVersion());
+			assertEquals("1.2", dashboardMeta.getApiVersion());
+			assertTrue(html.contains("<html dg-api-version=\"1.2\">"));
+
+			// 缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+
+				assertEquals(html, html1);
+			}
+		}
 	}
 	
 	@Test
-	public void renderDashboardTestForLoadableChartWidgets() throws Throwable
+	public void renderDashboardTestForLoadChartPolicy() throws Throwable
 	{
 		HtmlTplDashboardWidget dashboardWidget = createHtmlTplDashboardWidget();
 
@@ -621,7 +647,7 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 
-			assertNull(dashboard.getLoadableChartWidgets());
+			assertNull(dashboard.getLoadChartPolicy());
 			
 			//缓存
 			{
@@ -629,6 +655,169 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
 				String html1 = getHtmlWithPrint(renderContext1);
 				
+				assertEquals(html, html1);
+			}
+		}
+		{
+			String template = "<html dg-load-chart-policy=\"all\"><head></head><body></body></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertTrue(dashboard.getLoadChartPolicy().isPatternAll());
+			
+			//缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+				
+				assertEquals(html, html1);
+			}
+		}
+		{
+			String template = "<html dg-load-chart-policy='none'><head></head><body></body></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertTrue(dashboard.getLoadChartPolicy().isPatternNone());
+			
+			//缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+				
+				assertEquals(html, html1);
+			}
+		}
+		{
+			String template = "<html dg-load-chart-policy='permitted'><head></head><body></body></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertTrue(dashboard.getLoadChartPolicy().isPatternPermitted());
+			
+			//缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+				
+				assertEquals(html, html1);
+			}
+		}
+		{
+			String template = "<html dg-load-chart-policy='a-widget-id'><head></head><body></body></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertTrue(dashboard.getLoadChartPolicy().isPatternList());
+			assertTrue(dashboard.getLoadChartPolicy().getChartWidgetIds().size() == 1);
+			assertTrue(dashboard.getLoadChartPolicy().inList("a-widget-id"));
+			
+			//缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+				
+				assertEquals(html, html1);
+			}
+		}
+		{
+			String template = "<html dg-load-chart-policy='widget-id-0,widget-id-1'><head></head><body></body></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertTrue(dashboard.getLoadChartPolicy().isPatternList());
+			assertTrue(dashboard.getLoadChartPolicy().getChartWidgetIds().size() == 2);
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-0"));
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-1"));
+			
+			//缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+				
+				assertEquals(html, html1);
+			}
+		}
+		{
+			String template = "<html dg-load-chart-policy='widget-id-0, widget-id-1 , widget-id-2 '><head></head><body></body></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertTrue(dashboard.getLoadChartPolicy().isPatternList());
+			assertTrue(dashboard.getLoadChartPolicy().getChartWidgetIds().size() == 3);
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-0"));
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-1"));
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-2"));
+			
+			//缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+				
+				assertEquals(html, html1);
+			}
+		}
+	}
+
+	@Test
+	public void renderDashboardTestForLoadChartPolicyForVersion_5_5_0() throws Throwable
+	{
+		HtmlTplDashboardWidget dashboardWidget = createHtmlTplDashboardWidget();
+
+		{
+			String template = "<html><head></head><body></body></html>";
+
+			HtmlTplDashboardRenderContext renderContext = buildRenderContext(template);
+			DashboardFilterContext filterContext = this.renderer.doRenderDashboard(dashboardWidget, renderContext);
+
+			HtmlTplDashboard dashboard = filterContext.getDashboard();
+			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
+			String html = getHtmlWithPrint(renderContext);
+
+			assertNull(dashboard.getLoadChartPolicy());
+
+			// 缓存
+			{
+				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
+				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
+				String html1 = getHtmlWithPrint(renderContext1);
+
 				assertEquals(html, html1);
 			}
 		}
@@ -642,14 +831,14 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 
-			assertTrue(dashboard.getLoadableChartWidgets().isPatternAll());
-			
-			//缓存
+			assertTrue(dashboard.getLoadChartPolicy().isPatternAll());
+
+			// 缓存
 			{
 				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
 				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
 				String html1 = getHtmlWithPrint(renderContext1);
-				
+
 				assertEquals(html, html1);
 			}
 		}
@@ -663,14 +852,14 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 
-			assertTrue(dashboard.getLoadableChartWidgets().isPatternNone());
-			
-			//缓存
+			assertTrue(dashboard.getLoadChartPolicy().isPatternNone());
+
+			// 缓存
 			{
 				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
 				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
 				String html1 = getHtmlWithPrint(renderContext1);
-				
+
 				assertEquals(html, html1);
 			}
 		}
@@ -684,14 +873,14 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 
-			assertTrue(dashboard.getLoadableChartWidgets().isPatternPermitted());
-			
-			//缓存
+			assertTrue(dashboard.getLoadChartPolicy().isPatternPermitted());
+
+			// 缓存
 			{
 				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
 				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
 				String html1 = getHtmlWithPrint(renderContext1);
-				
+
 				assertEquals(html, html1);
 			}
 		}
@@ -705,16 +894,16 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 
-			assertTrue(dashboard.getLoadableChartWidgets().isPatternList());
-			assertTrue(dashboard.getLoadableChartWidgets().getChartWidgetIds().size() == 1);
-			assertTrue(dashboard.getLoadableChartWidgets().inList("a-widget-id"));
-			
-			//缓存
+			assertTrue(dashboard.getLoadChartPolicy().isPatternList());
+			assertTrue(dashboard.getLoadChartPolicy().getChartWidgetIds().size() == 1);
+			assertTrue(dashboard.getLoadChartPolicy().inList("a-widget-id"));
+
+			// 缓存
 			{
 				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
 				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
 				String html1 = getHtmlWithPrint(renderContext1);
-				
+
 				assertEquals(html, html1);
 			}
 		}
@@ -728,17 +917,17 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 
-			assertTrue(dashboard.getLoadableChartWidgets().isPatternList());
-			assertTrue(dashboard.getLoadableChartWidgets().getChartWidgetIds().size() == 2);
-			assertTrue(dashboard.getLoadableChartWidgets().inList("widget-id-0"));
-			assertTrue(dashboard.getLoadableChartWidgets().inList("widget-id-1"));
-			
-			//缓存
+			assertTrue(dashboard.getLoadChartPolicy().isPatternList());
+			assertTrue(dashboard.getLoadChartPolicy().getChartWidgetIds().size() == 2);
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-0"));
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-1"));
+
+			// 缓存
 			{
 				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
 				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
 				String html1 = getHtmlWithPrint(renderContext1);
-				
+
 				assertEquals(html, html1);
 			}
 		}
@@ -752,18 +941,18 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 
-			assertTrue(dashboard.getLoadableChartWidgets().isPatternList());
-			assertTrue(dashboard.getLoadableChartWidgets().getChartWidgetIds().size() == 3);
-			assertTrue(dashboard.getLoadableChartWidgets().inList("widget-id-0"));
-			assertTrue(dashboard.getLoadableChartWidgets().inList("widget-id-1"));
-			assertTrue(dashboard.getLoadableChartWidgets().inList("widget-id-2"));
-			
-			//缓存
+			assertTrue(dashboard.getLoadChartPolicy().isPatternList());
+			assertTrue(dashboard.getLoadChartPolicy().getChartWidgetIds().size() == 3);
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-0"));
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-1"));
+			assertTrue(dashboard.getLoadChartPolicy().inList("widget-id-2"));
+
+			// 缓存
 			{
 				HtmlTplDashboardRenderContext renderContext1 = buildRenderContext(template);
 				this.renderer.doRenderDashboard(dashboardWidget, renderContext1, dashboardMeta);
 				String html1 = getHtmlWithPrint(renderContext1);
-				
+
 				assertEquals(html, html1);
 			}
 		}
@@ -1185,7 +1374,9 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 			
-			String dashboardInitCode = this.renderer.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + ".init("+dashboard.getVarName()+");";
+			String dashboardInitCode = this.renderer
+					.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + "."
+					+ this.renderer.getDashboardFactoryCreateFuncName() + "(" + dashboard.getVarName() + ");";
 			String dashboardRenderCode = dashboard.getVarName() + "."+this.renderer.getDashboardRenderFuncName()+"();";
 			
 			int scriptStartTagEndIdx = html.indexOf("<script dg-dashboard-code=\"init\">") + "<script dg-dashboard-code=\"init\">".length();
@@ -1225,7 +1416,8 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			String html = getHtmlWithPrint(renderContext);
 			
 			String dashboardInitCode = this.renderer.getDashboardFactoryVarElseDft(
-					dashboardMeta.getDashboardFactoryVar()) + ".init(" + dashboard.getVarName() + ");";
+					dashboardMeta.getDashboardFactoryVar()) + "." + this.renderer.getDashboardFactoryCreateFuncName()
+					+ "(" + dashboard.getVarName() + ");";
 			String dashboardRenderCode = dashboard.getVarName() + "." + this.renderer.getDashboardRenderFuncName()
 					+ "();";
 
@@ -1397,7 +1589,9 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 			TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 			String html = getHtmlWithPrint(renderContext);
 			
-			String dashboardInitCode = this.renderer.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + ".init("+dashboard.getVarName()+");";
+			String dashboardInitCode = this.renderer
+					.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + "."
+					+ this.renderer.getDashboardFactoryCreateFuncName() + "(" + dashboard.getVarName() + ");";
 			String dashboardRenderCode = dashboard.getVarName() + "."+this.renderer.getDashboardRenderFuncName()+"();";
 			
 			int scriptCloseTagIdx = html.indexOf("</script></head>");
@@ -1461,7 +1655,9 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 				TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 				String html = getHtmlWithPrint(renderContext);
 				
-				String dashboardInitCode = this.renderer.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + ".init("+dashboard.getVarName()+");";
+				String dashboardInitCode = this.renderer
+						.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + "."
+						+ this.renderer.getDashboardFactoryCreateFuncName() + "(" + dashboard.getVarName() + ");";
 				String dashboardRenderCode = dashboard.getVarName() + "."+this.renderer.getDashboardRenderFuncName()+"();";
 				
 				int scriptStartTagEndIdx = html.indexOf("<script dg-dashboard-code>") + "<script dg-dashboard-code>".length();
@@ -1495,7 +1691,9 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 				TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 				String html = getHtmlWithPrint(renderContext);
 				
-				String dashboardInitCode = this.renderer.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + ".init("+dashboard.getVarName()+");";
+				String dashboardInitCode = this.renderer
+						.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + "."
+						+ this.renderer.getDashboardFactoryCreateFuncName() + "(" + dashboard.getVarName() + ");";
 				String dashboardRenderCode = dashboard.getVarName() + "."+this.renderer.getDashboardRenderFuncName()+"();";
 				
 				int scriptStartTagEndIdx = html.indexOf("<script dg-dashboard-code=\"init\">") + "<script dg-dashboard-code=\"init\">".length();
@@ -1528,7 +1726,9 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 				TplDashboardMeta dashboardMeta = filterContext.getDashboardMeta();
 				String html = getHtmlWithPrint(renderContext);
 
-				String dashboardInitCode = this.renderer.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + ".init("+dashboard.getVarName()+");";
+				String dashboardInitCode = this.renderer
+						.getDashboardFactoryVarElseDft(dashboardMeta.getDashboardFactoryVar()) + "."
+						+ this.renderer.getDashboardFactoryCreateFuncName() + "(" + dashboard.getVarName() + ");";
 				String dashboardRenderCode = dashboard.getVarName() + "."+this.renderer.getDashboardRenderFuncName()+"();";
 				
 				int scriptStartTagEndIdx = html.indexOf("<script dg-dashboard-code=\"init\">") + "<script dg-dashboard-code=\"init\">".length();
@@ -1786,7 +1986,8 @@ public class HtmlTplDashboardWidgetHtmlRendererTest
 	
 	protected HtmlTplDashboardRenderContext buildRenderContext(String template, Reader templateReader, Writer out)
 	{
-		HtmlTplDashboardRenderContext renderContext = new HtmlTplDashboardRenderContext(template, templateReader, out);
+		HtmlTplDashboardRenderContext renderContext = new HtmlTplDashboardRenderContext(template, templateReader,
+				TplDashboardRenderContext.TEMPLATE_LAST_MODIFIED_NONE, out);
 		renderContext.setDashboardTheme(SimpleDashboardThemeSource.THEME_LIGHT);
 		renderContext.setImportBuilder(importBuilder());
 		

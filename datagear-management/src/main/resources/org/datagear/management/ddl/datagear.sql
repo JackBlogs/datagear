@@ -603,8 +603,6 @@ ALTER TABLE DATAGEAR_SCHEMA ADD COLUMN SCHEMA_SCHM_NAME VARCHAR(100);
 /*看板表添加版本列*/
 ALTER TABLE DATAGEAR_HTML_DASHBOARD ADD COLUMN HD_VERSION VARCHAR(50);
 
-UPDATE DATAGEAR_HTML_DASHBOARD SET HD_VERSION = '1.0' WHERE HD_VERSION IS NULL OR HD_VERSION = '';
-
 
 /*-----------------------------------------*/
 /*--version[5.3.1], DO NOT EDIT THIS LINE!*/
@@ -663,3 +661,27 @@ VALUES('MYSQL_DISABLE_LOADLOCAL_2','jdbc:mysql:*allowLoadLocalInfileInPath*','fa
 
 INSERT INTO DATAGEAR_SCHEMA_GUARD (SG_ID,SG_PATTERN,SG_PERMITTED,SG_PRIORITY,SG_ENABLED,SG_CREATE_TIME,SG_NAME,SG_USER_PATTERN,SG_PROP_PATTERNS,SG_EMPTY_PPT_FA,SG_PROP_MATCH_MODE)
 VALUES('MYSQL_DISABLE_LOADLOCAL_3','jdbc:mysql:*','false',999,'true',CURRENT_TIMESTAMP,'MySQL禁用连接属性allowLoadLocalInfile和allowLoadLocalInfileInPath','*','[{"namePattern":"allowLoadLocalInfile","valuePattern":"*"},{"namePattern":"allowLoadLocalInfileInPath","valuePattern":"*"}]','true','ANY');
+
+
+/*-----------------------------------------*/
+/*--version[6.0.0], DO NOT EDIT THIS LINE!*/
+/*-----------------------------------------*/
+
+/*2025-12-26*/
+/*添加数据集参数标签列*/
+ALTER TABLE DATAGEAR_DATA_SET_PAR ADD COLUMN PAR_LABEL VARCHAR(100);
+
+/*2026-03-16*/
+/*添加数据集字段全名列*/
+ALTER TABLE DATAGEAR_DATA_SET_PROP ADD COLUMN PROP_FULLNAME VARCHAR(500);
+
+/*2026-03-17*/
+/*添加数据集字段是否数组列*/
+ALTER TABLE DATAGEAR_DATA_SET_PROP ADD COLUMN PROP_ARRAY VARCHAR(10);
+
+/*2026-03-18*/
+/*删除数据集字段名唯一约束*/
+/*DG_UK_DS_PROP_DS_ID_NAME是之前由UK_DS_PROP_DS_ID_NAME直接改名而得的，并未同步至数据库，所以这里需要冗余删除两个*/
+ALTER TABLE DATAGEAR_DATA_SET_PROP DROP UNIQUE DG_UK_DS_PROP_DS_ID_NAME/*silent*/;
+
+ALTER TABLE DATAGEAR_DATA_SET_PROP DROP UNIQUE UK_DS_PROP_DS_ID_NAME/*silent*/;

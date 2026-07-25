@@ -23,12 +23,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.datagear.analysis.AbstractIdentifiable;
-import org.datagear.analysis.Category;
 import org.datagear.analysis.ChartPlugin;
-import org.datagear.analysis.ChartPluginAttribute;
+import org.datagear.analysis.ChartPluginCategoryInfo;
+import org.datagear.analysis.ChartPluginConfigForm;
 import org.datagear.analysis.ChartPluginDataSetRange;
 import org.datagear.analysis.ChartPluginResource;
-import org.datagear.analysis.DataSign;
+import org.datagear.analysis.DataSignSpec;
 import org.datagear.analysis.NameAwareUtil;
 import org.datagear.util.StringUtil;
 import org.datagear.util.i18n.Label;
@@ -49,11 +49,12 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 
 	private List<ChartPluginResource> resources = Collections.emptyList();
 	
-	private Map<String, String> iconResourceNames = Collections.emptyMap();
+	/** 图标资源名映射表，名为主题名，值为图标URL */
+	private Map<String, String> icons = Collections.emptyMap();
 
-	private List<ChartPluginAttribute> attributes = Collections.emptyList();
+	private ChartPluginConfigForm configForm = null;
 
-	private List<DataSign> dataSigns = Collections.emptyList();
+	private DataSignSpec dataSignSpec = null;
 
 	private ChartPluginDataSetRange dataSetRange = null;
 
@@ -61,17 +62,13 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 
 	private int order = 0;
 
-	private List<Category> categories = Collections.emptyList();
-
-	private List<Integer> categoryOrders = Collections.emptyList();
+	private List<ChartPluginCategoryInfo> categoryInfos = null;
 
 	private String author = "";
 
 	private String contact = "";
 
 	private String issueDate = "";
-
-	private String platformVersion = "";
 
 	private Map<String, ?> additions = null;
 
@@ -121,14 +118,14 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 		this.resources = (List<ChartPluginResource>) resources;
 	}
 
-	public Map<String, String> getIconResourceNames()
+	public Map<String, String> getIcons()
 	{
-		return iconResourceNames;
+		return icons;
 	}
 
-	public void setIconResourceNames(Map<String, String> iconResourceNames)
+	public void setIcons(Map<String, String> icons)
 	{
-		this.iconResourceNames = iconResourceNames;
+		this.icons = icons;
 	}
 
 	@Override
@@ -140,7 +137,7 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 	@Override
 	public String getIconResourceName(String themeName)
 	{
-		if (this.iconResourceNames == null || this.iconResourceNames.isEmpty())
+		if (this.icons == null || this.icons.isEmpty())
 			return null;
 
 		themeName = (themeName == null ? "" : themeName.toLowerCase());
@@ -151,7 +148,7 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 
 		Map<String, String> lowerKeyMap = new HashMap<String, String>();
 
-		for (Map.Entry<String, String> entry : this.iconResourceNames.entrySet())
+		for (Map.Entry<String, String> entry : this.icons.entrySet())
 			lowerKeyMap.put(entry.getKey().toLowerCase(), entry.getValue());
 
 		for (Map.Entry<String, String> entry : lowerKeyMap.entrySet())
@@ -175,7 +172,7 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 		else if (!StringUtil.isEmpty(likeResName))
 			resName = likeResName;
 		else
-			resName = this.iconResourceNames.get(DEFAULT_ICON_THEME_NAME);
+			resName = this.icons.get(DEFAULT_ICON_THEME_NAME);
 
 		if (StringUtil.isEmpty(resName))
 			resName = firstResName;
@@ -184,46 +181,25 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 	}
 
 	@Override
-	public List<ChartPluginAttribute> getAttributes()
+	public ChartPluginConfigForm getConfigForm()
 	{
-		return attributes;
+		return configForm;
 	}
 
-	public void setAttributes(List<ChartPluginAttribute> attributes)
+	public void setConfigForm(ChartPluginConfigForm configForm)
 	{
-		this.attributes = attributes;
-	}
-
-	@Override
-	public ChartPluginAttribute getAttribute(String name)
-	{
-		return NameAwareUtil.find(this.attributes, name);
+		this.configForm = configForm;
 	}
 
 	@Override
-	public List<DataSign> getDataSigns()
+	public DataSignSpec getDataSignSpec()
 	{
-		return dataSigns;
+		return dataSignSpec;
 	}
 
-	public void setDataSigns(List<DataSign> dataSigns)
+	public void setDataSignSpec(DataSignSpec dataSignSpec)
 	{
-		this.dataSigns = dataSigns;
-	}
-
-	@Override
-	public DataSign getDataSign(String name)
-	{
-		if (this.dataSigns == null)
-			return null;
-
-		for (DataSign dataSign : this.dataSigns)
-		{
-			if (dataSign.getName().equals(name))
-				return dataSign;
-		}
-
-		return null;
+		this.dataSignSpec = dataSignSpec;
 	}
 
 	@Override
@@ -260,25 +236,14 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 	}
 
 	@Override
-	public List<Category> getCategories()
+	public List<ChartPluginCategoryInfo> getCategoryInfos()
 	{
-		return categories;
+		return categoryInfos;
 	}
 
-	public void setCategories(List<Category> categories)
+	public void setCategoryInfos(List<ChartPluginCategoryInfo> categoryInfos)
 	{
-		this.categories = categories;
-	}
-
-	@Override
-	public List<Integer> getCategoryOrders()
-	{
-		return categoryOrders;
-	}
-
-	public void setCategoryOrders(List<Integer> categoryOrders)
-	{
-		this.categoryOrders = categoryOrders;
+		this.categoryInfos = categoryInfos;
 	}
 
 	@Override
@@ -312,17 +277,6 @@ public abstract class AbstractChartPlugin extends AbstractIdentifiable implement
 	public void setIssueDate(String issueDate)
 	{
 		this.issueDate = issueDate;
-	}
-
-	@Override
-	public String getPlatformVersion()
-	{
-		return platformVersion;
-	}
-
-	public void setPlatformVersion(String platformVersion)
-	{
-		this.platformVersion = platformVersion;
 	}
 
 	@Override

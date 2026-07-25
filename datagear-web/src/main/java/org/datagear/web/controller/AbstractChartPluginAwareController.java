@@ -20,10 +20,7 @@ package org.datagear.web.controller;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -31,16 +28,11 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.datagear.analysis.Category;
 import org.datagear.analysis.ChartPlugin;
-import org.datagear.analysis.ChartPluginAttribute;
 import org.datagear.analysis.ChartPluginResource;
 import org.datagear.analysis.DashboardTheme;
 import org.datagear.analysis.DataSetBind;
 import org.datagear.analysis.DataSetResult;
-import org.datagear.analysis.DataSign;
-import org.datagear.analysis.support.ChartPluginCategorizationResolver;
-import org.datagear.analysis.support.ChartPluginCategorizationResolver.Categorization;
 import org.datagear.analysis.support.ProfileDataSet;
 import org.datagear.analysis.support.html.DirectoryHtmlChartPluginManager;
 import org.datagear.analysis.support.html.HtmlChartPlugin;
@@ -49,11 +41,7 @@ import org.datagear.analysis.support.html.HtmlChartPluginLoader;
 import org.datagear.management.domain.DataSetBindVO;
 import org.datagear.management.domain.HtmlChartPluginVo;
 import org.datagear.util.IOUtil;
-import org.datagear.util.KeywordMatcher;
-import org.datagear.util.KeywordMatcher.MatchValue;
 import org.datagear.util.StringUtil;
-import org.datagear.util.i18n.Label;
-import org.datagear.util.i18n.LabelUtil;
 import org.datagear.web.util.WebUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.context.ServletContextAware;
@@ -72,10 +60,6 @@ public class AbstractChartPluginAwareController extends AbstractDataAnalysisCont
 	@Autowired
 	private DirectoryHtmlChartPluginManager directoryHtmlChartPluginManager;
 
-	private ChartPluginCategorizationResolver chartPluginCategorizationResolver = new ChartPluginCategorizationResolver();
-
-	private KeywordMatcher keywordMatcher = new KeywordMatcher();
-
 	private ServletContext servletContext;
 
 	public AbstractChartPluginAwareController()
@@ -93,27 +77,6 @@ public class AbstractChartPluginAwareController extends AbstractDataAnalysisCont
 		this.directoryHtmlChartPluginManager = directoryHtmlChartPluginManager;
 	}
 
-	public ChartPluginCategorizationResolver getChartPluginCategorizationResolver()
-	{
-		return chartPluginCategorizationResolver;
-	}
-
-	public void setChartPluginCategorizationResolver(
-			ChartPluginCategorizationResolver chartPluginCategorizationResolver)
-	{
-		this.chartPluginCategorizationResolver = chartPluginCategorizationResolver;
-	}
-
-	public KeywordMatcher getKeywordMatcher()
-	{
-		return keywordMatcher;
-	}
-
-	public void setKeywordMatcher(KeywordMatcher keywordMatcher)
-	{
-		this.keywordMatcher = keywordMatcher;
-	}
-
 	public ServletContext getServletContext()
 	{
 		return servletContext;
@@ -125,15 +88,10 @@ public class AbstractChartPluginAwareController extends AbstractDataAnalysisCont
 		this.servletContext = servletContext;
 	}
 
-	protected List<Categorization> resolveCategorizations(List<HtmlChartPluginView> chartPluginVOs)
-	{
-		return this.chartPluginCategorizationResolver.resolve(chartPluginVOs);
-	}
-
 	protected void writeChartPluginResource(HttpServletRequest request, HttpServletResponse response,
 			WebRequest webRequest, ChartPlugin chartPlugin, ChartPluginResource resource) throws Exception
 	{
-		if (resource == null)
+		if (chartPlugin == null || resource == null)
 		{
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			return;
@@ -181,99 +139,64 @@ public class AbstractChartPluginAwareController extends AbstractDataAnalysisCont
 		return loader.loadAll(directory);
 	}
 
-	/**
-	 * 根据ID获取。
-	 * 
-	 * @param request
-	 * @param id
-	 * @return 返回{@code null}表示未找到
-	 */
-	protected HtmlChartPluginView getHtmlChartPluginView(HttpServletRequest request, String id)
+	protected HtmlChartPlugin getHtmlChartPlugin(String id, boolean nonNull)
 	{
-		List<HtmlChartPlugin> plugins = getDirectoryHtmlChartPluginManager().getAll(HtmlChartPlugin.class);
+		ChartPlugin plugin = (id == null ? null : getDirectoryHtmlChartPluginManager().get(id));
 
-		if (plugins == null)
+		if (plugin != null && !(plugin instanceof HtmlChartPlugin))
+			plugin = null;
+
+		if (plugin == null)
+		{
+			if(nonNull)
+				checkNonNullEntity(plugin);
+			else
+				return null;
+		}
+
+		return (HtmlChartPlugin) plugin;
+	}
+
+	protected HtmlChartPluginVo toHtmlChartPluginVo(HttpServletRequest request, HtmlChartPlugin plugin, boolean detail)
+	{
+		if (plugin == null)
 			return null;
 
 		Locale locale = WebUtils.getLocale(request);
 		String themeName = resolveChartPluginIconThemeName(request);
-		
-		for (HtmlChartPlugin plugin : plugins)
-		{
-			if (plugin.getId().equals(id))
-				return toHtmlChartPluginView(plugin, themeName, locale);
-		}
-
-		return null;
+		return toHtmlChartPluginVo(plugin, detail, locale, themeName);
 	}
 
-	/**
-	 * 查找插件视图对象列表。
-	 * 
-	 * @param request
-	 * @param keyword
-	 * @return
-	 */
-	protected List<HtmlChartPluginView> findHtmlChartPluginViews(HttpServletRequest request, String keyword)
+	protected HtmlChartPluginVo toHtmlChartPluginVo(HtmlChartPlugin plugin, boolean detail, Locale locale,
+			String themeName)
 	{
-		List<HtmlChartPluginView> pluginViews = new ArrayList<>();
+		if (plugin == null)
+			return null;
 
-		List<HtmlChartPlugin> plugins = getDirectoryHtmlChartPluginManager().getAll(HtmlChartPlugin.class);
+		HtmlChartPluginVo vo = new HtmlChartPluginVo(plugin, detail, locale);
+		vo.setHasManual(plugin.getResource(HtmlChartPluginLoader.FILE_NAME_MANUAL) != null);
+		inflatePluginThemeIcons(vo, themeName);
 
-		if (plugins != null)
-		{
-			Locale locale = WebUtils.getLocale(request);
-			String themeName = resolveChartPluginIconThemeName(request);
-
-			for (HtmlChartPlugin plugin : plugins)
-				pluginViews.add(toHtmlChartPluginView(plugin, themeName, locale));
-		}
-
-		return this.keywordMatcher.match(pluginViews, keyword, new MatchValue<HtmlChartPluginView>()
-				{
-					@Override
-					public String[] get(HtmlChartPluginView t)
-					{
-						return new String[] { (t.getNameLabel() == null ? null : t.getNameLabel().getValue()),
-						(t.getDescLabel() == null ? null : t.getDescLabel().getValue()), t.getAuthor() };
-					}
-				});
-	}
-
-	protected HtmlChartPluginView toHtmlChartPluginView(HttpServletRequest request, HtmlChartPlugin chartPlugin)
-	{
-		Locale locale = WebUtils.getLocale(request);
-		String themeName = resolveChartPluginIconThemeName(request);
-
-		return toHtmlChartPluginView(chartPlugin, themeName, locale);
-	}
-
-	protected HtmlChartPluginView toHtmlChartPluginView(HtmlChartPlugin chartPlugin, String themeName, Locale locale)
-	{
-		HtmlChartPluginView pluginView = new HtmlChartPluginView();
-
-		pluginView.setId(chartPlugin.getId());
-		LabelUtil.concrete(chartPlugin, pluginView, locale);
-		pluginView.setIconUrl(resolveIconUrl(chartPlugin, themeName));
-		pluginView.setDataSigns(DataSign.clone(chartPlugin.getDataSigns(), locale));
-		pluginView.setDataSetRange(chartPlugin.getDataSetRange());
-		pluginView.setVersion(chartPlugin.getVersion());
-		pluginView.setOrder(chartPlugin.getOrder());
-		pluginView.setCategories(Category.clone(chartPlugin.getCategories(), locale));
-		pluginView.setCategoryOrders(chartPlugin.getCategoryOrders());
-		pluginView.setAttributes(ChartPluginAttribute.clone(chartPlugin.getAttributes(), locale));
-		pluginView.setAuthor(chartPlugin.getAuthor());
-		pluginView.setContact(chartPlugin.getContact());
-		pluginView.setIssueDate(chartPlugin.getIssueDate());
-		pluginView.setPlatformVersion(chartPlugin.getPlatformVersion());
-
-		return pluginView;
+		return vo;
 	}
 
 	protected String resolveChartPluginIconThemeName(HttpServletRequest request)
 	{
 		DashboardTheme dashboardTheme = resolveDashboardTheme(request);
 		return dashboardTheme.getName();
+	}
+
+	protected void inflatePluginThemeIcons(HtmlChartPlugin plugin, String themeName)
+	{
+		if (plugin == null)
+			return;
+
+		String iconResName = plugin.getIconResourceName(themeName);
+
+		if (StringUtil.isEmpty(iconResName))
+			plugin.setIcons(Collections.emptyMap());
+		else
+			plugin.setIcons(Collections.singletonMap(ChartPlugin.DEFAULT_ICON_THEME_NAME, iconResName));
 	}
 
 	/**
@@ -308,39 +231,6 @@ public class AbstractChartPluginAwareController extends AbstractDataAnalysisCont
 			views[i] = new DataSetBindView(dataSetBinds[i]);
 
 		return views;
-	}
-
-	/**
-	 * {@linkplain HtmlChartPlugin}视图对象。
-	 * 
-	 * @author datagear@163.com
-	 *
-	 */
-	public static class HtmlChartPluginView extends HtmlChartPluginVo implements Serializable
-	{
-		private static final long serialVersionUID = 1L;
-
-		private String iconUrl = null;
-
-		public HtmlChartPluginView()
-		{
-			super();
-		}
-
-		public HtmlChartPluginView(String id, Label nameLabel)
-		{
-			super(id, nameLabel);
-		}
-
-		public String getIconUrl()
-		{
-			return iconUrl;
-		}
-
-		public void setIconUrl(String iconUrl)
-		{
-			this.iconUrl = iconUrl;
-		}
 	}
 
 	/**

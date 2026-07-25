@@ -398,7 +398,7 @@ public class SecurityConfigSupport
 	protected ModuleAccess dashboardModuleAccess()
 	{
 		UrlsAccess edit = new UrlsAccess(dataManagerAuthorizationManager(), //
-				"/dashboard/add", "/dashboard/edit", "/dashboard/copy", "/dashboard/design/**", //
+				"/dashboard/add", "/dashboard/edit/**", "/dashboard/copy", "/dashboard/design/**", //
 				"/dashboard/saveAdd", "/dashboard/saveEdit", "/dashboard/saveDesign", //
 				"/dashboard/saveTemplateNames", "/dashboard/deleteResource", "/dashboard/uploadResourceFile", //
 				"/dashboard/saveUploadResourceFile", "/dashboard/saveResourceContent", "/dashboard/import", //
@@ -424,7 +424,7 @@ public class SecurityConfigSupport
 	protected ModuleAccess chartModuleAccess()
 	{
 		UrlsAccess edit = new UrlsAccess(dataManagerAuthorizationManager(), //
-				"/chart/add", "/chart/saveAdd", "/chart/edit", "/chart/saveEdit", //
+				"/chart/add", "/chart/saveAdd", "/chart/edit/**", "/chart/saveEdit", //
 				"/chart/copy", "/chart/delete");
 
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/chart/**");
@@ -446,8 +446,8 @@ public class SecurityConfigSupport
 	protected ModuleAccess dataSetModuleAccess()
 	{
 		UrlsAccess edit = new UrlsAccess(dataManagerAuthorizationManager(), //
-				"/dataSet/add/**", "/dataSet/saveAdd/**", "/dataSet/edit", "/dataSet/saveEdit/**",
-				"/dataSet/copy", "/dataSet/delete", "/dataSet/uploadFile");
+				"/dataSet/add/**", "/dataSet/saveAdd/**", "/dataSet/edit/**", "/dataSet/saveEdit/**",
+				"/dataSet/preview/**", "/dataSet/copy", "/dataSet/delete", "/dataSet/uploadFile");
 
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dataSet/**");
 
@@ -491,7 +491,7 @@ public class SecurityConfigSupport
 	{
 		UrlsAccess edit = new UrlsAccess(dataManagerAuthorizationManager(), //
 				"/dtbsSource/add", "/dtbsSource/saveAdd", "/dtbsSource/edit", "/dtbsSource/saveEdit",
-				"/dtbsSource/delete");
+				"/dtbsSource/testConnection", "/dtbsSource/delete");
 
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dtbsSource/**");
 
@@ -513,10 +513,12 @@ public class SecurityConfigSupport
 	{
 		// 数据源数据管理、导入导出、SQL工作台、SQL编辑器
 		// 用户针对数据源数据的所有操作都已受其所属数据源权限控制，所以不必再引入数据管理员/数据分析员权限
-		UrlsAccess ua = new UrlsAccess(accessAuthorizationManager(),
-				"/dtbsSourceData/**", "/dtbsSourceExchange/**", "/dtbsSourceSqlpad/**", "/dtbsSourceSqlEditor/**");
 
-		return new ModuleAccess(ua);
+		UrlsAccess ua0 = new UrlsAccess(accessAuthorizationManager(), "/dtbsSourceData/**", "/dtbsSourceSqlEditor/**");
+		// 高级、高风险功能禁止匿名用户
+		UrlsAccess ua1 = new UrlsAccess(userAuthorizationManager(), "/dtbsSourceExchange/**", "/dtbsSourceSqlpad/**");
+
+		return new ModuleAccess(ua0, ua1);
 	}
 
 	/**
@@ -535,10 +537,9 @@ public class SecurityConfigSupport
 		AuthorizationManager<RequestAuthorizationContext> dataAnalystAuthManager = dataAnalystAuthorizationManager();
 
 		UrlsAccess icon = new UrlsAccess(dataAnalystAuthManager, "/chartPlugin/icon/**");
-
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthManager,
-				"/chartPlugin/view", "/chartPlugin/select", "/chartPlugin/selectData");
-
+				"/chartPlugin/view/**", "/chartPlugin/select", "/chartPlugin/selectData", "/chartPlugin/detailValue/**",
+				"/chartPlugin/manual/**", "/chartPlugin/manualContent/**");
 		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/chartPlugin/**");
 
 		return new ModuleAccess(icon, read, edit);
@@ -905,6 +906,25 @@ public class SecurityConfigSupport
 		return (auth, request) ->
 		{
 			return new AuthorizationDecision(authSecurity.hasAccess(auth.get()));
+		};
+	}
+
+	protected AuthorizationManager<RequestAuthorizationContext> authorizationManagerOfAnd(
+			AuthorizationManager<RequestAuthorizationContext> a1, AuthorizationManager<RequestAuthorizationContext> a2)
+	{
+		return (auth, request) ->
+		{
+			AuthorizationDecision d1 = a1.check(auth, request);
+
+			if (!d1.isGranted())
+				return d1;
+
+			AuthorizationDecision d2 = a2.check(auth, request);
+
+			if (!d2.isGranted())
+				return d2;
+
+			return new AuthorizationDecision(true);
 		};
 	}
 

@@ -37,20 +37,20 @@ public class ChartDefinition extends AbstractIdentifiable implements ResultDataF
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * 内置图表属性名前缀。
+	 * 内置名称前缀。
 	 * <p>
-	 * 所有内置属性名都应以此作为前缀，避免名称冲突。
+	 * 所有内置配置/属性名都应以此作为前缀，避免名称冲突。
 	 * </p>
 	 * <p>
 	 * 注意：谨慎重构此常量值，因为它可能已被用于系统已创建的图表中，重构它将导致这些图表逻辑出错。
 	 * </p>
 	 */
-	public static final String BUILTIN_ATTR_PREFIX = Global.NAME_SHORT_UCUS;
+	public static final String BUILTIN_NAME_PREFIX = Global.NAME_SHORT_UCUS;
 
 	public static final String PROPERTY_ID = "id";
 	public static final String PROPERTY_NAME = "name";
 	public static final String PROPERTY_DATA_SET_BINDS = "dataSetBinds";
-	public static final String PROPERTY_ATTR_VALUES = "attrValues";
+	public static final String PROPERTY_CONFIG_VALUES = "configValues";
 	public static final String PROPERTY_UPDATE_INTERVAL = "updateInterval";
 
 	public static final DataSetBind[] EMPTY_DATA_SET_BINDS = new DataSetBind[0];
@@ -61,8 +61,8 @@ public class ChartDefinition extends AbstractIdentifiable implements ResultDataF
 	/** 图表数据集 */
 	private DataSetBind[] dataSetBinds = EMPTY_DATA_SET_BINDS;
 
-	/** 图表属性值映射表 */
-	private Map<String, Object> attrValues = null;
+	/** 图表配置值映射表 */
+	private Map<String, Object> configValues = null;
 
 	/** 图表更新间隔毫秒数 */
 	private int updateInterval = -1;
@@ -85,7 +85,7 @@ public class ChartDefinition extends AbstractIdentifiable implements ResultDataF
 	public ChartDefinition(ChartDefinition chartDefinition)
 	{
 		this(chartDefinition.getId(), chartDefinition.name, chartDefinition.dataSetBinds);
-		this.attrValues = chartDefinition.attrValues;
+		this.configValues = chartDefinition.configValues;
 		this.updateInterval = chartDefinition.updateInterval;
 		this.resultDataFormat = chartDefinition.resultDataFormat;
 	}
@@ -111,51 +111,51 @@ public class ChartDefinition extends AbstractIdentifiable implements ResultDataF
 	}
 
 	/**
-	 * 获取图表属性值映射表。
+	 * 获取图表配置值映射表。
 	 * 
 	 * @return 可能返回{@code null}
 	 */
-	public Map<String, Object> getAttrValues()
+	public Map<String, Object> getConfigValues()
 	{
-		return attrValues;
+		return configValues;
 	}
 
 	/**
-	 * 设置图表属性值映射表。
+	 * 设置图表配置值映射表。
 	 * 
-	 * @param attrValues
+	 * @param configValues
 	 */
-	public void setAttrValues(Map<String, Object> attrValues)
+	public void setConfigValues(Map<String, Object> configValues)
 	{
-		this.attrValues = attrValues;
+		this.configValues = configValues;
 	}
 
 	/**
-	 * 设置属性值。
+	 * 设置配置值。
 	 * 
 	 * @param name
 	 * @param value
 	 */
-	public void setAttrValue(String name, Object value)
+	public void setConfigValue(String name, Object value)
 	{
-		if (this.attrValues == null || this.attrValues == Collections.EMPTY_MAP)
-			this.attrValues = new HashMap<>();
+		if (this.configValues == null || this.configValues == Collections.EMPTY_MAP)
+			this.configValues = new HashMap<>();
 
-		this.attrValues.put(name, value);
+		this.configValues.put(name, value);
 	}
 
 	/**
-	 * 获取属性值。
+	 * 获取配置值。
 	 * 
 	 * @param name
 	 * @return 返回{@code null}表示没有。
 	 */
-	public Object getAttrValue(String name)
+	public Object getConfigValue(String name)
 	{
-		if (this.attrValues == null)
+		if (this.configValues == null)
 			return null;
 
-		return this.attrValues.get(name);
+		return this.configValues.get(name);
 	}
 
 	/**
@@ -189,7 +189,6 @@ public class ChartDefinition extends AbstractIdentifiable implements ResultDataF
 	 * 
 	 * @param dataFormat
 	 */
-	@Override
 	public void setResultDataFormat(ResultDataFormat resultDataFormat)
 	{
 		this.resultDataFormat = resultDataFormat;

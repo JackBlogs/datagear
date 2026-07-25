@@ -19,13 +19,16 @@ package org.datagear.persistence;
 
 import java.util.Arrays;
 
+import org.datagear.util.query.Paging;
+import org.datagear.util.query.PagingAware;
+
 /**
  * 分页查询。
  *
  * @author datagear@163.com
  *
  */
-public class PagingQuery extends Query
+public class PagingQuery extends Query implements PagingAware
 {
 	private static final long serialVersionUID = 1L;
 
@@ -64,21 +67,25 @@ public class PagingQuery extends Query
 		this.paging.setPageSize(pageSize);
 	}
 
+	@Override
 	public int getPage()
 	{
 		return this.paging.getPage();
 	}
 
+	@Override
 	public void setPage(int page)
 	{
 		this.paging.setPage(page);
 	}
 
+	@Override
 	public int getPageSize()
 	{
 		return this.paging.getPageSize();
 	}
 
+	@Override
 	public void setPageSize(int pageSize)
 	{
 		this.paging.setPageSize(pageSize);

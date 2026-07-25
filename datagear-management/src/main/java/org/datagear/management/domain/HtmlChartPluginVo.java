@@ -17,22 +17,12 @@
 
 package org.datagear.management.domain;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 
-import org.datagear.analysis.ChartDefinition;
-import org.datagear.analysis.ChartPluginResource;
-import org.datagear.analysis.RenderContext;
-import org.datagear.analysis.RenderException;
-import org.datagear.analysis.support.html.HtmlChart;
 import org.datagear.analysis.support.html.HtmlChartPlugin;
-import org.datagear.analysis.support.html.HtmlChartPluginScriptObjectWriter;
-import org.datagear.analysis.support.html.HtmlChartScriptObjectWriter;
-import org.datagear.analysis.support.html.HtmlRenderContextScriptObjectWriter;
-import org.datagear.analysis.support.html.JsChartRenderer;
+import org.datagear.analysis.support.html.HtmlChartPluginJson;
 import org.datagear.util.i18n.Label;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.datagear.util.i18n.LabelUtil;
 
 /**
  * {@linkplain HtmlChartPlugin} 值类。
@@ -40,9 +30,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  * @author datagear@163.com
  *
  */
-public class HtmlChartPluginVo extends HtmlChartPlugin
+public class HtmlChartPluginVo extends HtmlChartPluginJson
 {
 	private static final long serialVersionUID = 1L;
+
+	/** 是否有手册文件 */
+	private boolean hasManual = false;
 
 	public HtmlChartPluginVo()
 	{
@@ -51,144 +44,57 @@ public class HtmlChartPluginVo extends HtmlChartPlugin
 
 	public HtmlChartPluginVo(String id)
 	{
-		super.setId(id);
+		super(id, null);
 	}
 
 	public HtmlChartPluginVo(String id, Label nameLabel)
 	{
-		super.setId(id);
-		super.setNameLabel(nameLabel);
+		super(id, nameLabel);
 	}
 
-	@JsonIgnore
-	@Override
-	public JsChartRenderer getRenderer()
+	public HtmlChartPluginVo(HtmlChartPlugin plugin)
 	{
-		return super.getRenderer();
+		this(plugin, false);
 	}
 
-	@JsonIgnore
-	@Override
-	public void setRenderer(JsChartRenderer renderer)
+	public HtmlChartPluginVo(HtmlChartPlugin plugin, boolean detail)
 	{
-		super.setRenderer(renderer);
+		super(plugin);
+
+		if (!detail)
+		{
+			setResources(null);
+			setConfigForm(null);
+			setDataSignSpec(null);
+			setDataSetRange(null);
+			setCategoryInfos(null);
+			setAdditions(null);
+		}
 	}
 
-	@JsonIgnore
-	@Override
-	public HtmlChartPluginScriptObjectWriter getPluginWriter()
+	public HtmlChartPluginVo(HtmlChartPlugin plugin, Locale locale)
 	{
-		return super.getPluginWriter();
+		this(plugin);
+		LabelUtil.concrete(plugin, this, locale);
 	}
 
-	@JsonIgnore
-	@Override
-	public void setPluginWriter(HtmlChartPluginScriptObjectWriter pluginWriter)
+	public HtmlChartPluginVo(HtmlChartPlugin plugin, boolean detail, Locale locale)
 	{
-		super.setPluginWriter(pluginWriter);
+		this(plugin, detail);
+
+		if (detail)
+			initLocalized(plugin, locale);
+		else
+			LabelUtil.concrete(plugin, this, locale);
 	}
 
-	@JsonIgnore
-	@Override
-	public HtmlRenderContextScriptObjectWriter getRenderContextWriter()
+	public boolean isHasManual()
 	{
-		return super.getRenderContextWriter();
+		return hasManual;
 	}
 
-	@JsonIgnore
-	@Override
-	public void setRenderContextWriter(HtmlRenderContextScriptObjectWriter renderContextWriter)
+	public void setHasManual(boolean hasManual)
 	{
-		super.setRenderContextWriter(renderContextWriter);
-	}
-
-	@JsonIgnore
-	@Override
-	public HtmlChartScriptObjectWriter getChartWriter()
-	{
-		return super.getChartWriter();
-	}
-
-	@JsonIgnore
-	@Override
-	public void setChartWriter(HtmlChartScriptObjectWriter chartWriter)
-	{
-		super.setChartWriter(chartWriter);
-	}
-
-	@JsonIgnore
-	@Override
-	public List<ChartPluginResource> getResources()
-	{
-		return super.getResources();
-	}
-
-	@JsonIgnore
-	@Override
-	public void setResources(List<? extends ChartPluginResource> resources)
-	{
-		super.setResources(resources);
-	}
-
-	@JsonIgnore
-	@Override
-	public Map<String, String> getIconResourceNames()
-	{
-		return super.getIconResourceNames();
-	}
-
-	@JsonIgnore
-	@Override
-	public void setIconResourceNames(Map<String, String> iconResourceNames)
-	{
-		super.setIconResourceNames(iconResourceNames);
-	}
-
-	@JsonIgnore
-	@Override
-	public String getElementTagName()
-	{
-		return super.getElementTagName();
-	}
-
-	@JsonIgnore
-	@Override
-	public void setElementTagName(String elementTagName)
-	{
-		super.setElementTagName(elementTagName);
-	}
-
-	@JsonIgnore
-	@Override
-	public long getLastModified()
-	{
-		return super.getLastModified();
-	}
-
-	@JsonIgnore
-	@Override
-	public void setLastModified(long lastModified)
-	{
-		super.setLastModified(lastModified);
-	}
-
-	@JsonIgnore
-	@Override
-	public String getNewLine()
-	{
-		return super.getNewLine();
-	}
-
-	@JsonIgnore
-	@Override
-	public void setNewLine(String newLine)
-	{
-		super.setNewLine(newLine);
-	}
-
-	@Override
-	public HtmlChart renderChart(ChartDefinition chartDefinition, RenderContext renderContext) throws RenderException
-	{
-		throw new UnsupportedOperationException();
+		this.hasManual = hasManual;
 	}
 }

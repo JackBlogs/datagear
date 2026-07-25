@@ -100,10 +100,11 @@
 (function(po)
 {
 	po.currentUserId = "${currentUser.id}";
+	po.currentAnonymous = ("${currentUser.anonymous?string('true', 'false')}"  == "true");
 
 	po.i18n.pleaseSelectOnlyOne = "<@spring.message code='dtbsSource.pleaseSelectOnlyOne' />";
 	po.i18n.pleaseSelectAtLeastOne = "<@spring.message code='dtbsSource.pleaseSelectAtLeastOne' />";
-	po.i18n.confirmDeleteAsk = "<@spring.message code='dtbsSource.confirmDeleteAsk' />";
+	po.i18n.confirmDelSelectedAsk = "<@spring.message code='dtbsSource.confirmDelSelectedAsk' />";
 	
 	po.dtbsSourceTabTypeTable = "table";
 	po.dtbsSourceTabTypeSqlpad = "sqlpad";
@@ -140,6 +141,21 @@
 		}
 		
 		return re;
+	};
+	
+	po.isDisableSqlpad = function()
+	{
+		return po.currentAnonymous;
+	};
+	
+	po.isDisableImportData = function()
+	{
+		return po.currentAnonymous;
+	};
+	
+	po.isDisableExportData = function()
+	{
+		return po.currentAnonymous;
 	};
 	
 	po.searchByType = function(type)
@@ -622,6 +638,10 @@
 			{ separator: true },
 			{
 				label: "<@spring.message code='module.sqlpad' />",
+				visible: function()
+				{
+					return !po.isDisableSqlpad();
+				},
 				command: function()
 				{
 					po.executeOnFirstAwareDtbsSourceNode(function(dtbsSourceNode)
@@ -633,6 +653,10 @@
 			},
 			{
 				label: "<@spring.message code='module.importData' />",
+				visible: function()
+				{
+					return !po.isDisableImportData();
+				},
 				command: function()
 				{
 					po.executeOnFirstAwareDtbsSourceNode(function(dtbsSourceNode)
@@ -644,6 +668,10 @@
 			},
 			{
 				label: "<@spring.message code='module.exportData' />",
+				visible: function()
+				{
+					return !po.isDisableExportData();
+				},
 				command: function()
 				{
 					po.executeOnFirstAwareDtbsSourceNode(function(dtbsSourceNode)
@@ -653,7 +681,13 @@
 					});
 				}
 			},
-			{ separator: true },
+			{
+				separator: true,
+				visible: function()
+				{
+					return !po.isDisableSqlpad() || !po.isDisableImportData() || !po.isDisableExportData();
+				}
+			},
 			{
 				label: "<@spring.message code='refresh' />",
 				command: function()

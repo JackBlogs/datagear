@@ -80,6 +80,17 @@ label.align-tip{
 	display: flex;
     align-items: center;
 }
+label.required-label,
+.required-label{
+	position: relative;
+}
+label.required-label::before,
+.required-label::before{
+	display: inline-block;
+	content: "*";
+	font-size: 0.8em;
+	margin-right: 0.1em;
+}
 .state-active{
 	color: var(--primary-color);
 	box-shadow: inset 0 0 2px 2px var(--primary-color);
@@ -173,10 +184,20 @@ label.align-tip{
 	border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
+.text-sm,
 .text-sm .p-button,
 .text-sm.p-button{
 	font-size: .875rem;
 }
+.text-sm .p-button.p-button-icon-only,
+.text-sm.p-button.p-button-icon-only{
+	width: 2rem;
+}
+.text-sm .p-button.p-button-icon-only.p-button-rounded,
+.text-sm.p-button.p-button-icon-only.p-button-rounded{
+	height: 2rem;
+}
+.text-xs,
 .text-xs .p-button,
 .text-xs.p-button{
 	font-size: .75rem;
@@ -345,7 +366,11 @@ label.align-tip{
 .p-datatable.table-sm .p-datatable-thead > tr > th,
 .p-datatable.table-sm .p-datatable-tbody > tr > td,
 .table-sm .p-datatable .p-datatable-thead > tr > th,
-.table-sm .p-datatable .p-datatable-tbody > tr > td{
+.table-sm .p-datatable .p-datatable-tbody > tr > td,
+.p-treetable.table-sm .p-treetable-thead > tr > th,
+.p-treetable.table-sm .p-treetable-tbody > tr > td,
+.table-sm .p-treetable .p-treetable-thead > tr > th,
+.table-sm .p-treetable .p-treetable-tbody > tr > td{
 	padding: 0.5rem 1rem;
 }
 .p-datatable.table-sm .p-datatable-tbody > tr > td .p-row-toggler,
@@ -361,13 +386,20 @@ label.align-tip{
 	height: 1.5rem !important;
 	padding: 0.2rem 0.2rem !important;
 }
-.p-datatable-table th,
-.p-datatable-table td{
+.p-datatable table th,
+.p-datatable table td,
+.p-treetable table th,
+.p-treetable table td{
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
-.p-datatable .p-column-resizer::after{
+.p-treetable table td{
+	flex-direction: row;
+}
+.p-datatable .p-column-resizer::after,
+.p-treetable .p-column-resizer::after
+{
     content: "";
     position: absolute;
     top: 50%;
@@ -378,58 +410,72 @@ label.align-tip{
     margin-top: -0.4em;
     background: var(--surface-d);
 }
-.p-datatable-table .col-check{
+.p-datatable table .col-check{
 	min-width: 3.5em;
 	max-width: 3.5em;
 	width: 3.5em;
 }
-.p-datatable-table .col-id{
+.p-datatable table .col-id{
 	min-width: 15em;
 }
-.p-datatable-table .col-row-number{
+.p-datatable table .col-row-number{
 	min-width: 5em;
 	max-width: 7em;
 	overflow: hidden;
 }
-.p-datatable-table .col-row-number-sm{
+.p-datatable table .col-row-number-sm{
+	width: 5em;
 	min-width: 5em;
-	max-width: 5em;
 	overflow: hidden;
 }
-.p-datatable-table .col-edit-btn{
-	min-width: 6rem;
-	max-width: 6rem;
+.p-datatable table .col-edit-btn{
+	width: 6em;
+	min-width: 6em;
 }
-.p-datatable-table .col-name{
+.p-datatable table .col-name{
 	width: 12em;
 	min-width: 12em;
 }
-.p-datatable-table .col-desc{
+.p-datatable table .col-desc{
 	width: 15em;
 	min-width: 15em;
 }
-.p-datatable-table .col-user{
+.p-datatable table .col-user{
 	width: 10em;
 	min-width: 10em;
 }
-.p-datatable-table .col-datetime{
+.p-datatable table .col-datetime{
 	min-width: 12em;
 }
-.p-datatable-table .col-version{
+.p-datatable table .col-version{
 	min-width: 8em;
 }
-.p-datatable-table .col-boolean{
+.p-datatable table .col-boolean{
+	width: 6em;
 	min-width: 6em;
-	max-width: 6em;
 }
-.p-datatable-table .col-last{
+.p-datatable table .col-last{
 	max-width: 50%;
 }
-/*无边框面板*/
-.p-panel.no-panel-border .p-panel-header,
-.p-panel.no-panel-border .p-panel-content{
-	border-width: 0;
+.p-panel.panel-icon-align-center .p-panel-icons{
+	display: flex;
+	align-items: center;
 }
+.p-panel.disable-p-panel >.p-panel-header{
+	border-width: 0;
+	display: none;
+}
+.p-panel.disable-p-panel >div >.p-panel-content{
+	border-width: 0;
+	padding: 0;
+}
+.p-panel.sm-header-y-padding .p-panel-header{
+	padding: 0.5rem 1rem;
+}
+.p-panel.hide-panel-content >div >.p-panel-content{
+	display: none;
+}
+
 .p-fieldset.fieldset-sm .p-fieldset-legend{
 	padding-top: 0.7rem;
 	padding-bottom: 0.7rem;
@@ -450,6 +496,17 @@ label.align-tip{
 }
 .p-colorpicker.preview-h-full .p-colorpicker-preview{
 	height: 100%;
+}
+.p-accordion.disable-accordion >div >.p-accordion-header{
+	display: none;
+}
+.p-accordion.disable-accordion >div >div >.p-accordion-content{
+	padding: 0;
+	border-width: 0;
+}
+.p-accordion.sm-header-y-padding .p-accordion-header .p-accordion-header-link{
+	padding: 0.8rem 1rem;
+	
 }
 
 /*单行阶段*/
@@ -522,18 +579,6 @@ label.align-tip{
 	border-radius: 1em;
 }
 
-/*横向操作组*/
-.h-opts > *{
-	margin-left: 0.15em;
-	margin-right: 0.15em;
-}
-.h-opts > *:first-child{
-	margin-left: 0;
-}
-.h-opts > *:last-child{
-	margin-right: 0;
-}
-
 /*表单验证信息*/
 .field{
 	margin-bottom: 1.2rem;
@@ -583,6 +628,8 @@ label.align-tip{
 	/*防止在弹出对话框中的提示被遮挡*/
 	z-index: 999999;
 	font-size: inherit;
+	max-width: 60vw;
+	overflow: auto;
 }
 .CodeMirror-hint{
 	padding: 0.1em 0.1em;
@@ -638,20 +685,11 @@ label.align-tip{
 .page-form form.readonly .page-form-foot{
 	display: none !important;
 }
-.page-form form.readonly.show-foot .page-form-foot{
+.page-form.show-foot form.readonly .page-form-foot{
 	display: flex !important;
 }
-.page-form .page-form-content,
-.page-form form.readonly.show-foot .page-form-content{
-	/*屏幕高度 - 表单foot高度*/
-	max-height: calc(100vh - 4.5rem);
-}
-.page-form form.readonly .page-form-content{
-	/*屏幕高度 - 底部留白高度*/
-	max-height: calc(100vh - 1rem);
-}
 .p-dialog .page-form .page-form-content,
-.p-dialog .page-form form.readonly.show-foot .page-form-content{
+.p-dialog .page-form.show-foot form.readonly .page-form-content{
 	/*对话框高度 - 对话框header高度 - 表单foot高度*/
 	max-height: calc(90vh - 6rem - 4.5rem);
 }
@@ -659,29 +697,45 @@ label.align-tip{
 	/*对话框高度 - 对话框header高度 - 底部留白高度*/
 	max-height: calc(90vh - 6rem - 1rem);
 }
+.p-dialog .page-form .page-form-content.full-height,
+.p-dialog .page-form.show-foot form.readonly .page-form-content.full-height{
+	/*对话框高度 - 对话框header高度 - 表单foot高度*/
+	height: calc(90vh - 6rem - 4.5rem);
+}
+.p-dialog .page-form form.readonly .page-form-content.full-height{
+	/*对话框高度 - 对话框header高度 - 底部留白高度*/
+	height: calc(90vh - 6rem - 1rem);
+}
+
+/*表单输入项验证错误祖先元素高亮*/
+.p-panel.invalid-indicator.p-invalid > .p-panel-header .color-for-invalid,
+.p-accordion-tab.invalid-indicator.p-invalid > .p-accordion-header .color-for-invalid{
+	color: var(--danger-color);
+}
 
 .plugin-info .plugin-icon{
 	background-repeat: no-repeat;
 	background-size: 100% 100%;
 }
+.plugin-info.inline{
+	gap: 0.25rem;
+}
 .plugin-info.inline .plugin-icon{
 	width: 2rem;
 	height: 2rem;
 }
-.plugin-info.inline .plugin-name{
-	padding-left: 0.25rem;
-}
 .plugin-info.block{
-	min-height: 8rem;
+	gap: 2px;
 }
 .plugin-info.block .plugin-icon{
 	width: 6rem;
 	height: 6rem;
-	margin-bottom: 0.5rem;
 }
-.plugin-info.block .plugin-version,
-.plugin-info.block .plugin-author{
-	min-height: 1.5em;
+.plugin-info .plugin-api-version,
+.plugin-info .plugin-platform-version{
+	text-align: center;
+	padding: 0.2rem 0.8em;
+	border-radius: 0.5rem;
 }
 
 .page-manager-dtbsSource .p-tree.dtbsSource-tree .p-tree-wrapper,
@@ -719,98 +773,6 @@ label.align-tip{
 .p-dialog .page-form-db-g-r .code-editor-wrapper{
 	/*对话框高度 - 对话框header高度 - 表单foot高度 - 其他元素高度*/
 	height: calc(90vh - 6rem - 5rem - 8rem);
-}
-
-/*数据集预览参数日期选择器*/
-/*主体*/
-.xdsoft_datetimepicker{
-	color: var(--text-color);
-	background: var(--surface-overlay);
-	border-color: var(--surface-border);
-	box-shadow: 0px 0px 6px var(--surface-600);
-	-webkit-box-shadow: 0px 0px 6px var(--surface-600);
-	border-radius: 3px;
-}
-.xdsoft_datetimepicker .xdsoft_datepicker{
-	width: unset;
-}
-.xdsoft_datetimepicker .xdsoft_calendar table{
-	border-collapse: separate;
-	border-spacing: 1px;
-}
-/*前景色*/
-.xdsoft_datetimepicker .xdsoft_calendar td,
-.xdsoft_datetimepicker .xdsoft_calendar th{
-	color: var(--text-color);
-	border-radius: 3px;
-}
-.xdsoft_datetimepicker .xdsoft_calendar td>div{
-	padding: 7px 9px;
-}
-/*按钮*/
-.xdsoft_datetimepicker .xdsoft_label i,
-.xdsoft_datetimepicker .xdsoft_next,
-.xdsoft_datetimepicker .xdsoft_prev{
-	color: var(--text-color);
-}
-.xdsoft_datetimepicker .xdsoft_today_button:before{
-	background: var(--text-color);
-}
-/*年、月*/
-.xdsoft_datetimepicker .xdsoft_label{
-	background: var(--surface-overlay);
-}
-/*年、月下拉框*/
-.xdsoft_datetimepicker .xdsoft_label>.xdsoft_select{
-	color: var(--text-color);
-	background: var(--surface-overlay);
-	border-color: var(--surface-border);
-	box-shadow: 0px 0px 6px var(--surface-600);
-	-webkit-box-shadow: 0px 0px 6pxvar(--surface-600);
-}
-/*时间框*/
-.xdsoft_datetimepicker .xdsoft_timepicker .xdsoft_time_box{
-	border-color: var(--surface-border);
-	border-radius: 3px;
-}
-/*时间条目*/
-.xdsoft_datetimepicker .xdsoft_timepicker .xdsoft_time_box>div>div{
-	color: var(--text-color);
-	border-color: var(--surface-border);
-}
-/*悬停*/
-.xdsoft_datetimepicker .xdsoft_calendar td:hover,
-.xdsoft_datetimepicker .xdsoft_timepicker .xdsoft_time_box>div>div:hover,
-.xdsoft_datetimepicker .xdsoft_label>.xdsoft_select>div>.xdsoft_option:hover{
-	color: var(--text-color) !important;
-	background: var(--surface-ground) !important;
-}
-/*今天*/
-.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_today{
-	color: var(--text-color) !important;
-    background: var(--surface-ground) !important;
-	font-weight: bold;
-}
-/*选中*/
-.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_default,
-.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_current,
-.xdsoft_datetimepicker .xdsoft_timepicker .xdsoft_time_box>div>div.xdsoft_current,
-.xdsoft_datetimepicker .xdsoft_label>.xdsoft_select>div>.xdsoft_option.xdsoft_current{
-	color: var(--primary-color-text) !important;
-	background: var(--primary-color) !important;
-	box-shadow: none;
-	-webkit-box-shadow: none;
-}
-/**年份选择器确定按钮*/
-.xdsoft_datetimepicker .xdsoft_save_selected.xdsoft_save_selected_year{
-	color: var(--text-color) !important;
-	border: 1px solid var(--surface-border) !important;
-    background: var(--surface-ground) !important;
-}
-.xdsoft_datetimepicker .xdsoft_save_selected.xdsoft_save_selected_year:hover{
-	color: var(--text-color) !important;
-	border: 1px solid var(--surface-border) !important;
-    background: var(--surface-hover) !important;
 }
 
 .panel-content-size-sm{
@@ -884,20 +846,23 @@ label.align-tip{
 	min-height: 20vh;
 }
 
-.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspv-form-content{
+.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspform-content{
 	/*panel-content-size-sm的高度 - 按钮高度和内间距 */
 	height: calc(50vh - 5rem);
 	overflow: auto;
 	box-sizing: border-box;
 	margin-bottom: 0.8rem;
 }
-.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspv-form-content .dg-dspv-form-item-label{
+.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspform-content .dg-dspform-item-label{
 	margin-bottom: 0.3rem;
 }
-.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspv-form-content .dg-dspv-form-item-value{
+.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspform-content .dg-dspform-item-value{
 	margin-bottom: 0.6rem;
 }
-.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspv-form-foot{
+.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspform-content select{
+	appearance: auto !important;
+}
+.dataset-paramvalue-panel .paramvalue-form-wrapper .dg-dspform-foot{
 	text-align: center;
 }
 
@@ -917,26 +882,39 @@ label.align-tip{
 .page-form-chart .p-fieldset.fieldset-sm .p-fieldset-legend .p-fieldset-legend-text{
 	justify-content: flex-start;
 }
-.chart-attr-values-form .page-form-content textarea{
+.chart-config-values-form .page-form-content textarea{
 	height: 6rem;
 }
-.chart-form-chart-attr-values .chart-attr-values-form .page-form-content{
+.p-dialog .page-chart-config-values .chart-config-values-form .page-form-content{
 	width: 40vw;
+	/*对话框高度 - 对话框header高度 - 表单foot高度*/
+	height: calc(90vh - 6rem - 4.5rem);
 }
 
+.page-dashboard-design.page-form .page-form-content,
+.page-dashboard-design.page-form form.readonly.show-foot .page-form-content{
+	max-height: unset;
+}
 .p-dialog .page-dashboard-design{
 	height: 70vh !important;
+}
+.page-dashboard-design .design-resource-wrapper{
+	width: 20vw;
+	min-width: 16rem;
 }
 .page-dashboard-design .p-tabview .p-tabview-panels{
 	padding: 0.25rem 0 0 0;
 }
 .page-dashboard-design .res-editor-wrapper .visual-editor-ele-path-wrapper{
 	position: absolute;
-	left: 0.4rem;
-	top: 0.2rem;
-	right: 0.3rem;
+	left: 1px;
+	top: 1px;
+	right: 1px;
 	z-index: 2;
 	overflow: hidden;
+	background: var(--surface-ground);
+    padding: 0 0.2rem;
+    height: 1.2rem;
 }
 .page-dashboard-design .res-editor-wrapper .visual-editor-iframe-wrapper{
 	position: absolute;
@@ -959,16 +937,16 @@ label.align-tip{
 	padding-top: 0.6rem;
 	padding-bottom: 0.6rem;
 }
-.page-dashboard-design .p-menubar.ve-menubar .ve-insert-menuitem .p-submenu-list > .p-menuitem-active > .p-submenu-list{
-	top: -430%;
+.page-dashboard-design .p-menubar.ve-menubar .ve-insert-submenu-offset > .p-submenu-list{
+	top: -420%;
 }
-.page-dashboard-design .p-menubar.ve-menubar .ve-edit-menuitem .p-submenu-list > .p-menuitem-active > .p-submenu-list{
+.page-dashboard-design .p-menubar.ve-menubar .ve-edit-submenu-offset > .p-submenu-list{
 	top: -200%;
 }
-.dashboard-select-chart-wrapper > .p-dialog-header .p-dialog-header-icons{
+.dashboard-pst-select-dialog > .p-dialog-header .p-dialog-header-icons{
 	display: none;
 }
-.dashboard-select-chart-wrapper > .p-dialog-header .dialog-btns{
+.dashboard-pst-select-dialog > .p-dialog-header .dialog-btns{
 	display: block;
 }
 .dashboard-select-global-res-wrapper > .p-dialog-header .p-dialog-header-icons{
@@ -984,9 +962,6 @@ label.align-tip{
 	width: 36vw;
 	/*对话框高度 - 表单foot高度 - 对话框header高度 - 选项卡条高度*/
 	height: calc(90vh - 5rem - 6rem - 4rem);
-}
-.dashboard-form-chart-attr-values .chart-attr-values-form .page-form-content{
-	width: 40vw;
 }
 
 .current-analysis-project-wrapper .ap-name-btn{
@@ -1020,4 +995,29 @@ label.align-tip{
 .page-sqlpad .sqlpad-tabs-wrapper .result-message .execution-message .sql-value{
 	width: 20rem;
 	overflow: hidden;
+}
+
+.chart-plugin-manual{
+	line-height: 1.5em;
+}
+.chart-plugin-manual code{
+	background-color: var(--surface-100);
+	padding: 0.2rem;
+	border-radius: var(--border-radius);
+	border: 1px solid var(--surface-200);
+}
+.chart-plugin-manual pre code{
+	display: block;
+	padding: 0.5rem;
+	line-height: 1.5em;
+	overflow: auto;
+}
+.chart-plugin-manual a,
+.chart-plugin-manual a:link,
+.chart-plugin-manual a:visited,
+.chart-plugin-manual a:active{
+	color: var(--primary-color);
+}
+.chart-plugin-manual a:hover{
+	color: var(--primary-600);
 }

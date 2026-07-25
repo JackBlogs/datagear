@@ -17,8 +17,11 @@
 
 package org.datagear.analysis;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 数据集字段信息。
@@ -29,9 +32,12 @@ import java.math.BigInteger;
  * @author datagear@163.com
  *
  */
-public class DataSetField extends AbstractNameTypeAware implements Cloneable
+public class DataSetField extends AbstractNameTypeAware implements DataSetFieldsAware, FullnameAware, Cloneable
 {
 	private static final long serialVersionUID = 1L;
+
+	/** 全名 */
+	private String fullname;
 
 	/** 展示标签 */
 	private String label = null;
@@ -45,6 +51,22 @@ public class DataSetField extends AbstractNameTypeAware implements Cloneable
 	/** 计算表达式 */
 	private String expression = null;
 
+	/**
+	 * 对象类型的字段集合。
+	 * <p>
+	 * 注意：此值默认必须为{@code null}，以兼容{@code <=5.5.0}版本没有此属性的逻辑。
+	 * </p>
+	 */
+	private List<DataSetField> fields = null;
+
+	/**
+	 * 是否数组。
+	 * <p>
+	 * 注意：此值默认必须为{@code false}，以兼容{@code <=5.5.0}版本没有此属性的逻辑。
+	 * </p>
+	 */
+	private boolean array = false;
+
 	public DataSetField()
 	{
 		super();
@@ -52,21 +74,43 @@ public class DataSetField extends AbstractNameTypeAware implements Cloneable
 
 	public DataSetField(String name, String type)
 	{
-		super(name, type);
+		super(name, DataType.normalize(type));
+		this.fullname = FullnameSpec.toFullname(name, null);
+	}
+
+	public DataSetField(String name, String fullname, String type)
+	{
+		super(name, DataType.normalize(type));
+		this.fullname = fullname;
 	}
 
 	public DataSetField(DataSetField field)
 	{
-		super(field.getName(), field.getType());
+		super(field.getName(), DataType.normalize(field.getType()));
+		this.fullname = field.fullname;
 		this.label = field.label;
 		this.defaultValue = field.defaultValue;
 		this.evaluated = field.evaluated;
 		this.expression = field.expression;
+		this.fields = field.fields;
+		this.array = field.array;
 	}
 
-	public boolean hasLabel()
+	@Override
+	public void setType(String type)
 	{
-		return (this.label != null && !this.label.isEmpty());
+		super.setType(DataType.normalize(type));
+	}
+
+	@Override
+	public String getFullname()
+	{
+		return fullname;
+	}
+
+	public void setFullname(String fullname)
+	{
+		this.fullname = fullname;
 	}
 
 	public String getLabel()
@@ -134,6 +178,33 @@ public class DataSetField extends AbstractNameTypeAware implements Cloneable
 	}
 
 	@Override
+	public List<DataSetField> getFields()
+	{
+		return fields;
+	}
+
+	public void setFields(List<DataSetField> fields)
+	{
+		this.fields = fields;
+	}
+
+	public boolean isArray()
+	{
+		return array;
+	}
+
+	public void setArray(boolean array)
+	{
+		this.array = array;
+	}
+
+	@Override
+	public DataSetField getField(String name)
+	{
+		return NameAwareUtil.find(this.fields, name);
+	}
+
+	@Override
 	public DataSetField clone()
 	{
 		return new DataSetField(this);
@@ -142,8 +213,9 @@ public class DataSetField extends AbstractNameTypeAware implements Cloneable
 	@Override
 	public String toString()
 	{
-		return getClass().getSimpleName() + " [name=" + getName() + ", type=" + getType() + ", label=" + label
-				+ ", defaultValue=" + defaultValue + ", evaluated=" + evaluated + ", expression=" + expression + "]";
+		return getClass().getSimpleName() + " [name=" + getName() + ", type=" + getType() + ", fullname=" + fullname
+				+ ", label=" + label + ", defaultValue=" + defaultValue + ", evaluated=" + evaluated + ", expression="
+				+ expression + "]";
 	}
 
 	/**
@@ -155,49 +227,212 @@ public class DataSetField extends AbstractNameTypeAware implements Cloneable
 	public static class DataType
 	{
 		/** 字符串 */
-		public static final String STRING = "STRING";
+		public static final String STRING = "string";
 
 		/** 布尔值 */
-		public static final String BOOLEAN = "BOOLEAN";
+		public static final String BOOLEAN = "boolean";
 
 		/** 数值，可能是整数或者小数 */
-		public static final String NUMBER = "NUMBER";
+		public static final String NUMBER = "number";
 
 		/** 整数 */
-		public static final String INTEGER = "INTEGER";
-
-		/** 小数 */
-		public static final String DECIMAL = "DECIMAL";
+		public static final String INTEGER = "integer";
 
 		/** 日期 */
-		public static final String DATE = "DATE";
+		public static final String DATE = "date";
 
 		/** 时间 */
-		public static final String TIME = "TIME";
+		public static final String TIME = "time";
 
 		/** 时间戳 */
-		public static final String TIMESTAMP = "TIMESTAMP";
+		public static final String TIMESTAMP = "timestamp";
+
+		/** 对象 */
+		public static final String OBJECT = "object";
 
 		/** 未知类型 */
-		public static final String UNKNOWN = "UNKNOWN";
+		public static final String UNKNOWN = "unknown";
 
 		/**
-		 * 解析对象的数据类型。
+		 * 小数。
+		 * 
+		 * @deprecated 仅用于兼容<=5.5.0版本的{@code DECIMAL}类型，在>=6.0.0版本起已废弃并会被{@linkplain #normalize(String)}转换为{@linkplain #NUMBER}类型
+		 */
+		@Deprecated
+		private static final String DECIMAL = "decimal";
+
+		/**
+		 * 规范类型。
+		 * 
+		 * @param type
+		 * @return
+		 */
+		public static String normalize(String type)
+		{
+			return normalize(type, UNKNOWN);
+		}
+
+		/**
+		 * 规范类型。
+		 * 
+		 * @param type
+		 * @param dftType
+		 * @return
+		 */
+		public static String normalize(String type, String dftType)
+		{
+			if (type == null)
+				return dftType;
+
+			if (STRING.equalsIgnoreCase(type))
+				return STRING;
+
+			if (BOOLEAN.equalsIgnoreCase(type))
+				return BOOLEAN;
+
+			if (NUMBER.equalsIgnoreCase(type) || DECIMAL.equalsIgnoreCase(type))
+				return NUMBER;
+
+			if (INTEGER.equalsIgnoreCase(type))
+				return INTEGER;
+
+			if (DATE.equalsIgnoreCase(type))
+				return DATE;
+
+			if (TIME.equalsIgnoreCase(type))
+				return TIME;
+
+			if (TIMESTAMP.equalsIgnoreCase(type))
+				return TIMESTAMP;
+
+			if (OBJECT.equalsIgnoreCase(type))
+				return OBJECT;
+
+			if (UNKNOWN.equalsIgnoreCase(type))
+				return UNKNOWN;
+
+			return dftType;
+		}
+
+		/**
+		 * 是否是{@linkplain #OBJECT}类型。
+		 * 
+		 * @param type
+		 * @return
+		 */
+		public static boolean isObjectType(String type)
+		{
+			return OBJECT.equals(type);
+		}
+
+		/**
+		 * 是否是{@linkplain #OBJECT}类型。
+		 * 
+		 * @param field
+		 * @return
+		 */
+		public static boolean isObjectType(DataSetField field)
+		{
+			return (field != null && isObjectType(field.getType()));
+		}
+
+		/**
+		 * 是否像数组的对象。
+		 * 
+		 * @param obj
+		 * @return
+		 */
+		public static boolean isLikeArray(Object obj)
+		{
+			if (obj == null)
+				return false;
+
+			if (obj instanceof Object[])
+				return true;
+
+			if (obj instanceof Collection<?>)
+				return true;
+
+			return false;
+		}
+
+		/**
+		 * 获取像数组对象的第一个元素。
+		 * <p>
+		 * 如果不像数组，将返回{@code null}。
+		 * </p>
+		 * 
+		 * @param likeArray
+		 * @return
+		 */
+		public static Object getLikeArrayFirstEle(Object likeArray)
+		{
+			if (likeArray == null)
+				return null;
+			
+			Object ele = null;
+
+			if (likeArray instanceof Object[])
+			{
+				Object[] array = (Object[]) likeArray;
+				ele = (array.length > 0 ? array[0] : null);
+			}
+			else if (likeArray instanceof Collection<?>)
+			{
+				Collection<?> col = (Collection<?>) likeArray;
+				for (Object o : col)
+				{
+					ele = o;
+					break;
+				}
+			}
+
+			return ele;
+		}
+
+		/**
+		 * 将对象包装为像数组。
+		 * 
+		 * @param o
+		 * @return
+		 */
+		public static Object wrapToLikeArray(Object o)
+		{
+			if (o == null)
+				return null;
+
+			return Arrays.asList(o);
+		}
+
+		/**
+		 * 解析像数组对象的元素数据类型。
+		 * 
+		 * @param likeArray
+		 * @return
+		 */
+		public static String resolveArrayEleDataType(Object likeArray)
+		{
+			Object ele = getLikeArrayFirstEle(likeArray);
+			return resolveDataType(ele);
+		}
+
+		/**
+		 * 解析数据类型。
 		 * 
 		 * @param obj
 		 * @return
 		 */
 		public static String resolveDataType(Object obj)
 		{
-			if (obj instanceof String)
+			if (obj == null)
+				return UNKNOWN;
+			else if (obj instanceof String)
 				return STRING;
 			else if (obj instanceof Boolean)
 				return BOOLEAN;
 			else if (obj instanceof Byte || obj instanceof Short || obj instanceof Integer || obj instanceof Long
 					|| obj instanceof BigInteger)
 				return INTEGER;
-			else if (obj instanceof Float || obj instanceof Double || obj instanceof BigDecimal)
-				return DECIMAL;
 			else if (obj instanceof Number)
 				return NUMBER;
 			else if (obj instanceof java.sql.Time)
@@ -206,6 +441,8 @@ public class DataSetField extends AbstractNameTypeAware implements Cloneable
 				return TIMESTAMP;
 			else if (obj instanceof java.sql.Date || obj instanceof java.util.Date)
 				return DATE;
+			else if (obj instanceof Map<?, ?>)
+				return OBJECT;
 			else
 				return UNKNOWN;
 		}

@@ -143,17 +143,42 @@ $.inflateDashboardDesignEditor = function(po)
 		var idx = $.inArrayById(items, po.resContentTabId(resName));
 		
 		if(idx > -1)
+		{
 			pm.resContentTabs.activeIndex = idx;
+		}
 		else
 		{
-			var tab = po.toResContentTab(resName, isTemplate);
-			pm.resContentTabs.items.push(tab);
+			let tab = po.toResContentTab(resName, isTemplate);
+			items.push(tab);
 			
 			//直接设置activeIndex不会滚动到新加的卡片
 			po.vueNextTick(function()
 			{
-				pm.resContentTabs.activeIndex = pm.resContentTabs.items.length - 1;
+				pm.resContentTabs.activeIndex = items.length - 1;
 			});
+		}
+	};
+	
+	po.updateMenuVisibleForTab = function(tab)
+	{
+		var pm = po.vuePageModel();
+		po.updateMenuItemVisibleForTemplateTab(pm.codeEditMenuItems, tab);
+	};
+	
+	po.updateMenuItemVisibleForTemplateTab = function(items, tab)
+	{
+		if(items == null)
+			return;
+		
+		for(let i=0; i<items.length; i++)
+		{
+			let item = items[i];
+			
+			if(item.forTemplate)
+				item.visible = tab.isTemplate;
+			
+			if(item.items != null)
+				po.updateMenuItemVisibleForTemplateTab(item.items, tab);
 		}
 	};
 	
@@ -250,6 +275,13 @@ $.inflateDashboardDesignEditor = function(po)
 			codeEditor.focus();
 	};
 	
+	po.resContentTabByIndex = function(index)
+	{
+		var pm = po.vuePageModel();
+		var items = pm.resContentTabs.items;
+		return items[index];
+	};
+	
 	po.focusOnEditorAfterSetContent = function(tab)
 	{
 		var fm = po.vueFormModel();
@@ -309,10 +341,12 @@ $.inflateDashboardDesignEditor = function(po)
 		{
 			var myTagToken = po.findPrevTokenOfType(codeEditor, doc, cursor, token, "tag");
 			var myCategory = (myTagToken ? myTagToken.string : null);
+			//仅对最新API版本的看板支持补全
+			var completionSource = (po.isLatestApiVersionInCodeEditor(codeEditor) ? po.codeEditorEleAttrCompletions : []);
 			
 			var completions =
 			{
-				list: po.findCompletionList(po.codeEditorCompletionsTagAttr, tokenString, myCategory),
+				list: po.findCompletionList(completionSource, tokenString, myCategory),
 				from: CodeMirror.Pos(cursor.line, token.start),
 				to: CodeMirror.Pos(cursor.line, token.end)
 			};
@@ -326,6 +360,8 @@ $.inflateDashboardDesignEditor = function(po)
 					function(token){ return (token.type == "variable" || token.type == "variable-2"); });
 			var myVarToken = (myVarTokenInfo ? myVarTokenInfo.token : null);
 			var myCategory = (myVarToken ? myVarToken.string : "");
+			//仅对最新API版本的看板支持补全
+			var completionSource = (po.isLatestApiVersionInCodeEditor(codeEditor) ? po.codeEditorJsApiCompletions() : []);
 			
 			//无法确定要补全的是看板还是图表对象，所以这里采用：完全匹配变量名，否则就全部提示
 			// *dashboard*
@@ -339,13 +375,146 @@ $.inflateDashboardDesignEditor = function(po)
 			
 			var completions =
 			{
-				list: po.findCompletionList(po.codeEditorCompletionsJsFunction, (tokenString == "." ? "" : tokenString), myCategory),
+				list: po.findCompletionList(completionSource, (tokenString == "." ? "" : tokenString), myCategory),
 				from: CodeMirror.Pos(cursor.line, (tokenString == "." ? token.start + 1 : token.start)),
 				to: CodeMirror.Pos(cursor.line, token.end)
 			};
 			
 			return completions;
 		}
+	};
+	
+	//org.datagear.analysis.support.html.HtmlTplDashboardWidgetHtmlRenderer.DEFAULT_ATTR_NAME_API_VERSION
+	po.apiVersionRegexInHtml = /dg\-api\-version\=['"]?([\d\.]*)['"]?/;
+	//org.datagear.analysis.support.html.DashboardApiVersion.V2
+	po.latestApiVersion = "2.0";
+	//org.datagear.analysis.support.html.DashboardApiVersion.V1
+	po.apiVersionV1 = "1.0";
+	
+	po.isLatestApiVersionInCodeEditor = function(codeEditor)
+	{
+		var apiVersion = po.resolveApiVersionInCodeEditor(codeEditor);
+		return (po.latestApiVersion == apiVersion);
+	};
+	
+	po.checkUnsupportedFnIfApiVersionV1 = function(apiVersion)
+	{
+		if(po.apiVersionV1 == apiVersion)
+		{
+			let msg = $.validator.format(po.i18n.unsupportedFnForApiVersion, po.apiVersionV1);
+			$.tipError({ summary: msg });
+			return false;
+		}
+		
+		return true;
+	};
+	
+	po.resolveApiVersionInTabCode = function(tab)
+	{
+		var codeEditorEle = po.elementOfId(po.resCodeEditorEleId(tab));
+		var codeEditor = po.codeEditorInstance(codeEditorEle);
+		return po.resolveApiVersionInCodeEditor(codeEditor);	
+	};
+	
+	po.resolveApiVersionInCodeEditor = function(codeEditor)
+	{
+		var apiVersion = null;
+		
+		var cursor = codeEditor.getSearchCursor(po.apiVersionRegexInHtml);
+		if(cursor.findNext())
+		{
+			let matches = (cursor.pos ? cursor.pos.match : null);
+			apiVersion = (matches && matches.length > 1 ? matches[1] : null);
+		}
+		
+		if($.isEmpty(apiVersion))
+		{
+			var fm = po.vueFormModel();
+			apiVersion = fm.apiVersion;
+		}
+		
+		//默认应设为：org.datagear.analysis.support.html.DashboardApiVersion.V1
+		if($.isEmpty(apiVersion))
+			apiVersion = po.apiVersionV1;
+		
+		return apiVersion;
+	};
+	
+	po.codeEditorJsApiCompletions = function()
+	{
+		if(po._codeEditorJsApiCompletions == null)
+		{
+			let dashboardProto = dashboardFactory.Dashboard.prototype;
+			let chartProto = chartFactory.Chart.prototype;
+			let dashboardApiCompletions = [];
+			let chartApiCompletions = [];
+			
+			for(let name in dashboardProto)
+			{
+				let func = dashboardProto[name];
+				
+				if(po.isJsPublicApi(name, func))
+				{
+					let completion =
+					{
+						name: name, value: name + (func.length == 0 ? "()" : "("),
+						displayName: name + "(" + po.resolveJsFnArgsLiteral(func) + ")",
+						displayComment: "dashboard", categories: ["dashboard"]
+					};
+					
+					dashboardApiCompletions.push(completion);
+				}
+			}
+			
+			for(let name in chartProto)
+			{
+				let func = chartProto[name];
+				
+				if(po.isJsPublicApi(name, func))
+				{
+					let completion =
+					{
+						name: name, value: name + (func.length == 0 ? "()" : "("),
+						displayName: name + "(" + po.resolveJsFnArgsLiteral(func) + ")",
+						displayComment: "chart", categories: ["chart"]
+					};
+					
+					chartApiCompletions.push(completion);
+				}
+			}
+			
+			dashboardApiCompletions.sort(po.jsApiCompletionComparator);
+			chartApiCompletions.sort(po.jsApiCompletionComparator);
+			po._codeEditorJsApiCompletions = dashboardApiCompletions;
+			po._codeEditorJsApiCompletions = po._codeEditorJsApiCompletions.concat(chartApiCompletions);
+		}
+		
+		return po._codeEditorJsApiCompletions;
+	};
+	
+	po.resolveJsFnArgsLiteral = function(fn)
+	{
+		var fnStr = fn.toString();
+		var match = fnStr.match(/function\s*\w*\s*\(([^)]*)\)/);
+		var re = (match && match[1] != null ? $.trimStr(match[1]) : "");
+		
+		return re;
+	};
+	
+	po.isJsPublicApi = function(name, value)
+	{
+		return (name && !name.startsWith("_") && chartFactory.isFunction(value));
+	};
+	
+	po.jsApiCompletionComparator = function(a, b)
+	{
+		var an = (a.name || "");
+		var bn = (b.name || "");
+		
+		if(an == bn)
+			return 0;
+		else
+			return (an > bn ? 1 : -1);
 	};
 	
 	po.getEditResInfos = function()
@@ -383,32 +552,31 @@ $.inflateDashboardDesignEditor = function(po)
 		
 		if(!noContent)
 		{
-			if(tab.editMode == "code")
+			if(tab.editMode == "visual")
+			{
+				var dashboardEditor = po.visualDashboardEditorByTab(tab);
+				info.content = dashboardEditor.editedHtml();
+			}
+			else
 			{
 				var editorEle = po.elementOfId(po.resCodeEditorEleId(tab));
 				var codeEditor = po.codeEditorInstance(editorEle);
 				info.content = po.getCodeText(codeEditor);
-			}
-			else
-			{
-				var dashboardEditor = po.visualDashboardEditorByTab(tab);
-				info.content = dashboardEditor.editedHtml();
 			}
 		}
 		
 		return info;
 	};
 	
-	po.getCurrentEditResInfo = function(noContent)
-	{
-		return po.getEditResInfo(po.getCurrentEditTab(), noContent);
-	};
-	
 	po.getCurrentEditTab = function()
 	{
 		var pm = po.vuePageModel();
-		var items = pm.resContentTabs.items;
-		return items[pm.resContentTabs.activeIndex];
+		return po.resContentTabByIndex(pm.resContentTabs.activeIndex);
+	};
+	
+	po.getCurrentEditResInfo = function(noContent)
+	{
+		return po.getEditResInfo(po.getCurrentEditTab(), noContent);
 	};
 	
 	po.saveResInfo = function(tab)
@@ -502,35 +670,79 @@ $.inflateDashboardDesignEditor = function(po)
 		return re;
 	};
 	
-	po.searchInCodeEditor = function(tab)
+	po.getSelectInfoInCodeEditor = function(tab)
 	{
-		var text = tab.searchCodeKeyword;
-		
-		if(!text)
-			return;
-		
+		tab = (tab == null ? po.getCurrentEditTab() : tab);
 		var codeEditorEle = po.elementOfId(po.resCodeEditorEleId(tab));
 		var codeEditor = po.codeEditorInstance(codeEditorEle);
 		
-		var prevSearchText = codeEditorEle.data("prevSearchText");
-		var cursor = codeEditorEle.data("prevSearchCursor");
+		return po.getSelectedCodeInfo(codeEditor);
+	};
+	
+	po.searchInCodeEditor = function(tab, text, noTipIfNone)
+	{
+		if(!text)
+			return false;
+		
+		tab = (tab == null ? po.getCurrentEditTab() : tab);
+		noTipIfNone = (noTipIfNone === undefined ? false : noTipIfNone);
+		
+		var codeEditorEle = po.elementOfId(po.resCodeEditorEleId(tab));
+		var codeEditor = po.codeEditorInstance(codeEditorEle);
 		var doc = codeEditor.getDoc();
-		
-		if(!cursor || text != prevSearchText)
-		{
-			cursor = codeEditor.getSearchCursor(text);
-			codeEditorEle.data("prevSearchCursor", cursor);
-			codeEditorEle.data("prevSearchText", text)
-		}
-		
-		codeEditor.focus();
+		var cursor = doc.getCursor("to");
+		doc.setSelection(cursor);
+		cursor = codeEditor.getSearchCursor(text, cursor);
 		
 		if(cursor.findNext())
 			doc.setSelection(cursor.from(), cursor.to());
 		else
 		{
-			//下次从头搜索
-			codeEditorEle.data("prevSearchCursor", null);
+			cursor = codeEditor.getSearchCursor(text, {line: 0, ch: 0});
+			
+			if(cursor.findNext())
+				doc.setSelection(cursor.from(), cursor.to());
+			else
+			{
+				if(noTipIfNone !== true)
+					$.tipInfo(po.i18n.noMatchesFound);
+				
+				return false;
+			}
+		}
+	};
+	
+	po.replaceInCodeEditor = function(tab, source, replaceTo, options)
+	{
+		if(!source)
+			return false;
+		
+		tab = (tab == null ? po.getCurrentEditTab() : tab);
+		replaceTo = (replaceTo == null ? "" : replaceTo);
+		options = (options || { replaceAll: false,  replaceInfo: null });
+		
+		var codeEditorEle = po.elementOfId(po.resCodeEditorEleId(tab));
+		var codeEditor = po.codeEditorInstance(codeEditorEle);
+		var doc = codeEditor.getDoc();
+		var selectText = doc.getSelection();
+		
+		if(selectText == source)
+		{
+			doc.replaceSelection(replaceTo);
+			
+			if(options.replaceInfo != null)
+			{
+				options.replaceInfo.count = (options.replaceInfo.count == null ? 0 : options.replaceInfo.count);
+				options.replaceInfo.count++;
+			}
+		}
+		
+		if(options.replaceAll)
+		{
+			var searched = po.searchInCodeEditor(tab, source, true);
+			
+			if(searched !== false)
+				po.replaceInCodeEditor(tab, source, replaceTo, options);
 		}
 	};
 	
@@ -548,24 +760,7 @@ $.inflateDashboardDesignEditor = function(po)
 		var visualEditorIfmWrapper = visualEditorIfm.parent();
 		var visualEditorWrapper = visualEditorIfmWrapper.parent();
 		
-		if(tab.editMode == "code")
-		{
-			var veChangeFlag = codeEditorEle.data("veChangeFlag");
-			var dashboardEditor = po.visualDashboardEditorByIframe(visualEditorIfm);
-			
-			//有修改
-			if(veChangeFlag != null && dashboardEditor && dashboardEditor.isChanged(veChangeFlag))
-			{
-				po.setCodeText(codeEditor, dashboardEditor.editedHtml());
-				
-				visualEditorIfmWrapper.data("codeChangeFlag", codeEditor.changeGeneration());
-				codeEditorEle.data("veChangeFlag", dashboardEditor.changeFlag());
-			}
-			
-			codeEditorWrapper.removeClass("opacity-hide");
-			visualEditorWrapper.addClass("opacity-hide");
-		}
-		else
+		if(tab.editMode == "visual")
 		{
 			var codeChangeFlag = visualEditorIfmWrapper.data("codeChangeFlag");
 			
@@ -585,6 +780,23 @@ $.inflateDashboardDesignEditor = function(po)
 			
 			codeEditorWrapper.addClass("opacity-hide");
 			visualEditorWrapper.removeClass("opacity-hide");
+		}
+		else
+		{
+			var veChangeFlag = codeEditorEle.data("veChangeFlag");
+			var dashboardEditor = po.visualDashboardEditorByIframe(visualEditorIfm);
+			
+			//有修改
+			if(veChangeFlag != null && dashboardEditor && dashboardEditor.isChanged(veChangeFlag))
+			{
+				po.setCodeText(codeEditor, dashboardEditor.editedHtml());
+				
+				visualEditorIfmWrapper.data("codeChangeFlag", codeEditor.changeGeneration());
+				codeEditorEle.data("veChangeFlag", dashboardEditor.changeFlag());
+			}
+			
+			codeEditorWrapper.removeClass("opacity-hide");
+			visualEditorWrapper.addClass("opacity-hide");
 		}
 	};
 	
@@ -647,8 +859,6 @@ $.inflateDashboardDesignEditor = function(po)
 			veIframe.data("veEnableElementBoundary", this.enableElementBoundary());
 			veIframe.data("veChangeFlag", this.changeFlag());
 		};
-		
-		dashboardEditor.defaultInsertChartEleStyle = po.defaultInsertChartEleStyle;
 	};
 	
 	po.visualDashboardEditorByIframe = function(visualEditorIfm)
@@ -661,12 +871,7 @@ $.inflateDashboardDesignEditor = function(po)
 
 	po.visualDashboardEditorByTab = function(tab)
 	{
-		if(tab == null)
-		{
-			var pm = po.vuePageModel();
-			var items = pm.resContentTabs.items;
-			tab = items[pm.resContentTabs.activeIndex];
-		}
+		tab = (tab == null ? po.getCurrentEditTab() : tab);
 		
 		if(!tab)
 			return null;
@@ -715,75 +920,180 @@ $.inflateDashboardDesignEditor = function(po)
 		return (iframe.contentDocument || iframe.contentWindow.document);
 	};
 	
+	po.selectChartDialogId = $.uid("selectchart");
+	po.selectPluginDialogId = $.uid("selectplugin");
+	
 	po.showSelectChartDialog = function(selectHandler)
 	{
-		var dialog = po.selectChartDialog();
+		po.showPersistSelectDialog(
+			po.selectChartDialogId,
+			po.i18n.chart+" - "+po.i18n.select,
+			"/chart/select?multiple",
+			selectHandler
+		);
+	};
+	
+	po.closeSelectChartDialog = function()
+	{
+		var dialog = $("#"+po.selectChartDialogId, document.body);
+		$.closeDialog(dialog);
+	};
+	
+	po.showSelectPluginDialog = function(selectHandler, detailValue, local)
+	{
+		detailValue = (detailValue === undefined ? false : detailValue);
+		local = (local === undefined ? true : local);
+		
+		if(detailValue)
+		{
+			let originSelectHandler = selectHandler;
+			selectHandler = function(plugin)
+			{
+				po.getJson("/chartPlugin/detailValue/"+encodeURIComponent(plugin.id), function(plugin)
+				{
+					originSelectHandler(plugin);
+				});
+			};
+		}
+		
+		po.showPersistSelectDialog(
+			po.selectPluginDialogId,
+			po.i18n.chartPlugin+" - "+po.i18n.select,
+			"/chartPlugin/select" + (local ? "?local=true" : ""),
+			selectHandler
+		);
+	};
+	
+	po.closeSelectPluginDialog = function()
+	{
+		var dialog = $("#"+po.selectPluginDialogId, document.body);
+		$.closeDialog(dialog);
+	};
+	
+	po.showPersistSelectDialog = function(dialogId, dialogTitle, url, selectHandler, options)
+	{
+		options = $.extend(true,
+		{
+			styleClass: "table-sm",
+			width: "50vw",
+			position: "right",
+		},
+		options);
+		
+		var dialog = $("#"+dialogId, document.body);
 		
 		if(dialog.length == 0)
 		{
-			po.handleOpenSelectAction("/chart/select?multiple",
-			function(chartWidgets)
+			po.handleOpenSelectAction(url,
+			function(selectedData)
 			{
-				var myDialog = po.selectChartDialog();
-				var handler = myDialog.data("dashboardSelectChartHandler");
+				var closeDialog = undefined;
+				var myDialog = $("#"+dialogId, document.body);
+				var handler = myDialog.data("persistSelectDialogHandler");
 				
 				if(handler)
-					handler(chartWidgets);
+					closeDialog = handler(selectedData);
 				
-				po.hideSelectChartDialog();
+				if(closeDialog !== false)
+					po.hidePersistSelectDialog(dialogId);
+				
 				return false;
 			},
 			{
+				dialogId: dialogId,
 				modal: true,
 				closable: false,
-				styleClass: "dashboard-select-chart-wrapper table-sm",
-				templateHeader: "<span class='p-dialog-title'>"+po.i18n.chart+" - "+po.i18n.select+"</span>"
+				styleClass: "dashboard-pst-select-dialog " + options.styleClass,
+				templateHeader: "<span class='p-dialog-title'>"+dialogTitle+"</span>"
 								+"<div class='dialog-btns p-dialog-header-icons'>"
 								+"	<p-button type='button' icon='pi pi-times' class='p-dialog-header-icon p-dialog-header-close p-link' @click='onCustomHide'></p-button>"
 								+"</div>",
-				width: "50vw",
-				position: "right",
+				width: options.width,
+				position: options.position,
 				onShow: function(dialog)
 				{
-					dialog.data("dashboardSelectChartHandler", selectHandler);
+					dialog.data("persistSelectDialogHandler", selectHandler);
 				},
 				onSetup: function(setup)
 				{
 					setup.onCustomHide = function()
 					{
-						po.hideSelectChartDialog();
+						po.hidePersistSelectDialog(dialogId);
 					};
 				}
 			});
 		}
 		else
 		{
-			dialog.data("dashboardSelectChartHandler", selectHandler);
+			dialog.data("persistSelectDialogHandler", selectHandler);
 			
 			var dialogMask = dialog.parent();
 			dialogMask.removeClass("opacity-hide");
 		}
 	};
 	
-	po.hideSelectChartDialog = function()
+	po.hidePersistSelectDialog = function(dialogId)
 	{
-		var dialog = po.selectChartDialog();
+		var dialog = $("#"+dialogId, document.body);
 		var dialogMask = dialog.parent();
 		dialogMask.addClass("opacity-hide");
 	};
 	
-	po.closeSelectChartDialog = function()
+	po.wrapPluginToChartWidget = function(plugin)
 	{
-		var dialog = po.selectChartDialog();
-		$.closeDialog(dialog);
+		var isArray = Array.isArray(plugin);
+		var plugins = (isArray ? plugin : [ plugin ]);
+		
+		var cws = [];
+		for(let i=0; i<plugins.length; i++)
+		{
+			let plugin = plugins[i];
+			let name = (plugin.nameLabel && plugin.nameLabel.value ? plugin.nameLabel.value : plugin.id);
+			//org.datagear.management.domain.HtmlChartWidgetEntity
+			cws[i] = { id: plugin.id, name: name, pluginVo: plugin  };
+			cws[i].forLocalChart = true;
+		}
+		
+		return (isArray ? cws : cws[0]);
 	};
 	
-	po.selectChartDialog = function()
+	po.customInsertChartEleAttrVal = function(attr)
 	{
-		return $(".dashboard-select-chart-wrapper", document.body);
+		var name = "DG_DD_INSERT_CHART_ELE_ATTR";
+		var dftValue = "style=\"display:inline-block;width:25vw;height:25vh;\"";
+		
+		if(attr === undefined)
+		{
+			let value = $.localStorageItem(name);
+			value = (value == null ? dftValue : value);
+			return value;
+		}
+		else
+		{
+			$.localStorageItem(name, attr);
+		}
 	};
 	
-	po.defaultInsertChartEleStyle = "display:inline-block;width:300px;height:300px;";
+	po.checkInsertChartPluginApiVersion = function(apiVersion, chartWidgets)
+	{
+		var re = true;
+		
+		for(let i=0; i<chartWidgets.length; i++)
+		{
+			let cw = chartWidgets[i];
+			let pluginApiVersion = (cw.pluginVo ? cw.pluginVo.apiVersion : null);
+			
+			if(pluginApiVersion != null && apiVersion !== pluginApiVersion)
+			{
+				let msg = po.i18n.insertMismatchApiVersionChartDenied;
+				$.tipError({ summary: $.validator.format(msg, cw.name, pluginApiVersion)});
+				re = false;
+				break;
+			}
+		}
+		
+		return re;
+	};
 	
 	po.insertCodeEditorChart = function(tab, chartWidgets)
 	{
@@ -794,31 +1104,59 @@ $.inflateDashboardDesignEditor = function(po)
 		var codeEditorEle = po.elementOfId(po.resCodeEditorEleId(tab), tabPanel);
 		var codeEditor = po.codeEditorInstance(codeEditorEle);
 		
+		var apiVersion = po.resolveApiVersionInCodeEditor(codeEditor);
+		var checkApiVersion = po.checkInsertChartPluginApiVersion(apiVersion, chartWidgets);
+		if(checkApiVersion === false)
+			return false;
+		
 		var doc = codeEditor.getDoc();
 		var cursor = doc.getCursor();
 		var code = "";
 		
-		var chartId = chartWidgets[0].id;
 		var text = po.getTemplatePrevTagText(codeEditor, cursor);
 		var textNext = po.getTemplateNextText(codeEditor, cursor);
+		var chartWidget0 = chartWidgets[0];
+		var forLocalChart0 = (chartWidget0.forLocalChart === true);
+		var attrName0 = (forLocalChart0 ? chartFactory.elementAttrConst.LOCAL : chartFactory.elementAttrConst.WIDGET);
+		var attrVal0 = (forLocalChart0 ? dashboardFactory.chartWidgetToEleLocalAttrVal(chartWidget0) : chartWidget0.id);
 		
 		// =
 		if(/=\s*$/g.test(text))
-			code = "\"" + chartId + "\"";
+		{
+			code = "\"" + attrVal0 + "\"";
+		}
 		// ="... 或 ='...
 		else if(/=\s*['"][^'"]*$/g.test(text))
-			code = chartId;
+		{
+			code = attrVal0;
+		}
 		// <...
 		else if(/<[^>]*$/g.test(text))
-			code = " dg-chart-widget=\""+chartId+"\"";
+		{
+			code = " "+attrName0+"=\""+attrVal0+"\"";
+		}
 		// "..." 或 '...'
 		else if(/['"][^'"]*$/g.test(text) && /^[^'"]*['"]/g.test(textNext))
-			code = chartId;
+		{
+			code = attrVal0;
+		}
 		// >...
 		else
 		{
-			for(var i=0; i<chartWidgets.length; i++)
-				code += "<div style=\""+po.defaultInsertChartEleStyle+"\" dg-chart-widget=\""+chartWidgets[i].id+"\"><!--"+chartWidgets[i].name+"--></div>\n";
+			let customAtt = po.customInsertChartEleAttrVal();
+			
+			for(let i=0; i<chartWidgets.length; i++)
+			{
+				let chartWidget = chartWidgets[i];
+				let forLocalChart = (chartWidget.forLocalChart === true);
+				let attrName = (forLocalChart ? chartFactory.elementAttrConst.LOCAL : chartFactory.elementAttrConst.WIDGET);
+				let attrVal = (forLocalChart ? dashboardFactory.chartWidgetToEleLocalAttrVal(chartWidget) : chartWidget.id);
+				
+				code += "<"+chartFactory.CHART_TAG_NAME + ($.isEmpty(customAtt) ? "" : " "+customAtt)
+					 +  " "+attrName+"=\""+attrVal+"\">"
+					 +  (chartWidget.name ? "<!--"+chartWidget.name+"-->" : "")
+					 +  "</"+chartFactory.CHART_TAG_NAME+">\n";
+			}
 		}
 		
 		po.insertCodeText(codeEditor, cursor, code);
@@ -865,11 +1203,21 @@ $.inflateDashboardDesignEditor = function(po)
 	{
 		if(!chartWidgets || chartWidgets.length == 0)
 			return;
+			
+		var realCws = [];
+		for(let i=0; i<chartWidgets.length; i++)
+		{
+			if(chartWidgets[i].forLocalChart !== true)
+				realCws.push(chartWidgets[i]);
+		}
+		
+		if(realCws.length == 0)
+			return;
 		
 		var fm = po.vueFormModel();
 		if(fm.createUser && fm.createUser.id && po.currentUserId != fm.createUser.id)
 		{
-			var chartWidgetIds = $.propertyValue(chartWidgets, "id");
+			var chartWidgetIds = $.propertyValue(realCws, "id");
 			
 			po.ajaxJson("/chart/hasReadPermission",
 			{
@@ -877,11 +1225,11 @@ $.inflateDashboardDesignEditor = function(po)
 				success: function(response)
 				{
 					var msg = po.i18n.insertNoPermissionChart;
-					for(var i=0; i<chartWidgets.length; i++)
+					for(let i=0; i<realCws.length; i++)
 					{
 						if(!response[i])
 						{
-							var cw = chartWidgets[i];
+							let cw = realCws[i];
 							$.tipWarn({ summary: $.validator.format(msg, cw.name, cw.id), life: 5000});
 						}
 					}
@@ -907,6 +1255,11 @@ $.inflateDashboardDesignEditor = function(po)
 		if(!dashboardEditor || !dashboardEditor.checkBindChart())
 			return false;
 		
+		var apiVersion = dashboardEditor.dashboardApiVersion();
+		var checkApiVersion = po.checkInsertChartPluginApiVersion(apiVersion, chartWidgets);
+		if(checkApiVersion === false)
+			return false;
+		
 		$.executeSilently(function()
 		{
 			dashboardEditor.bindChart(chartWidgets ? chartWidgets[0] : null);
@@ -921,6 +1274,11 @@ $.inflateDashboardDesignEditor = function(po)
 		var insertType = po.veCurrentInsertType;
 		
 		if(!dashboardEditor || !insertType || !dashboardEditor.checkInsertChart(insertType))
+			return false;
+		
+		var apiVersion = dashboardEditor.dashboardApiVersion();
+		var checkApiVersion = po.checkInsertChartPluginApiVersion(apiVersion, chartWidgets);
+		if(checkApiVersion === false)
 			return false;
 		
 		$.executeSilently(function()
@@ -1140,7 +1498,7 @@ $.inflateDashboardDesignEditor = function(po)
 		});
 	};
 	
-	po.setVeElementChartAttrValues = function(model)
+	po.setVeElementChartConfigValues = function(model)
 	{
 		var dashboardEditor = po.visualDashboardEditorByTab();
 		
@@ -1149,7 +1507,7 @@ $.inflateDashboardDesignEditor = function(po)
 		
 		$.executeSilently(function()
 		{
-			dashboardEditor.setElementChartAttrValues(model);
+			dashboardEditor.setElementChartConfigValues(model);
 		});
 	};
 	
@@ -1213,20 +1571,38 @@ $.inflateDashboardDesignEditor = function(po)
 	{
 		var pm = po.vuePageModel();
 		
-		if(pm.quickExecuteMenuItem && pm.quickExecuteMenuItem.commandExec)
-			pm.quickExecuteMenuItem.commandExec();
+		if(pm.veQuickExecuteMenuItem && pm.veQuickExecuteMenuItem.commandExec)
+			pm.veQuickExecuteMenuItem.commandExec();
 	};
 	
 	po.veQuickExecuteMenuItem = function(menuItem)
 	{
 		var pm = po.vuePageModel();
-		pm.quickExecuteMenuItem = menuItem;
+		pm.veQuickExecuteMenuItem = menuItem;
+		pm.veQuickExecuteTooltip = po.buildQuickExecuteTooltip(menuItem);
+	};
+	
+	po.codeQuickExecute = function(tab)
+	{
+		var pm = po.vuePageModel();
 		
+		if(pm.codeQuickExecuteMenuItem && pm.codeQuickExecuteMenuItem.commandExec)
+			pm.codeQuickExecuteMenuItem.commandExec();
+	};
+	
+	po.codeQuickExecuteMenuItem = function(menuItem)
+	{
+		var pm = po.vuePageModel();
+		pm.codeQuickExecuteMenuItem = menuItem;
+		pm.codeQuickExecuteTooltip = po.buildQuickExecuteTooltip(menuItem);
+	};
+	
+	po.buildQuickExecuteTooltip = function(menuItem)
+	{
 		var tooltip = "";
 		if(menuItem)
 		{
-			var tooltip = "";
-			var labelPath = [ menuItem.label ];
+			let labelPath = [ menuItem.label ];
 			if(menuItem.parentLabelPath)
 			{
 				labelPath = ($.isArray(menuItem.parentLabelPath) ?
@@ -1239,7 +1615,7 @@ $.inflateDashboardDesignEditor = function(po)
 			});
 		}
 		
-		pm.quickExecuteTooltip = tooltip;
+		return tooltip;
 	};
 	
 	po.veRefresh = function()
@@ -1422,7 +1798,6 @@ $.inflateDashboardDesignEditor = function(po)
 		[
 			{
 				label: po.i18n.chartTipSelect,
-				class: "for-open-chart-panel",
 				insertType: insertType,
 				parentLabelPath: parentLabelPath,
 				command: function(e)
@@ -1442,7 +1817,7 @@ $.inflateDashboardDesignEditor = function(po)
 						po.veCurrentInsertType = this.insertType;
 						po.showSelectChartDialog(function(chartWidgets)
 						{
-							po.insertVeChart(chartWidgets);
+							return po.insertVeChart(chartWidgets);
 						});
 					}
 				}
@@ -1472,6 +1847,39 @@ $.inflateDashboardDesignEditor = function(po)
 							chartWidget = [ chartWidget ];
 							po.insertVeChart(chartWidget);
 						});
+					}
+				}
+			},
+			{
+				label: po.i18n.chartTipLocal,
+				insertType: insertType,
+				parentLabelPath: parentLabelPath,
+				command: function(e)
+				{
+					e.item.commandExec();
+				},
+				commandExec: function()
+				{
+					po.veQuickExecuteMenuItem(this);
+					
+					var tab = po.getCurrentEditTab();
+					var apiVersion = po.resolveApiVersionInTabCode(tab);
+					var dashboardEditor = po.visualDashboardEditorByTab(tab);
+					
+					if(po.checkUnsupportedFnIfApiVersionV1(apiVersion))
+					{
+						if(dashboardEditor)
+						{
+							if(!dashboardEditor.checkInsertChart(this.insertType))
+								return;
+							
+							po.veCurrentInsertType = this.insertType;
+							po.showSelectPluginDialog(function(plugin)
+							{
+								var cw = po.wrapPluginToChartWidget(plugin);
+								po.insertVeChart(cw);
+							});
+						}
 					}
 				}
 			},
@@ -1816,11 +2224,93 @@ $.inflateDashboardDesignEditor = function(po)
 			codeEditMenuItems:
 			[
 				{
+					label: po.i18n.insert,
+					forTemplate: true,
+					items:
+					[
+						{
+							label: po.i18n.chartTipSelect,
+							parentLabelPath: po.i18n.insert,
+							command: function(e)
+							{
+								e.item.commandExec();
+							},
+							commandExec: function()
+							{
+								po.codeQuickExecuteMenuItem(this);
+								
+								var tab = po.getCurrentEditTab();
+								po.showSelectChartDialog(function(chartWidgets)
+								{
+									return po.insertCodeEditorChart(tab, chartWidgets);
+								});
+							}
+						},
+						{
+							label: po.i18n.chartTipCreate,
+							parentLabelPath: po.i18n.insert,
+							visible: po.enableInsertNewChart,
+							command: function(e)
+							{
+								e.item.commandExec();
+							},
+							commandExec: function()
+							{
+								po.codeQuickExecuteMenuItem(this);
+								
+								var tab = po.getCurrentEditTab();
+								po.openAddChartPanel(function(chartWidget)
+								{
+									chartWidget = [ chartWidget ];
+									po.insertCodeEditorChart(tab, chartWidget);
+								});
+							}
+						},
+						{
+							label: po.i18n.chartTipLocal,
+							parentLabelPath: po.i18n.insert,
+							command: function(e)
+							{
+								e.item.commandExec();
+							},
+							commandExec: function()
+							{
+								po.codeQuickExecuteMenuItem(this);
+								
+								var tab = po.getCurrentEditTab();
+								var apiVersion = po.resolveApiVersionInTabCode(tab);
+								
+								if(po.checkUnsupportedFnIfApiVersionV1(apiVersion))
+								{
+									po.showSelectPluginDialog(function(plugin)
+									{
+										var cw = po.wrapPluginToChartWidget(plugin);
+										return po.insertCodeEditorChart(tab, [ cw ]);
+									});
+								}
+							}
+						}
+					]
+				},
+				{
 					label: po.i18n.save,
 					command: function(e)
 					{
 						po.saveResInfo(po.getCurrentEditTab());
 					}
+				},
+				{
+					label: po.i18n.more,
+					items:
+					[
+						{
+							label: po.i18n.customInsertChartEleAttr,
+							command: function()
+							{
+								po.showCustomInsertChartEleAttrPanel();
+							}
+						}
+					]
 				}
 			],
 			tplVisualEditMenuItems:
@@ -1879,82 +2369,119 @@ $.inflateDashboardDesignEditor = function(po)
 				},
 				{
 					label: po.i18n.insert,
-					class: "ve-insert-menuitem",
 					items:
 					[
 						{
-							label: po.i18n.bindOrReplaceChartTipSelect,
-							class: "for-open-chart-panel",
-							parentLabelPath: po.i18n.insert,
-							command: function(e)
-							{
-								e.item.commandExec();
-							},
-							commandExec: function()
-							{
-								po.veQuickExecuteMenuItem(this);
-								
-								var dashboardEditor = po.visualDashboardEditorByTab();
-								if(dashboardEditor)
+							label: po.i18n.bindOrReplaceChart,
+							items:
+							[
 								{
-									if(!dashboardEditor.checkBindChart())
-										return;
-									
-									po.showSelectChartDialog(function(chartWidgets)
+									label: po.i18n.chartTipSelect,
+									parentLabelPath: [ po.i18n.insert, po.i18n.bindOrReplaceChart ],
+									command: function(e)
 									{
-										po.bindOrReplaceVeChart(chartWidgets);
-									});
-								}
-							}
-						},
-						{
-							label: po.i18n.bindOrReplaceChartTipCreate,
-							parentLabelPath: po.i18n.insert,
-							visible: po.enableInsertNewChart,
-							command: function(e)
-							{
-								e.item.commandExec();
-							},
-							commandExec: function()
-							{
-								po.veQuickExecuteMenuItem(this);
-								
-								var dashboardEditor = po.visualDashboardEditorByTab();
-								if(dashboardEditor)
+										e.item.commandExec();
+									},
+									commandExec: function()
+									{
+										po.veQuickExecuteMenuItem(this);
+										
+										var dashboardEditor = po.visualDashboardEditorByTab();
+										if(dashboardEditor)
+										{
+											if(!dashboardEditor.checkBindChart())
+												return;
+											
+											po.showSelectChartDialog(function(chartWidgets)
+											{
+												return po.bindOrReplaceVeChart(chartWidgets);
+											});
+										}
+									}
+								},
 								{
-									if(!dashboardEditor.checkBindChart())
-										return;
-									
-									po.openAddChartPanel(function(chartWidget)
+									label: po.i18n.chartTipCreate,
+									parentLabelPath: [ po.i18n.insert, po.i18n.bindOrReplaceChart ],
+									visible: po.enableInsertNewChart,
+									command: function(e)
 									{
-										chartWidget = [ chartWidget ];
-										po.bindOrReplaceVeChart(chartWidget);
-									});
+										e.item.commandExec();
+									},
+									commandExec: function()
+									{
+										po.veQuickExecuteMenuItem(this);
+										
+										var dashboardEditor = po.visualDashboardEditorByTab();
+										if(dashboardEditor)
+										{
+											if(!dashboardEditor.checkBindChart())
+												return;
+											
+											po.openAddChartPanel(function(chartWidget)
+											{
+												po.bindOrReplaceVeChart([ chartWidget ]);
+											});
+										}
+									}
+								},
+								{
+									label: po.i18n.chartTipLocal,
+									parentLabelPath: [ po.i18n.insert, po.i18n.bindOrReplaceChart ],
+									command: function(e)
+									{
+										e.item.commandExec();
+									},
+									commandExec: function()
+									{
+										po.veQuickExecuteMenuItem(this);
+										
+										var tab = po.getCurrentEditTab();
+										var apiVersion = po.resolveApiVersionInTabCode(tab);
+										var dashboardEditor = po.visualDashboardEditorByTab(tab);
+										
+										if(po.checkUnsupportedFnIfApiVersionV1(apiVersion))
+										{
+											if(dashboardEditor)
+											{
+												if(!dashboardEditor.checkBindChart())
+													return;
+												
+												po.showSelectPluginDialog(function(plugin)
+												{
+													var cw = po.wrapPluginToChartWidget(plugin);
+													po.bindOrReplaceVeChart([ cw ]);
+												});
+											}
+										}
+									}
 								}
-							}
+							]
 						},
 						{ separator: true },
 						{
 							label: po.i18n.outerInsertAfter,
+							class: "ve-insert-submenu-offset",
 							items: po.buildTplVisualInsertMenuItems("after", [po.i18n.insert, po.i18n.outerInsertAfter])
 						},
 						{
 							label: po.i18n.outerInsertBefore,
+							class: "ve-insert-submenu-offset",
 							items: po.buildTplVisualInsertMenuItems("before", [po.i18n.insert, po.i18n.outerInsertBefore])
 						},
 						{
 							label: po.i18n.innerInsertAfter,
+							class: "ve-insert-submenu-offset",
 							items: po.buildTplVisualInsertMenuItems("append", [po.i18n.insert, po.i18n.innerInsertAfter])
 						},
 						{
 							label: po.i18n.innerInsertBefore,
+							class: "ve-insert-submenu-offset",
 							items: po.buildTplVisualInsertMenuItems("prepend", [po.i18n.insert, po.i18n.innerInsertBefore])
 						}
 					]
 				},
 				{
 					label: po.i18n.edit,
-					class: "ve-edit-menuitem",
 					items:
 					[
 						{
@@ -2088,6 +2615,7 @@ $.inflateDashboardDesignEditor = function(po)
 						},
 						{
 							label: po.i18n.chart,
+							class: "ve-edit-submenu-offset",
 							items:
 							[
 								{
@@ -2117,7 +2645,7 @@ $.inflateDashboardDesignEditor = function(po)
 									}
 								},
 								{
-									label: po.i18n.chartAttribute,
+									label: po.i18n.chartConfig,
 									parentLabelPath: [po.i18n.edit, po.i18n.chart],
 									command: function(e)
 									{
@@ -2130,14 +2658,15 @@ $.inflateDashboardDesignEditor = function(po)
 										var dashboardEditor = po.visualDashboardEditorByTab();
 										if(dashboardEditor)
 										{
-											if(!dashboardEditor.checkSetElementChartAttrValues())
+											if(!dashboardEditor.checkSetElementChartConfigValues())
 												return;
 											
-											po.showVeChartAttrValuesPanel(function(model)
+											po.showVeChartConfigValuesPanel(function(model)
 											{
-												return po.setVeElementChartAttrValues(model);
+												return po.setVeElementChartConfigValues(model);
 											},
-											dashboardEditor.getElementChartAttrValues());
+											dashboardEditor.getElementChartConfigValues(),
+											po.i18n.chartConfig + " " + dashboardEditor.getChartConfigValuesAttrName());
 										}
 									}
 								},
@@ -2311,22 +2840,28 @@ $.inflateDashboardDesignEditor = function(po)
 					]
 				}
 			],
-			quickExecuteMenuItem: null,
-			quickExecuteTooltip: " ", //XXX 默认空字符串的话后续没有效果！？
-			onQuickExecute: function(e, tab)
+			veQuickExecuteMenuItem: null,
+			veQuickExecuteTooltip: " ", //XXX 默认空字符串的话后续没有效果！？
+			onVeQuickExecute: function(e, tab)
 			{
 				e.stopPropagation();
 				po.element().click();
-				
 				po.veQuickExecute(tab);
+			},
+			codeQuickExecuteMenuItem: null,
+			codeQuickExecuteTooltip: " ", //XXX 默认空字符串的话后续没有效果！？
+			onCodeQuickExecute: function(e, tab)
+			{
+				e.stopPropagation();
+				po.element().click();
+				po.codeQuickExecute(tab);
 			}
 		});
 		
 		po.vueMethod(
 		{
-			onResourceContentTabChange: function()
+			onResourceContentTabChange: function(e)
 			{
-				
 			},
 			
 			onResourceContentTabMenuToggle: function(e, tab)
@@ -2357,35 +2892,9 @@ $.inflateDashboardDesignEditor = function(po)
 				po.handleChangeEditMode(tab);
 			},
 			
-			onSearchInCodeEditor: function(e, tab)
-			{
-				po.searchInCodeEditor(tab);
-			},
-			
 			onVisualEditorIframeLoad: function(e, tab)
 			{
 				po.initVisualDashboardEditor(tab);
-			},
-			
-			onInsertCodeEditorChart: function(e, tab, create)
-			{
-				create = (create == null ? false: create);
-				
-				if(create)
-				{
-					po.openAddChartPanel(function(chartWidget)
-					{
-						chartWidget = [ chartWidget ];
-						po.insertCodeEditorChart(tab, chartWidget);
-					});
-				}
-				else
-				{
-					po.showSelectChartDialog(function(chartWidgets)
-					{
-						po.insertCodeEditorChart(tab, chartWidgets);
-					});
-				}
 			},
 			
 			formatVeElePathDisplayName: function(elePath)
@@ -2413,6 +2922,8 @@ $.inflateDashboardDesignEditor = function(po)
 			
 			if(newActiveTab)
 			{
+				po.updateMenuVisibleForTab(newActiveTab);
+				
 				po.vueNextTick(function()
 				{
 					po.loadResContentIfNon(newActiveTab);
@@ -2677,14 +3188,14 @@ $.inflateDashboardDesignEditorForms = function(po)
 		return re;
 	};
 	
-	//重写chart_attr_values_form.ftl中的函数
-	po.getChartPluginAttributeInputOptionsForMap = function(asTree)
+	//重写chart_config_values_form.ftl中的函数
+	po.getChartConfigInputOptionsForMap = function(asTree)
 	{
 		var re = [];
 		
 		var dashboardEditor = po.visualDashboardEditorByTab();
 		if(dashboardEditor)
-			re = dashboardEditor.getChartPluginAttributeInputOptionsForMap(asTree);
+			re = dashboardEditor.getChartConfigInputOptionsForMap(asTree);
 		
 		return re;
 	};
@@ -2700,6 +3211,19 @@ $.inflateDashboardDesignEditorForms = function(po)
 		};
 		
 		return editorOptions;
+	};
+	
+	po.showCustomInsertChartEleAttrPanel = function(model)
+	{
+		model = (model == null ? { value: po.customInsertChartEleAttrVal() } : model);
+		
+		var pm = po.vuePageModel();
+		pm.veshs.customInsertChartEleAttr = function(model)
+		{
+			po.customInsertChartEleAttrVal(model.value);
+		};
+		pm.vepms.customInsertChartEleAttr = $.extend(true, {}, model);
+		pm.vepss.customInsertChartEleAttrShown = true;
 	};
 	
 	po.showVeGridLayoutPanel = function(showFillParent)
@@ -2783,13 +3307,13 @@ $.inflateDashboardDesignEditorForms = function(po)
 		pm.vepss.dashboardSizeShown = true;
 	};
 
-	po.showVeChartAttrValuesPanel = function(submitHandler, model, title)
+	po.showVeChartConfigValuesPanel = function(submitHandler, model, title)
 	{
 		var pm = po.vuePageModel();
-		pm.veshs.chartAttrValues = submitHandler;
+		pm.veshs.chartConfigValues = submitHandler;
 		if(title)
-			pm.vepts.chartAttrValues = title; 
-		pm.vepss.chartAttrValuesShown = true;
+			pm.vepts.chartConfigValues = title; 
+		pm.vepss.chartConfigValuesShown = true;
 	};
 	
 	po.showVeChartOptionsPanel = function(submitHandler, model, title, global)
@@ -2842,10 +3366,16 @@ $.inflateDashboardDesignEditorForms = function(po)
 	po.setupResourceEditorForms = function()
 	{
 		po.vueRef(po.concatPid("optionsOriginPanelEle"), null);
+		po.vueRef(po.concatPid("codeReplacePanelEle"), null);
 		
 		po.vuePageModel(
 		{
-			//可视编辑操作对话框是否显示
+			codeSearch: { model: { value: "" } },
+			codeReplace:
+			{
+				model: {}
+			},
+			//可视编辑模式操作对话框是否显示
 			vepss:
 			{
 				gridLayoutShown: false,
@@ -2858,13 +3388,14 @@ $.inflateDashboardDesignEditorForms = function(po)
 				videoShown: false,
 				dashboardSizeShown: false,
 				chartOptionsShown: false,
-				chartAttrValuesShown: false,
+				chartConfigValuesShown: false,
 				chartThemeShown: false,
 				styleShown: false,
 				eleIdShown: false,
-				iframeShown: false
+				iframeShown: false,
+				customInsertChartEleAttrShown: false
 			},
-			//可视编辑操作对话框标题
+			//可视编辑模式操作对话框标题
 			vepts:
 			{
 				gridLayout: po.i18n.gridLayout,
@@ -2877,13 +3408,14 @@ $.inflateDashboardDesignEditorForms = function(po)
 				video: po.i18n.video,
 				dashboardSize: po.i18n.dashboardSize,
 				chartOptions: po.i18n.chartOptions,
-				chartAttrValues: po.i18n.chartAttribute + " dg-chart-attr-values",
+				chartConfigValues: po.i18n.chartConfig,
 				chartTheme: po.i18n.chartTheme,
 				style: po.i18n.style,
 				eleId: po.i18n.elementId,
-				iframe: po.i18n.iframe
+				iframe: po.i18n.iframe,
+				customInsertChartEleAttr: po.i18n.customInsertChartEleAttr
 			},
-			//可视编辑操作对话框表单模型
+			//可视编辑模式操作对话框表单模型
 			vepms:
 			{
 				gridLayout: po.veDftGridLayoutModel(),
@@ -2896,13 +3428,14 @@ $.inflateDashboardDesignEditorForms = function(po)
 				video: po.veDftVideoModel(),
 				dashboardSize: { scale: "auto" },
 				chartOptions: { value: "" },
-				chartAttrValues: {},
+				chartConfigValues: {},
 				chartTheme: po.veDftChartThemeModel(),
 				style: {},
 				eleId: {},
-				iframe: po.veDftIframeModel()
+				iframe: po.veDftIframeModel(),
+				customInsertChartEleAttr: {}
 			},
-			//可视编辑操作对话框提交处理函数
+			//可视编辑模式操作对话框提交处理函数
 			veshs:
 			{
 				responsiveFlex: function(model){},
@@ -2912,11 +3445,12 @@ $.inflateDashboardDesignEditorForms = function(po)
 				hyperlink: function(model){},
 				video: function(model){},
 				chartOptions: function(model){},
-				chartAttrValues: function(model){},
+				chartConfigValues: function(model){},
 				chartTheme: function(model){},
 				style: function(model){},
 				eleId: function(model){},
-				iframe: function(model){}
+				iframe: function(model){},
+				customInsertChartEleAttr: function(model){}
 			},
 			veGridLayoutPanelShowFillParent: false,
 			veFlexLayoutPanelShowFillParent: false,
@@ -2968,6 +3502,19 @@ $.inflateDashboardDesignEditorForms = function(po)
 			formatHxtitleOptionLabel: function(option)
 			{
 				return "<"+option.value+">"+option.name+"</"+option.value+">";
+			},
+			
+			onCustomInsertChartEleAttrPanelShow: function()
+			{
+				var form = po.elementOfPidPrefix("customInsertChartEleAttrForm", document.body);
+				
+				po.setupSimpleForm(form, pm.vepms.customInsertChartEleAttr, function()
+				{
+					if(pm.veshs.customInsertChartEleAttr(pm.vepms.customInsertChartEleAttr) !== false)
+					{
+						pm.vepss.customInsertChartEleAttrShown = false;
+					}
+				});
 			},
 			
 			onVeGridLayoutPanelShow: function()
@@ -3136,25 +3683,23 @@ $.inflateDashboardDesignEditorForms = function(po)
 				}
 			},
 			
-			onVeChartAttrValuesPanelShow: function()
+			onVeChartConfigValuesPanelShow: function()
 			{
 				var dashboardEditor = po.visualDashboardEditorByTab();
-				var cpas = [];
-				var attrValues = [];
 				
-				if(dashboardEditor)
-				{
-					cpas = (dashboardEditor.getElementChartPluginAttrs() || []);
-					attrValues = (dashboardEditor.getElementChartAttrValues() || {});
-				}
+				if(!dashboardEditor)
+					return;
 				
-				po.setupChartAttrValuesForm(cpas, attrValues,
+				var configForm = (dashboardEditor.getElementChartPluginConfigForm() || {});
+				var configValues = (dashboardEditor.getElementChartConfigValues() || {});
+				
+				po.setupChartConfigValuesForm(configForm, configValues,
 				{
 					submitHandler: function(avs)
 					{
-						if(pm.veshs.chartAttrValues(avs) !== false)
+						if(pm.veshs.chartConfigValues(avs) !== false)
 						{
-							pm.vepss.chartAttrValuesShown = false;
+							pm.vepss.chartConfigValuesShown = false;
 						}
 					},
 					buttons:
@@ -3163,15 +3708,15 @@ $.inflateDashboardDesignEditorForms = function(po)
 							name: po.i18n.resetToOrigin,
 							clickHandler: function()
 							{
-								var attrValuesReset = {};
-								
-								if(dashboardEditor)
-									attrValuesReset = (dashboardEditor.getElementChartAttrValuesForReset() || {});
-								
-								po.setChartAttrValuesFormAttrValues(attrValuesReset);
+								var configValuesReset = (dashboardEditor.getElementChartConfigValuesForReset() || {});
+								po.avo.setFormConfigValues(configValuesReset);
 							}
 						}
-					]
+					],
+					showClearBtn: false,
+					//此时允许自由编辑图表配置，因此应不是严格数据模式
+					strictSubmitData: false,
+					retainDataNullProp: dashboardEditor.retainNullChartConfigValue()
 				});
 			},
 			
@@ -3316,6 +3861,83 @@ $.inflateDashboardDesignEditorForms = function(po)
 						pm.vepss.iframeShown = false;
 					}
 				});
+			},
+			
+			onSearchInCodeEditor: function(e, tab)
+			{
+				var text = pm.codeSearch.model.value;
+				po.searchInCodeEditor(tab, text);
+			},
+			
+			onToggleCodeReplacePanel: function(e)
+			{
+				po.vueUnref(po.concatPid("codeReplacePanelEle")).toggle(e);
+			},
+			
+			onCodeReplacePanelShow: function(e)
+			{
+				var tab = po.getCurrentEditTab();
+				var form = po.elementOfPidPrefix("codeReplaceForm", document.body);
+				var model = pm.codeReplace.model;
+				var selectInfo = po.getSelectInfoInCodeEditor(tab);
+				
+				if(selectInfo.text)
+					model.source = selectInfo.text;
+				else if(!$.isEmpty(pm.codeSearch.model.value))
+					model.source = pm.codeSearch.model.value;
+				else
+					model.source = "";
+				
+				model.replaceTo = "";
+				
+				po.setupSimpleForm(form, model,
+				{
+					invalidHandler: function()
+					{
+						model.submitType = "";
+					},
+					submitHandler:function()
+					{
+						if(model.submitType == "next")
+						{
+							po.searchInCodeEditor(tab, model.source);
+						}
+						else if(model.submitType == "replaceAll")
+						{
+							var options = { replaceAll: true, replaceInfo: { count: 0 } };
+							var doExecute = po.replaceInCodeEditor(tab, model.source, model.replaceTo, options);
+							
+							if(doExecute !== false)
+							{
+								if(options.replaceInfo.count == 0)
+									$.tipInfo(po.i18n.noMatchesFound);
+								else
+									$.tipInfo($.validator.format(po.i18n.replacedWithCount, options.replaceInfo.count));
+							}
+						}
+						else
+							po.replaceInCodeEditor(tab, model.source, model.replaceTo);
+						
+						model.submitType = "";
+					}
+				});
+			},
+			
+			onCodeReplaceSearchNext: function(e)
+			{
+				var form = po.elementOfPidPrefix("codeReplaceForm", document.body);
+				var model = pm.codeReplace.model;
+				model.submitType = "next";
+				form.submit();
+			},
+			
+			onReplaceAllInCodeEditor: function(e)
+			{
+				var form = po.elementOfPidPrefix("codeReplaceForm", document.body);
+				var model = pm.codeReplace.model;
+				model.submitType = "replaceAll";
+				form.submit();
+				
 			}
 		});
 		
@@ -3919,16 +4541,6 @@ $.inflateDashboardDesignResource = function(po)
 		po.beforeClose("closeSelectGlobalResDialog", function()
 		{
 			po.closeSelectGlobalResDialog();
-		});
-
-		po.element().click(function(e)
-		{
-			var targetEle = $(e.target);
-			
-			if(targetEle.hasClass("for-open-global-res-panel") || targetEle.closest(".for-open-global-res-panel").length > 0)
-				;//保持选择图表对话框
-			else
-				po.hideSelectGlobalResDialog();
 		});
 	};
 };

@@ -21,10 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -122,6 +120,10 @@ import org.datagear.util.html.HtmlFilter;
 import org.datagear.util.sqlvalidator.InvalidPatternSqlValidator;
 import org.datagear.util.sqlvalidator.SqlValidator;
 import org.datagear.util.version.ChangelogResolver;
+import org.datagear.web.analysis.ChartPluginManagerJsFactory;
+import org.datagear.web.analysis.SessionDashboardInfoSupport;
+import org.datagear.web.analysis.WebDashboardQueryConverter;
+import org.datagear.web.analysis.WebHtmlTplDashboardImportBuilderFactory;
 import org.datagear.web.controller.LoginController;
 import org.datagear.web.controller.RegisterController;
 import org.datagear.web.format.DateFormatter;
@@ -146,11 +148,7 @@ import org.datagear.web.util.DirectoryHtmlChartPluginManagerInitializer;
 import org.datagear.web.util.DtbsSourceTableCache;
 import org.datagear.web.util.ExpiredSessionAttrManager;
 import org.datagear.web.util.MessageChannel;
-import org.datagear.web.util.SessionDashboardInfoSupport;
-import org.datagear.web.util.SessionIdParamResolver;
 import org.datagear.web.util.SqlDriverChecker;
-import org.datagear.web.util.WebDashboardQueryConverter;
-import org.datagear.web.util.WebHtmlTplDashboardImportBuilderFactory;
 import org.datagear.web.util.WelcomeContentLoader;
 import org.datagear.web.util.XmlDriverEntityManagerInitializer;
 import org.datagear.web.util.accesslatch.AccessLatch;
@@ -202,8 +200,6 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 {
 	public static final String NAME_DASHBOARD_GLOBAL_RES_ROOT_DIRECTORY = "dashboardGlobalResRootDirectory";
 	
-	public static final String INVALID_SQL_KEYWORDS_PREFIX_REGEX="regex:";
-
 	private Environment environment;
 
 	private ApplicationPropertiesConfigSupport applicationPropertiesConfig;
@@ -410,13 +406,6 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	}
 
 	@Bean
-	public SessionIdParamResolver sessionIdParamResolver()
-	{
-		SessionIdParamResolver bean = new SessionIdParamResolver();
-		return bean;
-	}
-
-	@Bean
 	public DetectNewVersionScriptResolver detectNewVersionScriptResolver()
 	{
 		DetectNewVersionScriptResolver bean = new DetectNewVersionScriptResolver();
@@ -604,7 +593,6 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	public DtbsSourceTableCache dtbsSourceTableCache()
 	{
 		DtbsSourceTableCache bean = new DtbsSourceTableCache();
-		bean.setTableCacheMaxLength(getApplicationProperties().getDtbsSourceTableCacheMaxLength());
 
 		return bean;
 	}
@@ -670,7 +658,8 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	@Bean
 	public WebHtmlTplDashboardImportBuilderFactory webHtmlTplDashboardImportBuilderFactory()
 	{
-		WebHtmlTplDashboardImportBuilderFactory bean = new WebHtmlTplDashboardImportBuilderFactory();
+		WebHtmlTplDashboardImportBuilderFactory bean = new WebHtmlTplDashboardImportBuilderFactory(
+				this.chartPluginManagerJsFactory());
 		return bean;
 	}
 	
@@ -796,7 +785,7 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	public DirectoryHtmlChartPluginManager directoryHtmlChartPluginManager()
 	{
 		DirectoryHtmlChartPluginManager bean = new DirectoryHtmlChartPluginManager(this.chartPluginRootDirectory(),
-				this.htmlChartPluginLoader(), this.lastModifiedService());
+				this.htmlChartPluginLoader());
 		bean.setTmpDirectory(this.tempDirectory());
 
 		return bean;
@@ -814,6 +803,15 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 		return bean;
 	}
 	
+	@Bean
+	public ChartPluginManagerJsFactory chartPluginManagerJsFactory()
+	{
+		ChartPluginManagerJsFactory bean = new ChartPluginManagerJsFactory();
+		bean.setChartPluginManager(this.directoryHtmlChartPluginManager());
+
+		return bean;
+	}
+
 	protected String[] getBuiltInHtmlChartPluginClasspathPatterns()
 	{
 		return new String[] { DirectoryHtmlChartPluginManagerInitializer.DEFAULT_CLASSPATH_PATTERN };
@@ -1091,6 +1089,14 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 		return bean;
 	}
 
+	protected InvalidPatternSqlValidator buildInvalidPatternSqlValidator(Map<String, String> strMap)
+	{
+		InvalidPatternSqlValidator bean = new InvalidPatternSqlValidator();
+		bean.setStringPatterns(strMap);
+
+		return bean;
+	}
+
 	@Override
 	public void onApplicationEvent(ContextRefreshedEvent event)
 	{
@@ -1110,45 +1116,6 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	public ApplicationProperties getApplicationProperties()
 	{
 		return this.applicationPropertiesConfig.applicationProperties();
-	}
-
-	protected InvalidPatternSqlValidator buildInvalidPatternSqlValidator(Map<String, String> keywordsMap)
-	{
-		Map<String, Pattern> patterns = new HashMap<String, Pattern>();
-
-		for (Map.Entry<String, String> entry : keywordsMap.entrySet())
-		{
-			String keywordsStr = entry.getValue();
-
-			if (StringUtil.isEmpty(keywordsStr))
-				continue;
-			
-			//正则
-			if(keywordsStr.startsWith(INVALID_SQL_KEYWORDS_PREFIX_REGEX))
-			{
-				keywordsStr = keywordsStr.substring(INVALID_SQL_KEYWORDS_PREFIX_REGEX.length());
-
-				if (!StringUtil.isEmpty(keywordsStr))
-				{
-					Pattern pattern = InvalidPatternSqlValidator.compileToSqlValidatorPattern(keywordsStr);
-					patterns.put(entry.getKey(), pattern);
-				}
-			}
-			//字面
-			else
-			{
-				String[] keywords = StringUtil.split(keywordsStr, ",", true);
-				if (keywords.length > 0)
-				{
-					Pattern pattern = InvalidPatternSqlValidator.toKeywordPattern(keywords);
-					patterns.put(entry.getKey(), pattern);
-				}
-			}
-		}
-
-		InvalidPatternSqlValidator bean = new InvalidPatternSqlValidator(patterns);
-
-		return bean;
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -1217,6 +1184,14 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 		initDataSetEntityServiceCache(context);
 		initHtmlTplDashboardWidgetHtmlRendererCaches(context);
 		initDtbsSourceTableCache(context);
+		initChartPluginManagerJsFactoryCache(context);
+	}
+
+	protected void initChartPluginManagerJsFactoryCache(ApplicationContext context)
+	{
+		CacheManager cacheManager = getCacheManager(context);
+		this.chartPluginManagerJsFactory()
+				.setCache(getCache(cacheManager, ChartPluginManagerJsFactory.class.getSimpleName()));
 	}
 
 	protected void initDtbsSourceTableCache(ApplicationContext context)
@@ -1244,7 +1219,6 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 			{
 				AbstractMybatisDataPermissionEntityService<?, ?> dpes = (AbstractMybatisDataPermissionEntityService<?, ?>) es;
 				dpes.setPermissionCache(getCache(cacheManager, cacheName + "Permission"));
-				dpes.setPermissionCacheMaxLength(getApplicationProperties().getPermissionCacheMaxLength());
 			}
 		}
 	}

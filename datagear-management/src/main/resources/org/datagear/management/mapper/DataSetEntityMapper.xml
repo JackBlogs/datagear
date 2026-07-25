@@ -20,15 +20,15 @@
 	<insert id="insertFieldPO">
 		INSERT INTO DATAGEAR_DATA_SET_PROP
 			(
-			PROP_DS_ID, PROP_NAME, PROP_TYPE, PROP_LABEL,
-			PROP_DFT_VALUE, PROP_EVALUATED, PROP_EXPRESSION,
-			PROP_ORDER
+			PROP_DS_ID, PROP_NAME, PROP_TYPE, PROP_FULLNAME, PROP_ARRAY,
+			PROP_LABEL, PROP_DFT_VALUE, PROP_EVALUATED,
+			PROP_EXPRESSION, PROP_ORDER
 			)
 		VALUES
 			(
-			#{entity.dataSetId}, #{entity.child.name}, #{entity.child.type}, #{entity.child.label, jdbcType=VARCHAR},
-			#{entity.child.defaultValue, jdbcType=VARCHAR}, #{entity.child.evaluated}, #{entity.child.expression, jdbcType=VARCHAR}, 
-			#{entity.order}
+			#{entity.dataSetId}, #{entity.child.name}, #{entity.child.type}, #{entity.child.fullname, jdbcType=VARCHAR}, #{entity.child.array},
+			#{entity.child.label, jdbcType=VARCHAR}, #{entity.child.defaultValue, jdbcType=VARCHAR}, #{entity.child.evaluated},
+			#{entity.child.expression, jdbcType=VARCHAR}, #{entity.order}
 			)
 	</insert>
 	
@@ -36,12 +36,14 @@
 		INSERT INTO DATAGEAR_DATA_SET_PAR
 			(
 			PAR_DS_ID, PAR_NAME, PAR_TYPE, PAR_REQUIRED, PAR_DESC,
-			PAR_INPUT_TYPE, PAR_INPUT_PAYLOAD, PAR_ORDER
+			PAR_INPUT_TYPE, PAR_INPUT_PAYLOAD, PAR_ORDER,
+			PAR_LABEL
 			)
 		VALUES
 			(
 			#{entity.dataSetId}, #{entity.child.name}, #{entity.child.type}, #{entity.child.required}, #{entity.child.desc, jdbcType=VARCHAR},
-			 #{entity.child.inputType, jdbcType=VARCHAR}, #{entity.child.inputPayload, jdbcType=VARCHAR}, #{entity.order}
+			#{entity.child.inputType, jdbcType=VARCHAR}, #{entity.child.inputPayload, jdbcType=VARCHAR}, #{entity.order},
+			#{entity.child.label, jdbcType=VARCHAR}
 			)
 	</insert>
 	
@@ -98,6 +100,8 @@
 			PROP_DS_ID AS ${_iq_}dataSetId${_iq_},
 			PROP_NAME AS ${_iq_}child.name${_iq_},
 			PROP_TYPE AS ${_iq_}child.type${_iq_},
+			PROP_FULLNAME AS ${_iq_}child.fullname${_iq_},
+			PROP_ARRAY AS ${_iq_}child.array${_iq_},
 			PROP_LABEL AS ${_iq_}child.label${_iq_},
 			PROP_DFT_VALUE AS ${_iq_}child.defaultValue${_iq_},
 			PROP_EVALUATED AS ${_iq_}child.evaluated${_iq_},
@@ -116,7 +120,8 @@
 			PAR_DS_ID AS ${_iq_}dataSetId${_iq_},
 			PAR_NAME AS ${_iq_}child.name${_iq_},
 			PAR_TYPE AS ${_iq_}child.type${_iq_},
-			PAR_REQUIRED AS ${_iq_}child.required${_iq_},
+			PAR_REQUIRED AS ${_iq_}child.required${_iq_}, 
+			PAR_LABEL AS ${_iq_}child.label${_iq_},
 			PAR_DESC AS ${_iq_}child.desc${_iq_},
 			PAR_INPUT_TYPE AS ${_iq_}child.inputType${_iq_},
 			PAR_INPUT_PAYLOAD AS ${_iq_}child.inputPayload${_iq_}, 

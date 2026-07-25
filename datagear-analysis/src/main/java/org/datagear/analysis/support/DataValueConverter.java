@@ -21,13 +21,13 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.datagear.analysis.NameTypeAware;
 import org.datagear.analysis.NameTypeInputAware;
+import org.datagear.util.StringUtil;
 
 /**
  * 数据值转换器。
@@ -35,56 +35,13 @@ import org.datagear.analysis.NameTypeInputAware;
  * @author datagear@163.com
  *
  */
-public abstract class DataValueConverter
+public abstract class DataValueConverter<T extends NameTypeAware>
 {
 	/** 正则表达式：小数 */
 	public static final Pattern PATTERN_DECIMAL_NUMBER = Pattern.compile("^[^\\.]+\\.[^\\.]+$");
 
 	/** 正则表达式：整数 */
 	public static final Pattern PATTERN_INTEGER = Pattern.compile("^-?[1-9]\\d*$");
-
-	/**
-	 * 转换数据值映射表，返回一个新映射表。
-	 * <p>
-	 * 如果{@code nameValues}中存在没有在{@code nameTypeAwares}中定义的项，那么它将原样写入返回映射表中。
-	 * </p>
-	 * <p>
-	 * 转换规则另参考{@linkplain #convert(Object, NameTypeAware)}。
-	 * </p>
-	 * 
-	 * @param nameValues
-	 *            原始名/值映射表，允许为{@code null}
-	 * @param nameTypeAwares
-	 *            名/类型集合，允许为{@code null}
-	 * @return
-	 * @throws DataValueConvertionException
-	 */
-	public Map<String, Object> convert(Map<String, ?> nameValues, Collection<? extends NameTypeAware> nameTypeAwares)
-			throws DataValueConvertionException
-	{
-		if (nameValues == null)
-			return null;
-
-		Map<String, Object> re = new HashMap<>(nameValues);
-
-		if (nameTypeAwares != null)
-		{
-			for (NameTypeAware dnt : nameTypeAwares)
-			{
-				String name = dnt.getName();
-
-				if (!nameValues.containsKey(name))
-					continue;
-
-				Object value = nameValues.get(name);
-				value = convert(value, dnt);
-
-				re.put(name, value);
-			}
-		}
-
-		return re;
-	}
 
 	/**
 	 * 转换数据值。
@@ -95,89 +52,87 @@ public abstract class DataValueConverter
 	 * 
 	 * @param <T>
 	 * @param value
-	 *            待转换的数据值、数据值数组、数据值集合。
-	 * @param nameTypeAware
-	 * @return
-	 * @throws DataValueConvertionException
-	 */
-	public <T extends NameTypeAware> Object convert(Object value, T nameTypeAware) throws DataValueConvertionException
-	{
-		return convert(value, nameTypeAware.getType());
-	}
-
-	/**
-	 * 转换数据值。
-	 * 
-	 * @param value
-	 *            待转换的数据值、数据值数组、数据值集合。
-	 * @param type
-	 *            目标类型
+	 *            待转换的数据值、数据值数组、数据值集合，允许{@code null}
+	 * @param target
+	 *            允许{@code null}
 	 * @return 转换结果对象，当{@code value}是数组时，返回{@code Object[]}；当{@code value}是{@linkplain Collection}时，返回{@linkplain List}。
 	 * @throws DataValueConvertionException
 	 */
-	public Object convert(Object value, String type) throws DataValueConvertionException
+	public Object convert(Object value, T target) throws DataValueConvertionException
 	{
-		if (value == null)
-		{
-			return convertValue(value, type);
-		}
-		else if (value instanceof Object[])
+		if (value == null || target == null)
+			return value;
+
+		if (value instanceof Object[])
 		{
 			Object[] src = (Object[]) value;
-			return convertArray(src, type);
+			return convertArray(src, target);
 		}
 		else if (value instanceof Collection<?>)
 		{
 			@SuppressWarnings("unchecked")
 			Collection<Object> src = (Collection<Object>) value;
-			return convertCollection(src, type);
+			return convertCollection(src, target);
 		}
 		else
-			return convertValue(value, type);
+			return convertValue(value, target);
 	}
 
-	protected Object convertArray(Object[] values, String type) throws DataValueConvertionException
+	protected Object convertArray(Object[] values, T target) throws DataValueConvertionException
 	{
 		if (values == null)
-			throw new IllegalArgumentException("[values] must not be null");
+			return null;
 
-		Object[] target = new Object[values.length];
+		Object[] to = new Object[values.length];
 
 		for (int i = 0; i < values.length; i++)
-		{
-			target[i] = convertValue(values[i], type);
-		}
+			to[i] = convertValue(values[i], target);
 
-		return target;
+		return to;
 	}
 
-	protected Object convertCollection(Collection<?> values, String type) throws DataValueConvertionException
+	protected Object convertCollection(Collection<?> values, T target) throws DataValueConvertionException
 	{
 		if (values == null)
-			throw new IllegalArgumentException("[values] must not be null");
+			return null;
 
-		List<Object> target = new ArrayList<>(values.size());
+		List<Object> to = new ArrayList<>(values.size());
 
 		for (Object ele : values)
-		{
-			target.add(convertValue(ele, type));
-		}
+			to.add(convertValue(ele, target));
 
-		return target;
+		return to;
 	}
 
 	/**
 	 * 转换数据值。
 	 * 
 	 * @param value
-	 *            要转换的数据值，不会是数组，可能为{@code null}
-	 * @param type
+	 *            要转换的数据值，不会是数组/集合，不会为{@code null}
+	 * @param target
+	 *            不会为{@code null}
 	 * @return
 	 * @throws DataValueConvertionException
 	 */
-	protected abstract Object convertValue(Object value, String type) throws DataValueConvertionException;
+	protected abstract Object convertValue(Object value, T target) throws DataValueConvertionException;
 
-	protected Number convertToNumber(Object value, String numberType)
+	protected Number convertToInteger(Object value, T target)
+	{
+		Number re = convertToNumber(value, target);
+
+		if (re == null)
+			return null;
+
+		if (re instanceof Integer)
+			return re;
+
+		if (re instanceof Long)
+			return re;
+
+		return narrowIfIntegerRange(re.longValue());
+	}
+
+	protected Number convertToNumber(Object value, T target)
 	{
 		if (value == null)
 			return null;
@@ -199,23 +154,32 @@ public abstract class DataValueConverter
 				else
 				{
 					Long re = Long.valueOf(str);
-
-					if (re <= Integer.MAX_VALUE && re >= Integer.MIN_VALUE)
-						return re.intValue();
-					else
-						return re.longValue();
+					return narrowIfIntegerRange(re);
 				}
 			}
 			catch (NumberFormatException e)
 			{
-				throw new DataValueConvertionException(value, numberType, e);
+				return (Number) convertExt(value, target);
 			}
 		}
 
-		return (Number) convertExt(value, numberType);
+		return (Number) convertExt(value, target);
 	}
 
-	protected String convertToString(Object value, String stringType)
+	protected Number narrowIfIntegerRange(Long value)
+	{
+		if (value == null)
+			return null;
+
+		long lv = value.longValue();
+
+		if (lv <= Integer.MAX_VALUE && lv >= Integer.MIN_VALUE)
+			return value.intValue();
+		else
+			return value;
+	}
+
+	protected String convertToString(Object value, T target)
 	{
 		if (value == null)
 			return null;
@@ -226,7 +190,7 @@ public abstract class DataValueConverter
 		return value.toString();
 	}
 
-	protected Boolean convertToBoolean(Object value, String booleanType)
+	protected Boolean convertToBoolean(Object value, T target)
 	{
 		if (value == null)
 			return null;
@@ -244,13 +208,111 @@ public abstract class DataValueConverter
 				return str.equalsIgnoreCase("true") || str.equals("1");
 		}
 
-		return (Boolean) convertExt(value, booleanType);
+		return (Boolean) convertExt(value, target);
 	}
 
-	protected Object convertExt(Object value, String type) throws DataValueConvertionException
+	/**
+	 * 将符合JSON规范的字符串转换为对象。
+	 * 
+	 * @param value
+	 * @param target
+	 * @return
+	 */
+	protected Object convertJsonToObj(String value, T target)
 	{
-		throw new DataValueConvertionException(value, type,
-				"Convert [" + value + "] to type [" + type + "] is not supported");
+		if (StringUtil.isEmpty(value))
+			return null;
+		
+		try
+		{
+			Object re = JsonSupport.parseNonStardand(value, Object.class);
+			return re;
+		}
+		catch(Exception e)
+		{
+			return convertExt(value, target);
+		}
+	}
+
+	/**
+	 * 将符合JSON对象/数组规范的字符串转换为对象。
+	 * 
+	 * @param value
+	 *            仅允许<code>"{ ... }"</code>、{@code "[ ... ]"}、
+	 *            {@code null}、{@code ""}的JSON格式
+	 * @param target
+	 * @return
+	 */
+	protected Object convertJsonToObjStrictly(String value, T target)
+	{
+		if (StringUtil.isEmpty(value))
+			return null;
+
+		try
+		{
+			Object re = JsonSupport.parseNonStardand(value, Object.class);
+
+			if (isStrictJsonObject(re))
+				return re;
+
+			return convertExt(value, target);
+		}
+		catch (Exception e)
+		{
+			return convertExt(value, target);
+		}
+	}
+
+	/**
+	 * 是否严格JSON对象（{@code Map<?, ?>}、{@code List<?>}、{@code Object[]}）。
+	 * 
+	 * @param o
+	 * @return
+	 */
+	protected boolean isStrictJsonObject(Object o)
+	{
+		if (o == null)
+			return false;
+
+		if (o instanceof Map<?, ?>)
+			return true;
+
+		if (o instanceof List<?>)
+			return true;
+
+		if (o instanceof Object[])
+			return true;
+
+		return false;
+	}
+
+	/**
+	 * 将对象转为JSON字符串。
+	 * 
+	 * @param obj
+	 * @param target
+	 * @return
+	 */
+	protected Object convertObjToJsonString(Object value, T target)
+	{
+		if (value == null)
+			return null;
+
+		try
+		{
+			String re = JsonSupport.generate(value);
+			return re;
+		}
+		catch (Exception e)
+		{
+			return convertExt(value, target);
+		}
+	}
+
+	protected Object convertExt(Object value, T target) throws DataValueConvertionException
+	{
+		throw new DataValueConvertionException(value, target.getType(), "Convert ["
+				+ StringUtil.truncate(value, 20, "...") + "] to type [" + target.getType() + "] is not supported");
 	}
 
 	/**
@@ -266,7 +328,7 @@ public abstract class DataValueConverter
 	 */
 	protected java.util.Date convertToDateWithInteger(String str, SimpleDateFormat format) throws ParseException
 	{
-		if(str == null || str.isEmpty())
+		if (StringUtil.isEmpty(str))
 			return null;
 		
 		// 这里应优先parse，因为符合format的str也可能匹配数值格式

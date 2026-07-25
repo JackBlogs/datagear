@@ -34,6 +34,8 @@
 	 * 				target : document.body,
 	 *              //当target是页内元素时，是否打开为对话框，默认为：true
 	 *              dialog: true,
+	 *              //当dialog=true时，对话框元素ID
+	 * 				dialogId: "",
 	 *              //当dialog=true时，是否作为模态框
 	 * 				modal: true,
 	 *              //当dialog=true时，是否可关闭
@@ -106,7 +108,7 @@
 				if(options.dialog)
 				{
 					const rootEleId = $.uid("app");
-					const dialogEleId = rootEleId+"dialog";
+					const dialogEleId = (options.dialogId ? options.dialogId : rootEleId+"dialog");
 					const rootEle = $("<div id='"+rootEleId+"' dialog-ele-id='"+dialogEleId+"' />").appendTo(container);
 					
 					rootEle.addClass("vue-app-dialog");
@@ -626,6 +628,7 @@
 	$.TYPEOF_NUMBER = "number";
 	$.TYPEOF_BOOLEAN = "boolean";
 	$.TYPEOF_TYPE_OBJECT = "object";
+	$.DECIMAL_REGEX = /^-?(?:\d+\.\d*|\.\d+)$/;
 	
 	$.isTypeString = function(obj)
 	{
@@ -653,6 +656,25 @@
 		return (!isNaN(val) ? val : dftVal);
 	};
 	
+	$.parseToNumber = function(val)
+	{
+		if(val == null)
+			return null;
+		
+		if($.isTypeNumber(val))
+			return val;
+		
+		if($.isTypeString(val))
+		{
+			if($.DECIMAL_REGEX.test(val))
+				return parseFloat(val);
+			else
+				return parseInt(val);
+		}
+		
+		return parseFloat(val);
+	};
+	
 	$.findNameByValue = function(array, value)
 	{
 		var idx = $.inArrayById(array, value, "value");
@@ -675,25 +697,54 @@
 		return -1;
 	};
 	
-	$.inTreeArrayById = function(treeArray, idValue, idPropName, childrenPropName)
+	$.findTreeArrayById = function(treeArray, idValue, idPropName, childrenPropName)
 	{
 		idPropName = (idPropName == null ? "id" : idPropName);
 		childrenPropName = (childrenPropName == null ? "children" : childrenPropName);
 		
+		if(treeArray == null)
+			return null;
+		
 		var idx = $.inArrayById(treeArray, idValue, idPropName);
 		
 		if(idx > -1)
-			return true;
-			
+			return treeArray[idx];
+		
 		for(var i=0; i<treeArray.length; i++)
 		{
 			var children = (treeArray[i] ?  treeArray[i][childrenPropName] : null);
+			var child = $.findTreeArrayById(children, idValue, idPropName, childrenPropName);
 			
-			if(children && $.inTreeArrayById(children, idValue, idPropName, childrenPropName))
-				return true;
+			if(child != null)
+				return child;
 		}
 		
-		return false;
+		return null;
+	};
+	
+	$.removeTreeArrayById = function(treeArray, idValue, idPropName, childrenPropName)
+	{
+		idPropName = (idPropName == null ? "id" : idPropName);
+		childrenPropName = (childrenPropName == null ? "children" : childrenPropName);
+		
+		if(treeArray == null)
+			return null;
+		
+		var removed = $.removeById(treeArray, idValue, idPropName);
+		
+		if(removed != null)
+			return removed;
+		
+		for(var i=0; i<treeArray.length; i++)
+		{
+			var children = (treeArray[i] ?  treeArray[i][childrenPropName] : null);
+			var removed = $.removeTreeArrayById(children, idValue, idPropName, childrenPropName);
+			
+			if(removed != null)
+				return removed;
+		}
+		
+		return null;
 	};
 	
 	$.removeById = function(array, idValue, idPropName)
@@ -814,47 +865,10 @@
 		return (prefix ? prefix : "uid") + time + seq;
 	};
 	
-	//是否为空
-	$.isEmptyValue = function(value, checkElement, checkProperty)
+	//是否为null、undefined、空字符串、空数组
+	$.isEmpty = function(v)
 	{
-		checkElement = (checkElement == null ? false : checkElement);
-		checkProperty = (checkProperty == null ? false : checkProperty);
-		
-		if(value == null)
-			return true;
-		else if($.isTypeString(value))
-			return (value.length == 0);
-		else if($.isArray(value))
-		{
-			if(!checkElement)
-				return (value.length == 0);
-			else
-			{
-				for(var i=0; i<value.length; i++)
-				{
-					if($.isEmptyValue(value[i], false, false))
-						return true;
-				}
-				
-				return (value.length == 0);
-			}
-		}
-		else if($.isPlainObject(value))
-		{
-			var pcount = 0;
-			
-			for(var p in value)
-			{
-				pcount++;
-				
-				if(checkProperty && $.isEmptyValue(value[p], false, false))
-					return true;
-			}
-			
-			return (pcount == 0);
-		}
-		else
-			return false;
+		return (v == null || v === "" || ($.isArray(v) && v.length === 0));
 	};
 	
 	/**
@@ -919,18 +933,15 @@
 	 * 
 	 * @param str 必选，待截断的字符串
 	 * @param suffix 可选，截断后缀，默认为“...”
-	 * @param length 可选，截断长度，默认为47
+	 * @param length 可选，截断长度，默认为50
 	 */
 	$.truncateIf = function(str, suffix, length)
 	{
-		if(suffix == undefined)
-			suffix = "...";
-		
-		if(length == undefined)
-			length = 47;
+		suffix = (suffix == null ? "..." : suffix);
+		length = (length == null ? 50 : length);
 		
 		if(typeof(str) == "string" && str.length > length)
-			str = str.substr(0, length) + suffix;
+			str = str.substring(0, length) + suffix;
 		
 		return str;
 	};
@@ -1003,6 +1014,19 @@
 		return (isArray ? re : re[0]);
 	};
 	
+	$.propCountOfObj = function(obj)
+	{
+		if(obj == null)
+			return 0;
+		
+		var re = 0;
+		
+		for(var p in obj)
+			re++;
+		
+		return re;
+	};
+	
 	/**
 	 * 转义HTML关键字。
 	 * 
@@ -1039,6 +1063,44 @@
 				case '&':
 				{
 					epn += "&amp;";
+					break;
+				}
+				default:
+				{
+					epn += c;
+				}
+			}
+		}
+		
+		return epn;
+	};
+	
+	/**
+	 * 转义HTML标签符号'<'、'>'。
+	 * 
+	 * @param text 要转义的文本
+	 */
+	$.escapeHtmlTag = function(text)
+	{
+		if(text == null || !$.isTypeString(text))
+			return text;
+		
+		var epn = "";
+		
+		for(var i=0; i<text.length; i++)
+		{
+			var c = text.charAt(i);
+			
+			switch(c)
+			{
+				case '<':
+				{
+					epn += "&lt;";
+					break;
+				}
+				case '>':
+				{
+					epn += "&gt;";
 					break;
 				}
 				default:
@@ -1151,51 +1213,87 @@
 		return re;
 	};
 	
-	//判断两个结构相同的对象是否相等
-	$.equalsForSameType = function(a, b)
+	/**
+	 * 深度判断两个对象是否相等。
+	 * 支持比较基本类型、Date类型，以及由它们组成的对象、数组。
+	 * 
+	 * @param a
+	 * @param b
+	 * @param seen 可选，对象缓存
+	 */
+	$.deepEquals = function(a, b, seen)
 	{
-		if(a == null)
-			return (b == null);
-		else if(b == null)
-			return (a == null);
-		
-		var typea = typeof(a);
-		var typeb = typeof(b);
-		
-		if(typea != typeb)
-		{
+		if(Object.is(a, b))
+	    	return true;
+	    
+	    if(typeof(a) !== typeof(b))
+	    	return false;
+	    
+		if (a === null || b === null || typeof(a) !== 'object')
+	    	return false;
+	    
+	    if((a instanceof Date) && (b instanceof Date))
+	    	return (a.getTime() === b.getTime());
+	    
+	    var aIsArray = Array.isArray(a);
+	    
+	    if(aIsArray !== Array.isArray(b))
 			return false;
-		}
-		else if(typea == $.TYPEOF_TYPE_OBJECT)
-		{
-			if($.isArray(a))
+		
+		if(aIsArray && a.length !== b.length)
+			return false;
+		
+		if(seen == null)
+			seen = new WeakMap();
+		
+		if (seen.has(a))
+	    	return (seen.get(a) === b);
+	    
+	    seen.set(a, b);
+	    
+	    if(aIsArray)
+	    {
+			for(let i=0; i<a.length; i++)
 			{
-				if(a.length != b.length)
+				if(!$.deepEquals(a[i], b[i], seen))
+				{
+					seen.delete(a);
 					return false;
-				
-				for(var i=0; i<a.length; i++)
-				{
-					if(!$.equalsForSameType(a[i], b[i]))
-						return false;
 				}
 			}
-			else
-			{
-				for(var p in a)
-				{
-					if(!$.equalsForSameType(a[p], b[p]))
-						return false;
-				}
-			}
-			
-			return true;
 		}
 		else
 		{
-			return (a == b);
+			let akeys = Object.keys(a);
+			let bkeys = Object.keys(b);
+			
+			if(akeys.length !== bkeys.length)
+			{
+				seen.delete(a);
+				return false;
+			}
+			
+			for(let key of akeys)
+			{
+				if(!Object.prototype.hasOwnProperty.call(b, key))
+				{
+					seen.delete(a);
+					return false;
+				}
+				
+				if(!$.deepEquals(a[key], b[key], seen))
+				{
+					seen.delete(a);
+					return false;
+				}
+			}
 		}
+		
+		seen.delete(a);
+		
+		return true;
 	};
-	
+
 	/**
 	 * 将字符串按照'/'或'\'路径分隔符拆分。
 	 */
@@ -1396,7 +1494,7 @@
 	 */
 	$.propPathValue = function(obj, propPath, value)
 	{
-		var setOpt = (value !== undefined);
+		var setOpt = (arguments.length > 2);
 		
 		if(setOpt && obj == null)
 			return;
@@ -1404,36 +1502,34 @@
 		var propArray = $.splitPropPath(propPath);
 		var parent = obj;
 		
-		for(var i=0; i<propArray.length; i++)
+		for(let i=0; i<propArray.length; i++)
 		{
 			if(parent == null && !setOpt)
 				return null;
 			
-			var pn = propArray[i];
-			var isEle = (pn.length >= 3 && pn.charAt(0) == '[' && pn.charAt(pn.length-1) == ']' );
-			var eleIdx = (isEle ? parseInt(pn.substring(1, pn.length-1)) : null);
-			var pv = parent[(isEle ? eleIdx : pn)];
+			let pn = propArray[i];
 			
 			if(i == (propArray.length - 1))
 			{
 				if(!setOpt)
 				{
-					return pv;
+					return parent[pn.name];
 				}
 				else
 				{
-					parent[(isEle ? eleIdx : pn)] = value;
+					parent[pn.name] = value;
 				}
 			}
 			else
 			{
+				let pv = parent[pn.name];
+				
 				//设置操作，补全中间对象
 				if(setOpt && pv == null)
 				{
-					var pnNext = propArray[i+1];
-					var isPnNextEle = (pnNext.length >= 3 && pnNext.charAt(0) == '[' && pnNext.charAt(pnNext.length-1) == ']' );
-					pv = (isPnNextEle ? [] : {});
-					parent[(isEle ? eleIdx : pn)] = pv;
+					let pnNext = propArray[i+1];
+					pv = (pnNext.forElement ? [] : {});
+					parent[pn.name] = pv;
 				}
 				
 				parent = pv;
@@ -1443,51 +1539,155 @@
 	
 	/**
 	 * 拆分属性路径字符串为数组。
+	 * 比如，对于字符串：
+	 * aa.bb[0].cc['dd']["ee"]
+	 * 将返回：
+	 * [ { name: "aa" }, { name: "bb" }, { name: 0, forElement: true }, { name: "cc" }, { name: "dd" }, { name: "ee" } ]
 	 * 
-	 * @param str 属性路径字符串，格式为："a.b[0].c"，拆分为：["a", "b", "[0]", "c"]
+	 * @param str 属性路径字符串，格式示例：aa.bb[0].cc['dd']["ee"]
 	 */
 	$.splitPropPath = function(str)
 	{
 		var array = [];
 		
 		var ele = "";
-		for(var i=0; i<str.length; i++)
+		for(let i=0; i<=str.length; i++)
 		{
-			var c = str.charAt(i);
+			let segment = null;
 			
-			if(c == '\\')
+			if(i < str.length)
 			{
-				if((i + 1) < str.length)
-					ele += str.charAt(i+1);
-				i+=1;
-			}
-			else if(c == '.')
-			{
-				if(ele)
-					array.push(ele);
-				ele = "";
-			}
-			else if(c == '[')
-			{
-				if(ele)
-					array.push(ele);
-				ele = c;
-			}
-			else if(c == ']')
-			{
-				if(ele)
-					array.push(ele+c);
-				ele = "";
+				let c = str.charAt(i);
+				
+				if(c == '\\')
+				{
+					if((i + 1) < str.length)
+						ele += str.charAt(i+1);
+					
+					i+=1;
+				}
+				else if(c == '.')
+				{
+					if(ele)
+						segment = ele;
+					
+					ele = "";
+				}
+				else if(c == '[')
+				{
+					if(ele)
+						segment = ele;
+					
+					ele = c;
+				}
+				else if(c == ']')
+				{
+					if(ele)
+						segment = ele+c;
+					
+					ele = "";
+				}
+				else
+					ele += c;
 			}
 			else
-				ele += c;
+			{
+				if(ele)
+					segment = ele;
+			}
+			
+			if(segment)
+			{
+				let segmentInfo = { name: segment, forElement: false };
+				let matchInfo = $.SQUARE_BRACKET_ELE_ACCESSOR.exec(segment);
+				
+				if(matchInfo != null)
+				{
+					segmentInfo.name = parseInt(matchInfo[1]);
+					segmentInfo.forElement = true;
+				}
+				else
+				{
+					matchInfo = $.SQUARE_BRACKET_PROP_ACCESSOR_1.exec(segment);
+					
+					if(matchInfo != null)
+						segmentInfo.name = matchInfo[1];
+					else
+					{
+						matchInfo = $.SQUARE_BRACKET_PROP_ACCESSOR_2.exec(segment);
+						
+						if(matchInfo != null)
+							segmentInfo.name = matchInfo[1];
+					}
+				}
+				
+				array.push(segmentInfo);
+				segment = null;
+			}
 		}
-		
-		if(ele)
-			array.push(ele);
 		
 		return array;
 	};
+	
+	$.concatPropPath = function(ele0, ele1, ele2)
+	{
+		var re = "";
+		
+		for(var i=0; i<arguments.length; i++)
+		{
+			var ni = arguments[i];
+			var isStr = $.isTypeString(ni);
+			
+			re += "[";
+			
+			if(isStr)
+				re += "\"";
+			
+			re += (isStr ? $.escapePropPathEle(ni) : ni);
+			
+			if(isStr)
+				re += "\"";
+			
+			re += "]";
+		}
+		
+		return re;
+	};
+	
+	$.escapePropPathEle = function(str)
+	{
+		if(str == null)
+			return str;
+		
+		var re = "";
+		
+		for(let i=0; i<str.length; i++)
+		{
+			let c = str.charAt(i);
+			
+			if(c === '.')
+				re += "\\.";
+			else if(c === '[')
+				re += "\\[";
+			else if(c === ']')
+				re += "\\]";
+			else if(c === '\\')
+				re += "\\\\";
+			else
+				re += c;
+		}
+		
+		return re;
+	};
+	
+	//方括号数组元素访问符正则表达式
+	$.SQUARE_BRACKET_ELE_ACCESSOR = /^\s*\[\s*(\d+)\s*\]\s*$/;
+	
+	//方括号对象属性访问符正则表达式
+	$.SQUARE_BRACKET_PROP_ACCESSOR_1 = /^\s*\[\s*\"([^\"]*)\"\s*\]\s*$/;
+	
+	//方括号对象属性访问符正则表达式
+	$.SQUARE_BRACKET_PROP_ACCESSOR_2 = /^\s*\[\s*\'([^\']*)\'\s*\]\s*$/;
 	
 	/**
 	 * 获取对象或者对象数组的属性值参数字符串，例如：“id=1&id=2&id=3”
@@ -1600,6 +1800,23 @@
 			//兼容旧版浏览器
 			return str.replace(/^\s+|\s+$/gm, "");
 		}
+	};
+	
+	//深度拷贝无循环依赖的对象
+	$.deepClonePlain = function(plain)
+	{
+		var re;
+		
+		if(plain == null)
+			re = plain;
+		else if($.isArray(plain))
+			re = $.extend(true, [], plain);
+		else if($.isPlainObject(plain))
+			re = $.extend(true, {}, plain);
+		else
+			re = plain;
+		
+		return re;
 	};
 	
 	/**
@@ -2079,34 +2296,59 @@
 			vertical: false,
 			//横向对齐方式："start"、"center"、"end"
 			justifyContent: "center",
+			smallName: false,
 			showVersion: false,
-			showAuthor: false
+			showAuthor: false,
+			showApiVersion: false,
+			showPlatformVersion: false,
+			apiVersionDesc: "",
+			platformVersionDesc: "",
+			iconUrlHandler: undefined
 		},
 		options);
 		
+		// 后台会处理只保留ChartPlugin.DEFAULT_ICON_THEME_NAME图标名
+		var iconUrl = (chartPlugin && chartPlugin.icons ? chartPlugin.icons["default"] : null);
+		iconUrl = (iconUrl ? contextPath +"/chartPlugin/icon/" + encodeURIComponent(chartPlugin.id) : null);
+		
+		if(options.iconUrlHandler != null)
+			iconUrl = options.iconUrlHandler(iconUrl, chartPlugin, contextPath);
+		
 		var html = "<div class='plugin-info flex align-items-center justify-content-"+options.justifyContent
 					+(options.vertical ? " flex-column block " : " flex-row inline ")
-					+(!chartPlugin || !chartPlugin.iconUrl ? " no-icon " : "")
+					+(!chartPlugin || !iconUrl ? " no-icon " : "")
 					+"'>";
 		
-		if(chartPlugin)
+		if(chartPlugin && chartPlugin.id)
 		{
-			if(chartPlugin.iconUrl)
-				html += "<div class='plugin-icon' style='background-image:url("+contextPath+$.escapeHtml(chartPlugin.iconUrl)+")'></div>";
+			if(iconUrl)
+				html += "<div class='plugin-icon' style='background-image:url("+iconUrl+")'></div>";
 			
 			var name = (chartPlugin.nameLabel ? (chartPlugin.nameLabel.value || chartPlugin.id) : chartPlugin.id);
 			name = $.escapeHtml(name || "");
 			
-			html += "<div class='plugin-name'>"+name+"</div>";
+			html += "<div class='plugin-name"+(options.smallName ? " text-sm" : "")+"'><span>"+name+"</span>";
 			
 			if(options.showVersion)
 			{
-				html += "<div class='plugin-version text-color-secondary'><small>"+(chartPlugin.version ? $.escapeHtml(chartPlugin.version) : "")+"</small></div>";
+				html += "<span class='plugin-version text-color-secondary'><small>"+(chartPlugin.version ? " ("+$.escapeHtml(chartPlugin.version)+")" : "")+"</small></span>";
+			}
+			
+			html += "</div>";
+			
+			if(options.showApiVersion)
+			{
+				html += "<div class='plugin-api-version plugin-desc p-tag p-tag-warning' title='"+$.escapeHtml(options.apiVersionDesc)+"'><small class='desc-content'>"+(chartPlugin.apiVersion ? $.escapeHtml(chartPlugin.apiVersion) : "---")+"</small></div>";
+			}
+			
+			if(options.showPlatformVersion)
+			{
+				html += "<div class='plugin-platform-version plugin-desc p-tag p-tag-info' title='"+$.escapeHtml(options.platformVersionDesc)+"'><small class='desc-content'>"+(chartPlugin.platformVersion ? $.escapeHtml(chartPlugin.platformVersion) : "---")+"</small></div>";
 			}
 			
 			if(options.showAuthor)
 			{
-				html += "<div class='plugin-author text-color-secondary'><small>"+(chartPlugin.author ? $.escapeHtml(chartPlugin.author) : "")+"</small></div>";
+				html += "<div class='plugin-author plugin-desc text-color-secondary text-sm'><small class='desc-content'>"+(chartPlugin.author ? $.escapeHtml(chartPlugin.author) : "")+"</small></div>";
 			}
 		}
 		
@@ -2138,22 +2380,299 @@
 (function($, undefined)
 {
 
-//重写支持Vue响数据模型的验证方法
-$.validator.addMethod("required", function(value, ele)
+$.INTEGER_VALIDATOR_REGEX = /^-?\d+$/;
+$.NUMBER_VALIDATOR_REGEX = /^-?\d+\.?\d*$/;
+
+$.detailrequiredForValidator = function(value)
 {
-	ele = $(ele);
+	if($.isEmpty(value))
+		return false;
 	
-	if(ele.hasClass("validate-proxy"))
+	if($.isArray(value))
 	{
-		var reactiveFormModel = $(this.currentForm).data("reactiveFormModel");
-		var name = ele.attr("name");
-		
-		if(reactiveFormModel && name)
-			value = Vue.toRaw(reactiveFormModel[name]);
+		for(var i=0; i<value.length; i++)
+		{
+			if(!$.detailrequiredForValidator(value[i]))
+				return false;
+		}
+	}
+	else if($.isPlainObject(value) && $.isEmptyObject(value))
+	{
+		return false;
 	}
 	
-	return !$.isEmptyValue(value, true, false);
+	return true;
+};
+
+$.integerForValidator = function(value)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value))
+		return true;
+	
+	if($.isTypeNumber(value))
+	{
+		return $.INTEGER_VALIDATOR_REGEX.test(value+"");
+	}
+	
+	if($.isArray(value))
+	{
+		for(let i=0; i<value.length; i++)
+		{
+			if(!$.integerForValidator(value[i]))
+				return false;
+		}
+		
+		return true;
+	}
+	else
+		return $.INTEGER_VALIDATOR_REGEX.test(value);
+};
+
+$.numberForValidator = function(value)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value))
+		return true;
+	
+	if($.isTypeNumber(value))
+		return true;
+	
+	if($.isArray(value))
+	{
+		for(let i=0; i<value.length; i++)
+		{
+			if(!$.numberForValidator(value[i]))
+				return false;
+		}
+		
+		return true;
+	}
+	else
+		return $.NUMBER_VALIDATOR_REGEX.test(value);
+};
+
+$.minForValidator = function(value, min)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value) || isNaN(min))
+		return true;
+	
+	if($.isArray(value))
+	{
+		for(let i=0; i<value.length; i++)
+		{
+			if(!$.minForValidator(value[i], min))
+				return false;
+		}
+		
+		return true;
+	}
+	else if($.isTypeNumber(value))
+	{
+		return (value >= min);
+	}
+	else
+	{
+		value = $.parseToNumber(value);
+		value = (isNaN(value) ? null : value);
+		return $.minForValidator(value, min);
+	}
+};
+
+$.maxForValidator = function(value, max)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value) || isNaN(max))
+		return true;
+	
+	if($.isArray(value))
+	{
+		for(let i=0; i<value.length; i++)
+		{
+			if(!$.maxForValidator(value[i], max))
+				return false;
+		}
+		
+		return true;
+	}
+	else if($.isTypeNumber(value))
+	{
+		return (value <= max);
+	}
+	else
+	{
+		value = $.parseToNumber(value);
+		value = (isNaN(value) ? null : value);
+		return $.maxForValidator(value, max);
+	}
+};
+
+$.minlengthForValidator = function(value, minlength)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value) || isNaN(minlength))
+		return true;
+	
+	if($.isArray(value))
+	{
+		for(let i=0; i<value.length; i++)
+		{
+			if(!$.minlengthForValidator(value[i], minlength))
+				return false;
+		}
+		
+		return true;
+	}
+	else
+	{
+		value = ($.isTypeString(value) ? value : (value+""));
+		return (value.length >= minlength);
+	}
+};
+
+$.maxlengthForValidator = function(value, maxlength)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value) || isNaN(maxlength))
+		return true;
+	
+	if($.isArray(value))
+	{
+		for(let i=0; i<value.length; i++)
+		{
+			if(!$.maxlengthForValidator(value[i], maxlength))
+				return false;
+		}
+		
+		return true;
+	}
+	else
+	{
+		value = ($.isTypeString(value) ? value : (value+""));
+		return (value.length <= maxlength);
+	}
+};
+
+$.minsizeForValidator = function(value, minsize)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value) || isNaN(minsize))
+		return true;
+	
+	if($.isArray(value))
+	{
+		return (value.length >= minsize);
+	}
+	else
+		return true;
+};
+
+$.maxsizeForValidator = function(value, maxsize)
+{
+	//空值应在required中校验，而非这里
+	if($.isEmpty(value) || isNaN(maxsize))
+		return true;
+	
+	if($.isArray(value))
+	{
+		return (value.length <= maxsize);
+	}
+	else
+		return true;
+};
+//重写"required"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("required", function(value, ele)
+{
+	return !$.isEmpty(value);
 });
+
+//新增数组元素非空、对象非空校验函数
+$.validator.addMethod("detailrequired", function(value, ele)
+{
+	return $.detailrequiredForValidator(value);
+});
+
+//重写"integer"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("integer", function(value, ele)
+{
+	return $.integerForValidator(value);
+});
+
+//重写"number"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("number", function(value, ele)
+{
+	return $.numberForValidator(value);
+});
+
+//重写"min"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("min", function(value, ele)
+{
+	var min = parseFloat($(ele).attr("min"));
+	return $.minForValidator(value, min);
+});
+
+//重写"max"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("max", function(value, ele)
+{
+	var max = parseFloat($(ele).attr("max"));
+	return $.maxForValidator(value, max);
+});
+
+//重写"minlength"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("minlength", function(value, ele)
+{
+	var minlength = parseInt($(ele).attr("minlength"));
+	return $.minlengthForValidator(value, minlength);
+});
+
+//重写"maxlength"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("maxlength", function(value, ele)
+{
+	var maxlength = parseInt($(ele).attr("maxlength"));
+	return $.maxlengthForValidator(value, maxlength);
+});
+
+//重写"minsize"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("minsize", function(value, ele)
+{
+	var minsize = parseInt($(ele).attr("minsize"));
+	return $.minsizeForValidator(value, minsize);
+});
+
+//重写"maxsize"校验函数，以支持Vue表单数据模型
+$.validator.addMethod("maxsize", function(value, ele)
+{
+	var maxsize = parseInt($(ele).attr("maxsize"));
+	return $.maxsizeForValidator(value, maxsize);
+});
+
+$.toggleInvalidForAncestor = function(ele, invalid)
+{
+	if(ele == null || ele.length == 0)
+		return;
+	
+	ele = $(ele);
+	
+	if(ele.is("form") || ele.is("body"))
+		return;
+	
+	if(ele.hasClass("invalid-indicator"))
+	{
+		if(invalid)
+		{
+			if(!ele.hasClass("p-invalid"))
+				ele.addClass("p-invalid");
+		}
+		else
+		{
+			if(ele.hasClass("p-invalid"))
+				ele.removeClass("p-invalid");
+		}
+	}
+	
+	$.toggleInvalidForAncestor(ele.parent(), invalid);
+};
 
 $.fn.extend(
 {
@@ -2190,17 +2709,16 @@ $.fn.extend(
 				{
 					//代理属性名
 					var name = thisEle.attr("name");
-					var realValue = Vue.toRaw(reactiveFormModel[name]);
-					return realValue;
+					value = $.propPathValue(reactiveFormModel, name);
+					value = Vue.toRaw(value);
 				}
 				else if(thisEle.hasClass("validate-normalizer"))
 				{
 					var name = thisEle.attr("name");
-					var realValue = options["customNormalizers"][name]();
-					return realValue;
+					value = options["customNormalizers"][name]();
 				}
-				else
-					return value;
+				
+				return value;
 			},
 			showErrors: function(errorMap, errorList)
 			{
@@ -2210,6 +2728,7 @@ $.fn.extend(
 					const field = $(ele).closest(".field-input");
 					$("small.p-error", field).hide();
 					$(".input:first", field).removeClass("p-invalid");
+					$.toggleInvalidForAncestor(ele, false);
 				});
 				
 				$.each(errorList, function(idx, error)
@@ -2225,6 +2744,7 @@ $.fn.extend(
 					
 					input.addClass("p-invalid");
 					errorEle.html(error.message).show();
+					$.toggleInvalidForAncestor(error.element, true);
 				});
 			}
 		},

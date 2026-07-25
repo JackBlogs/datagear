@@ -29,16 +29,16 @@
 </head>
 <body class="p-card no-border h-screen m-0 p-1">
 <#include "../include/page_obj.ftl">
-<div id="${pid}" class="page page-form horizontal h-full page-dashboard-design">
+<div id="${pid}" class="page page-form h-full page-dashboard-design">
 	<form id="${pid}form" class="flex flex-column h-full" :class="{readonly: pm.isReadonlyAction}">
 		<div class="page-form-content flex-grow-1 px-2 py-1 flex flex-column overflow-y-auto">
 			<div class="field grid flex-grow-0 mb-1">
 				<div class="field-label col-12 mb-0 flex flex-row align-items-center gap-1">
-					<label>
-						{{fm.name}}
-						<!--
-						<span class="text-color-secondary ml-2" title="<@spring.message code='dashboard.version' />">v<small>{{fm.version}}</small></span>
-						-->
+					<label class="flex align-items-center gap-1">
+						<span>{{fm.name}}</span>
+						<p-tag severity="warning" rounded title="<@spring.message code='dashboardApiVersion' />">
+							<small>{{fm.apiVersion}}</small>
+						</p-tag>
 					</label>
        				<p-button type="button" icon="pi pi-info-circle" size="small" rounded v-if="fm.description"
 						@click="onShowDashboardDesc" class="p-button-secondary p-button-text p-1">
@@ -46,15 +46,13 @@
 				</div>
 			</div>
 			<div class="field grid mb-0 flex-grow-1 flex flex-column">
-		        <div class="field-input col-12 flex-grow-1 flex flex-column">
-		        	<div class="grid grid-nogutter flex-grow-1 align-items-stretch">
-		        		<div class="col-8 md:col-9 pr-1">
-		        			<#include "include/dashboard_design_editor.ftl">
-		        		</div>
-		        		<div class="col-4 md:col-3 pl-2">
-		        			<#include "include/dashboard_design_resource.ftl">
-		        		</div>
-		        	</div>
+		        <div class="field-input col-12 flex-grow-1 flex flex-row align-items-stretch gap-2">
+	        		<div class="design-editor-wrapper flex-grow-1 overflow-hidden">
+	        			<#include "include/dashboard_design_editor.ftl">
+	        		</div>
+	        		<div class="design-resource-wrapper flex-grow-0">
+	        			<#include "include/dashboard_design_resource.ftl">
+	        		</div>
 		        </div>
 			</div>
 		</div>

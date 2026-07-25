@@ -27,14 +27,19 @@ import org.datagear.analysis.TplDashboardWidget;
  * @author datagear@163.com
  *
  */
-public class HtmlTplDashboard extends TplDashboard
+public class HtmlTplDashboard extends TplDashboard implements ApiVersionAware
 {
 	private static final long serialVersionUID = 1L;
 
 	/** 看板JS对象变量名 */
 	private String varName;
 	
-	private LoadableChartWidgets loadableChartWidgets = null;
+	private LoadChartPolicy loadChartPolicy = null;
+
+	/**
+	 * 看板采用的页面端API版本，参考{@linkplain DashboardApiVersion}，{@code null}或空表示未定义
+	 */
+	private String apiVersion = null;
 
 	public HtmlTplDashboard()
 	{
@@ -73,13 +78,24 @@ public class HtmlTplDashboard extends TplDashboard
 		this.varName = varName;
 	}
 
-	public LoadableChartWidgets getLoadableChartWidgets()
+	public LoadChartPolicy getLoadChartPolicy()
 	{
-		return loadableChartWidgets;
+		return loadChartPolicy;
 	}
 
-	public void setLoadableChartWidgets(LoadableChartWidgets loadableChartWidgets)
+	public void setLoadChartPolicy(LoadChartPolicy loadChartPolicy)
 	{
-		this.loadableChartWidgets = loadableChartWidgets;
+		this.loadChartPolicy = loadChartPolicy;
+	}
+
+	@Override
+	public String getApiVersion()
+	{
+		return apiVersion;
+	}
+
+	public void setApiVersion(String apiVersion)
+	{
+		this.apiVersion = apiVersion;
 	}
 }

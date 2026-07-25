@@ -16,7 +16,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  *
 -->
-<#assign DashboardVersion=statics['org.datagear.web.analysis.DashboardVersion']>
+<#assign DashboardApiVersion=statics['org.datagear.analysis.support.html.DashboardApiVersion']>
 <#include "../include/page_import.ftl">
 <#include "../include/html_doctype.ftl">
 <html>
@@ -28,10 +28,10 @@
 	<#include "../include/html_app_name_suffix.ftl">
 </title>
 </head>
-<body class="p-card no-border">
+<body class="p-card no-border h-screen m-0 p-1">
 <#include "../include/page_obj.ftl">
-<div id="${pid}" class="page page-form horizontal">
-	<form id="${pid}form" class="flex flex-column" :class="{readonly: pm.isReadonlyAction}">
+<div id="${pid}" class="page page-form h-full">
+	<form id="${pid}form" class="flex flex-column h-full" :class="{readonly: pm.isReadonlyAction}">
 		<div class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
 			<div class="field grid">
 				<label for="${pid}file" class="field-label col-12 mb-2 md:col-3 md:mb-0"
@@ -84,6 +84,17 @@
 		        </div>
 			</div>
 			<div class="field grid">
+				<label for="${pid}apiVersion" class="field-label col-12 mb-2 md:col-3 md:mb-0"
+					title="<@spring.message code='dashboard.apiVersion.desc' />">
+					<@spring.message code='apiVersion' />
+				</label>
+		        <div class="field-input col-12 md:col-9">
+		        	<p-dropdown id="${pid}apiVersion" v-model="fm.apiVersion"
+						:options="pm.dashboardApiVersionOptions" option-label="name" option-value="value" class="input w-full">
+					</p-dropdown>
+		        </div>
+			</div>
+			<div class="field grid">
 				<label for="${pid}ownerProject" class="field-label col-12 mb-2 md:col-3 md:mb-0">
 					<@spring.message code='ownerProject' />
 				</label>
@@ -103,24 +114,6 @@
 					</div>
 				</div>
 			</div>
-			<!--
-			<div class="field grid">
-				<label for="${pid}name" class="field-label col-12 mb-2 md:col-3 md:mb-0">
-					<@spring.message code='dashboard.version' />
-				</label>
-		        <div class="field-input col-12 md:col-9">
-		        	<p-dropdown v-model="fm.version" :options="pm.versionDropdownItems" option-label="label" option-value="value"
-		        		@change="onVersionChange" class="input w-full">
-		        	</p-dropdown>
-		        	<div class="validate-msg">
-		        		<input name="version" required type="text" class="validate-proxy" />
-		        	</div>
-		        	<div class="desc text-color-secondary">
-		        		<small><@spring.message code='dashboard.version.desc' /></small>
-		        	</div>
-		        </div>
-			</div>
-			-->
 			<div class="field grid">
 				<label class="field-label col-12 mb-2 md:col-3 md:mb-0">
 				</label>
@@ -131,8 +124,6 @@
 						<@spring.message code='dashboard.import.notice.1' />
 						<br>
 						<@spring.message code='dashboard.import.notice.2' />
-						<br>
-						<@spring.message code='dashboard.import.notice.3' />
 					</small>
 		        </div>
 			</div>
@@ -150,6 +141,18 @@
 	po.submitUrl = "/dashboard/"+po.submitAction;
 	
 	var availableCharsetNames = $.unescapeHtmlForJson(<@writeJson var=availableCharsetNames />);
+
+	po.dashboardApiVersionOptions =
+	[
+		{
+			name: "<@spring.message code='DashboardApiVersion.V2' />",
+			value: "${DashboardApiVersion.V2}"
+		},
+		{
+			name: "<@spring.message code='DashboardApiVersion.V1' />",
+			value: "${DashboardApiVersion.V1}"
+		}
+	];
 	
 	var formModel = $.unescapeHtmlForJson(<@writeJson var=formModel />);
 	formModel.analysisProject = (formModel.analysisProject == null ? {} : formModel.analysisProject);
@@ -157,15 +160,9 @@
 	
 	po.vuePageModel(
 	{
+		dashboardApiVersionOptions: po.dashboardApiVersionOptions,
 		availableCharsetNames: availableCharsetNames,
-		uploadFileUrl: po.concatContextPath("/dashboard/uploadImportFile"),
-		versionDropdownItems:
-		[
-			{
-				label: "${DashboardVersion.V_1_0}",
-				value: "${DashboardVersion.V_1_0}"
-			}
-		]
+		uploadFileUrl: po.concatContextPath("/dashboard/uploadImportFile")
 	});
 	
 	po.vueMethod(

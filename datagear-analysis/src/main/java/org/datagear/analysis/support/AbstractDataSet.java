@@ -35,7 +35,7 @@ import org.datagear.analysis.DataSetResult;
 import org.datagear.analysis.NameAwareUtil;
 import org.datagear.analysis.ResolvedDataSetResult;
 import org.datagear.analysis.ResultDataFormat;
-import org.datagear.analysis.support.DataSetFieldExpEvaluator.ValueSetter;
+import org.datagear.analysis.support.DataSetFieldExpEvaluator.FieldValueAccessor;
 import org.datagear.analysis.support.datasettpl.DataSetFmkTemplateResolvers;
 import org.datagear.analysis.support.datasettpl.SqlTemplateResult;
 import org.datagear.analysis.support.datasettpl.TemplateContext;
@@ -219,11 +219,14 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 	/**
 	 * 解析结果数据。
 	 * 
-	 * @param rawData    {@code Collection<Map<String, ?>>}、{@code Map<String, ?>[]}、{@code Map<String, ?>}、{@code null}
+	 * @param rawData
+	 *            {@code Collection<Map<String, ?>>}、{@code Object[]}（元素需为{@code Map<String, ?>}）、{@code Map<String, ?>}、{@code null}
 	 * @param fields
-	 * @param fetchSize  获取条数，小于{@code 0}表示全部
-	 * @param format     允许为{@code null}
-	 * @return {@code List<Map<String, ?>>}、{@code Map<String, ?>[]}、{@code Map<String, ?>}、{@code null}
+	 * @param fetchSize
+	 *            获取条数，小于{@code 0}表示全部
+	 * @param format
+	 *            允许为{@code null}
+	 * @return {@code List<Map<String, ?>>}、{@code Object[]}、{@code Map<String, ?>}、{@code null}
 	 * @throws Throwable
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -232,6 +235,9 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 	{
 		Object data = null;
 
+		DataSetFieldValueConverter converter = createDataSetFieldValueConverter();
+		ResultDataFormatter formatter = (format == null ? null : new ResultDataFormatter(format));
+
 		if (rawData == null)
 		{
 			data = null;
@@ -239,22 +245,23 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 		else if (rawData instanceof Collection<?>)
 		{
 			Collection<Map<String, ?>> rawCollection = (Collection<Map<String, ?>>) rawData;
-
-			data = convertRawDataToResult(rawCollection, fields, fetchSize, format);
+			data = convertRawDataToResult(rawCollection, fields, fetchSize, converter, formatter);
 		}
-		else if (rawData instanceof Map<?, ?>[])
+		else if (rawData instanceof Object[])
 		{
-			Map<?, ?>[] rawArray = (Map<?, ?>[]) rawData;
+			Object[] rawArray = (Object[]) rawData;
 			List<Map<String, ?>> rawCollection = (List) Arrays.asList(rawArray);
-			List<Map<String, Object>> dataList = convertRawDataToResult(rawCollection, fields, fetchSize, format);
+			List<Map<String, Object>> dataList = convertRawDataToResult(rawCollection, fields, fetchSize, converter,
+					formatter);
 
-			data = dataList.toArray(new Map<?, ?>[dataList.size()]);
+			data = dataList.toArray(new Object[dataList.size()]);
 		}
 		else if (rawData instanceof Map<?, ?>)
 		{
 			Map<?, ?> rawMap = (Map<?, ?>) rawData;
 			List<Map<String, ?>> rawCollection = (List) Arrays.asList(rawMap);
-			List<Map<String, Object>> dataList = convertRawDataToResult(rawCollection, fields, fetchSize, format);
+			List<Map<String, Object>> dataList = convertRawDataToResult(rawCollection, fields, -1, converter,
+					formatter);
 
 			data = dataList.get(0);
 		}
@@ -270,96 +277,124 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 	 * 
 	 * @param rawData
 	 * @param fields
-	 * @param fetchSize  获取条数，小于{@code 0}表示全部
-	 * @param format     允许为{@code null}
+	 * @param fetchSize
+	 *            获取条数，小于{@code 0}表示全部
+	 * @param converter
+	 * @param formatter
+	 *            允许为{@code null}
 	 * @return
 	 * @throws Throwable
 	 */
 	protected List<Map<String, Object>> convertRawDataToResult(Collection<? extends Map<String, ?>> rawData,
-			List<DataSetField> fields, int fetchSize, ResultDataFormat format) throws Throwable
+			List<DataSetField> fields, int fetchSize, DataSetFieldValueConverter converter,
+			ResultDataFormatter formatter) throws Throwable
 	{
-		DataSetFieldValueConverter converter = createDataSetFieldValueConverter();
-		List<Object> defaultValues = getDefaultValues(fields, converter);
-
 		int dataSize = (fetchSize >= 0 ? fetchSize : rawData.size());
 		List<Map<String, Object>> data = new ArrayList<>(dataSize);
-
-		int plen = fields.size();
 
 		for (Map<String, ?> rowRaw : rawData)
 		{
 			if (data.size() >= dataSize)
 				break;
 
-			// 易变模型应保留所有原始数据
-			Map<String, Object> row = (isMutableModel() ? new HashMap<>(rowRaw) : new HashMap<>());
-
-			for (int i = 0; i < plen; i++)
-			{
-				DataSetField field = fields.get(i);
-
-				String name = field.getName();
-				Object value = rowRaw.get(name);
-				value = convertToFieldDataType(converter, value, field);
-				
-				// 无论是否计算字段，这里都应设置默认值
-				if(value == null)
-					value = defaultValues.get(i);
-
-				row.put(name, value);
-			}
-
+			Map<String, Object> row = converter.convert(rowRaw, fields);
 			data.add(row);
 		}
-		
+
 		// 计算表达式
-		evalResultData(data, fields, defaultValues, converter);
-		
+		evalResultData(data, fields, converter);
 		// 格式化，应是最后步骤
-		formatResultData(data, fields, format);
-		
+		formatResultData(data, fields, formatter);
+
 		return data;
 	}
 	
-	protected void evalResultData(List<Map<String, Object>> data, List<DataSetField> fields,
-			List<Object> defaultValues, DataSetFieldValueConverter converter)
+	protected void evalResultData(Object data, List<DataSetField> fields,
+			DataSetFieldValueConverter converter)
 	{
 		DataSetFieldExpEvaluator evaluator = getDataSetFieldExpEvaluator();
 		
-		evaluator.eval(fields, data, new ValueSetter<Map<String, Object>>()
+		evaluator.eval(data, fields, new FieldValueAccessor()
 		{
+			@SuppressWarnings("unchecked")
 			@Override
-			public void set(DataSetField field, int fieldIndex, Map<String, Object> data, Object value)
+			public void set(Object row, DataSetField field, Object value)
 			{
-				value = convertToFieldDataType(converter, value, field);
-				
-				if (value == null)
-					value = defaultValues.get(fieldIndex);
-				
-				data.put(field.getName(), value);
+				value = converter.convert(value, field);
+				((Map<String, Object>) row).put(field.getName(), value);
+			}
+
+			@SuppressWarnings("unchecked")
+			@Override
+			public Object get(Object row, DataSetField field)
+			{
+				return ((Map<String, Object>) row).get(field.getName());
 			}
 		});
 	}
 	
-	protected void formatResultData(List<Map<String, Object>> data, List<DataSetField> fields, ResultDataFormat format)
+	/**
+	 * 格式化结果数据。
+	 * 
+	 * @param data
+	 *            {@code Collection<Map<String, ?>>}、{@code Object[]}（元素需为{@code Map<String, ?>}）、{@code Map<String, ?>}、{@code null}
+	 * @param fields
+	 *            允许{@code null}
+	 * @param formatter
+	 *            允许{@code null}
+	 */
+	@SuppressWarnings("unchecked")
+	protected void formatResultData(Object data, List<DataSetField> fields,
+			ResultDataFormatter formatter)
 	{
-		if(format == null)
+		if (data == null || fields == null || fields.isEmpty() || formatter == null)
 			return;
-		
-		ResultDataFormatter formatter = new ResultDataFormatter(format);
-		int plen = fields.size();
 
-		for (Map<String, Object> row : data)
+		if (data instanceof Collection<?>)
 		{
-			for (int i = 0; i < plen; i++)
+			Collection<?> datas = (Collection<?>) data;
+
+			for (Object row : datas)
+				formatResultDataRow((Map<String, Object>) row, fields, formatter);
+		}
+		else if (data instanceof Object[])
+		{
+			Object[] datas = (Object[]) data;
+
+			for (Object row : datas)
+				formatResultDataRow((Map<String, Object>) row, fields, formatter);
+		}
+		else if (data instanceof Map<?, ?>)
+		{
+			Map<String, Object> map = (Map<String, Object>) data;
+			formatResultDataRow(map, fields, formatter);
+		}
+		else
+		{
+			// 什么也不做，不必抛出异常
+		}
+	}
+
+	protected void formatResultDataRow(Map<String, Object> row, List<DataSetField> fields,
+			ResultDataFormatter formatter)
+	{
+		if (formatter == null)
+			return;
+
+		for (int i = 0, len = fields.size(); i < len; i++)
+		{
+			DataSetField field = fields.get(i);
+			String name = field.getName();
+			Object value = row.get(name);
+
+			if (DataSetField.DataType.isObjectType(field))
 			{
-				DataSetField field = fields.get(i);
-				String name = field.getName();
-				Object value = row.get(name);
+				formatResultData(value, field.getFields(), formatter);
+			}
+			else if (formatter.canFormat(field))
+			{
 				Object fv = formatter.format(value);
-				
-				if(fv != value)
-					row.put(name, fv);
+				row.put(name, fv);
 			}
 		}
 	}
@@ -367,21 +402,6 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 	protected DataSetFieldExpEvaluator getDataSetFieldExpEvaluator()
 	{
 		return DataSetFieldExpEvaluator.DEFAULT;
-	}
-
-	protected List<Object> getDefaultValues(List<DataSetField> fields,
-			DataSetFieldValueConverter converter)
-	{
-		List<Object> defaultValues = new ArrayList<Object>(fields.size());
-
-		for (DataSetField p : fields)
-		{
-			Object defaultValue = p.getDefaultValue();
-			defaultValue = convertToFieldDataType(converter, defaultValue, p);
-			defaultValues.add(defaultValue);
-		}
-
-		return defaultValues;
 	}
 
 	/**
@@ -467,36 +487,6 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 	}
 
 	/**
-	 * 将源对象转换为指定{@linkplain DataSetField.DataType}类型的对象。
-	 * <p>
-	 * 如果{@code field}为{@code null}，则什么也不做直接返回。
-	 * </p>
-	 * 
-	 * @param converter
-	 * @param source
-	 *            允许为{@code null}
-	 * @param field
-	 *            允许为{@code null}
-	 * @return
-	 */
-	protected Object convertToFieldDataType(DataSetFieldValueConverter converter, Object source,
-			DataSetField field)
-	{
-		if (field == null)
-			return source;
-
-		if (source == null)
-			return null;
-		
-		String fieldType = field.getType();
-		
-		if (fieldType == null || DataSetField.DataType.UNKNOWN.equals(fieldType))
-			return source;
-
-		return converter.convert(source, field);
-	}
-
-	/**
 	 * 创建一个{@linkplain DataSetFieldValueConverter}实例。
 	 * <p>
 	 * 由于{@linkplain DataSetFieldValueConverter}不是线程安全的，所以每次使用时要手动创建。
@@ -512,15 +502,16 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 
 		DataSetFieldValueConverter converter = new DataSetFieldValueConverter(dataFormat);
 
-		// 这里应设为true，可避免精度丢失，同时可保留BigDecimal的原始小数位数
+		// 易变模型要保留全部数据
+		converter.setStrictForMap(!isMutableModel());
+		// 这里应设为true，可避免精度丢失
 		converter.setIgnoreBigIntegerToInteger(true);
-		converter.setIgnoreBigDecimalToDecimal(true);
 
 		return converter;
 	}
 
 	/**
-	 * 解析{@linkplain DataSetField.DataType}类型。
+	 * 解析{@linkplain DataSetField#getType()}。
 	 * 
 	 * @param value
 	 * @return
@@ -530,6 +521,26 @@ public abstract class AbstractDataSet extends AbstractIdentifiable implements Da
 		return DataSetField.DataType.resolveDataType(value);
 	}
 	
+	/**
+	 * 解析{@linkplain DataSetField#setType(String)}、{@linkplain DataSetField#setArray(boolean)}。
+	 * 
+	 * @param field
+	 * @param value
+	 */
+	protected void resolveFieldDataType(DataSetField field, Object value)
+	{
+		if (DataSetField.DataType.isLikeArray(value))
+		{
+			field.setArray(true);
+			field.setType(DataSetField.DataType.resolveArrayEleDataType(value));
+		}
+		else
+		{
+			field.setArray(false);
+			field.setType(resolveFieldDataType(value));
+		}
+	}
+
 	@SuppressWarnings("unchecked")
 	protected List<Map<String, Object>> listRowsToMapRows(List<List<Object>> data, List<DataSetField> fields)
 	{

@@ -18,7 +18,6 @@
 package org.datagear.analysis;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,6 +25,7 @@ import java.util.Map;
 import org.datagear.util.i18n.AbstractLabeled;
 import org.datagear.util.i18n.LabelUtil;
 import org.datagear.util.i18n.Labeled;
+import org.datagear.util.i18n.Localizable;
 
 /**
  * 数据标记。
@@ -35,17 +35,19 @@ import org.datagear.util.i18n.Labeled;
  * 使用此类标记{@linkplain DataSet}、{@linkplain DataSetField}，{@linkplain ChartPlugin}则依据它们构建图表数据，进行图表绘制。
  * </p>
  * <p>
- * 数据标记分为两类：数据集标记、字段标记，通过{@linkplain #getTarget()}区分。
+ * 数据标记分为两类：数据集标记、字段标记，通过{@linkplain #getTargets()}区分。
  * </p>
  * 
  * @author datagear@163.com
  *
  */
-public class DataSign extends AbstractLabeled implements AdditionsAware, Serializable
+public class DataSign extends AbstractLabeled
+		implements NameAware, FullnameAware, AdditionsAware, Localizable, Serializable
 {
 	private static final long serialVersionUID = 1L;
 	
 	public static final String PROPERTY_NAME = "name";
+	public static final String PROPERTY_FULLNAME = "fullname";
 	public static final String PROPERTY_TARGETS = "targets";
 	public static final String PROPERTY_REQUIRED = "required";
 	public static final String PROPERTY_MULTIPLE = "multiple";
@@ -53,16 +55,17 @@ public class DataSign extends AbstractLabeled implements AdditionsAware, Seriali
 	public static final String PROPERTY_NAME_LABEL = Labeled.PROPERTY_NAME_LABEL;
 	public static final String PROPERTY_DESC_LABEL = Labeled.PROPERTY_DESC_LABEL;
 	public static final String PROPERTY_ADDITIONS = AdditionsAware.PROPERTY_ADDITIONS;
+	public static final String PROPERTY_FIELD_MATCHER = "fieldMatcher";
 
 	/**
 	 * 标记目标：字段
 	 */
-	public static final String TARGET_FIELD = "FIELD";
+	public static final String TARGET_FIELD = "field";
 
 	/**
 	 * 标记目标：数据集
 	 */
-	public static final String TARGET_DATASET = "DATASET";
+	public static final String TARGET_DATASET = "dataset";
 
 	/**
 	 * 标记目标数组：字段。
@@ -71,6 +74,9 @@ public class DataSign extends AbstractLabeled implements AdditionsAware, Seriali
 
 	/** 名称 */
 	private String name;
+
+	/** 全名 */
+	private String fullname;
 
 	/**
 	 * 标记目标。
@@ -103,25 +109,42 @@ public class DataSign extends AbstractLabeled implements AdditionsAware, Seriali
 	/** 附加属性 */
 	private Map<String, ?> additions = null;
 
+	/**
+	 * 字段匹配器，当{@linkplain #targets}里包含{@linkplain #TARGET_FIELD}时，
+	 * 定义此{@linkplain DataSign}允许绑定的{@linkplain DataSetField}。
+	 * <p>
+	 * 此属性主要是为交互操作界面定义的，所以这里不定义其具体类型，由操作界面环境定义。
+	 * </p>
+	 * 
+	 * @deprecated 此属性是6.0.0版本新增的，考虑再三，决定暂不开放，因为从整体系统功能来说，
+	 *             增加字段匹配器功能来限制其可绑定到的字段，反倒降低了系统灵活性，
+	 *             比如：先将数据标记绑定到一个类型不匹配的字段上，然后可以在看板里将数据转换为匹配的类型。
+	 *             如果采用了字段匹配器，将无法支持上述功能。后续版本考虑在{@linkplain DataSetBind}里添加虚拟字段功能后，再考虑开放此字段匹配器功能。
+	 */
+	@Deprecated
+	private Object fieldMatcher = null;
+
 	public DataSign()
 	{
 		super();
 	}
 
-	public DataSign(String name, boolean required, boolean multiple)
+	public DataSign(String name, String fullname, boolean required, boolean multiple)
 	{
-		this(name, TARGETS_FIELDS, required, multiple);
+		this(name, fullname, TARGETS_FIELDS, required, multiple);
 	}
 
-	public DataSign(String name, String[] targets, boolean required, boolean multiple)
+	public DataSign(String name, String fullname, String[] targets, boolean required, boolean multiple)
 	{
 		super();
 		this.name = name;
+		this.fullname = fullname;
 		this.targets = targets;
 		this.required = required;
 		this.multiple = multiple;
 	}
 
+	@Override
 	public String getName()
 	{
 		return name;
@@ -130,6 +153,17 @@ public class DataSign extends AbstractLabeled implements AdditionsAware, Seriali
 	public void setName(String name)
 	{
 		this.name = name;
+	}
+
+	@Override
+	public String getFullname()
+	{
+		return fullname;
+	}
+
+	public void setFullname(String fullname)
+	{
+		this.fullname = fullname;
 	}
 
 	public String[] getTargets()
@@ -183,58 +217,70 @@ public class DataSign extends AbstractLabeled implements AdditionsAware, Seriali
 		this.additions = additions;
 	}
 
+	public Object getFieldMatcher()
+	{
+		return fieldMatcher;
+	}
+
+	public void setFieldMatcher(Object fieldMatcher)
+	{
+		this.fieldMatcher = fieldMatcher;
+	}
+
 	/**
 	 * 复制为指定{@linkplain Locale}的对象。
 	 * 
 	 * @param locale
 	 * @return
 	 */
-	public DataSign clone(Locale locale)
+	@Override
+	public DataSign toLocale(Locale locale)
 	{
-		DataSign re = new DataSign(this.name, this.targets, this.required, this.multiple);
+		DataSign re = createEmpty();
+
+		re.setName(this.name);
+		re.setFullname(this.fullname);
+		re.setTargets(this.targets);
+		re.setRequired(this.required);
+		re.setMultiple(this.multiple);
 		re.setAdditions(this.additions);
+		re.setFieldMatcher(this.fieldMatcher);
 		LabelUtil.concrete(this, re, locale);
-
-		if (this.children != null)
-		{
-			List<DataSign> reChildren = new ArrayList<>(this.children.size());
-
-			for (DataSign dataSign : this.children)
-			{
-				reChildren.add(dataSign.clone(locale));
-			}
-
-			re.setChildren(reChildren);
-		}
+		re.setChildren(Localizable.toLocale(this.children, locale));
 
 		return re;
+	}
+
+	protected DataSign createEmpty()
+	{
+		return new DataSign();
 	}
 
 	@Override
 	public String toString()
 	{
-		return getClass().getSimpleName() + " [name=" + name + ", targets=" + targets + ", required=" + required
-				+ ", multiple=" + multiple + ", nameLabel=" + getNameLabel() + ", descLabel=" + getDescLabel()
-				+ ", additions=" + additions + "]";
+		return getClass().getSimpleName() + " [name=" + name + ", fullname=" + fullname + ", targets=" + targets
+				+ ", required=" + required + ", multiple=" + multiple + "]";
 	}
 
 	/**
-	 * 复制为指定{@linkplain Locale}的对象。
+	 * 规范目标。
 	 * 
-	 * @param dataSigns
-	 * @param locale
+	 * @param target
+	 * @param dftTarget
 	 * @return
 	 */
-	public static List<DataSign> clone(List<DataSign> dataSigns, Locale locale)
+	public static String normalizeTarget(String target, String dftTarget)
 	{
-		if (dataSigns == null)
-			return null;
+		if (target == null)
+			return dftTarget;
 
-		List<DataSign> re = new ArrayList<DataSign>(dataSigns.size());
+		if (TARGET_FIELD.equalsIgnoreCase(target))
+			return TARGET_FIELD;
 
-		for (DataSign dataSign : dataSigns)
-			re.add(dataSign.clone(locale));
+		if (TARGET_DATASET.equalsIgnoreCase(target))
+			return TARGET_DATASET;
 
-		return re;
+		return dftTarget;
 	}
 }

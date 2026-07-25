@@ -20,17 +20,14 @@ package org.datagear.web.controller;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.datagear.analysis.ChartPluginManager;
 import org.datagear.analysis.DataSetBind;
 import org.datagear.analysis.DataSetQuery;
 import org.datagear.analysis.ResultDataFormat;
-import org.datagear.analysis.support.ChartPluginAttributeValueConverter;
 import org.datagear.analysis.support.html.HtmlChartPlugin;
 import org.datagear.management.domain.AnalysisProjectAwareEntity;
 import org.datagear.management.domain.Authorization;
@@ -44,10 +41,10 @@ import org.datagear.management.service.DataSetEntityService;
 import org.datagear.management.service.HtmlChartWidgetEntityService;
 import org.datagear.management.service.UserService;
 import org.datagear.management.util.ManagementSupport;
-import org.datagear.persistence.PagingData;
 import org.datagear.util.IDUtil;
 import org.datagear.util.StringUtil;
 import org.datagear.util.function.OnceSupplier;
+import org.datagear.util.query.PagingData;
 import org.datagear.web.util.AnalysisProjectAwareSupport;
 import org.datagear.web.util.OperationMessage;
 import org.datagear.web.util.WebUtils;
@@ -56,6 +53,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -78,9 +76,6 @@ public class ChartController extends AbstractChartPluginAwareController
 	private AnalysisProjectService analysisProjectService;
 
 	@Autowired
-	private ChartPluginManager chartPluginManager;
-
-	@Autowired
 	private DataSetEntityService dataSetEntityService;
 
 	@Autowired
@@ -91,8 +86,6 @@ public class ChartController extends AbstractChartPluginAwareController
 
 	@Autowired
 	private AnalysisProjectAwareSupport analysisProjectAwareSupport;
-
-	private ChartPluginAttributeValueConverter chartPluginAttributeValueConverter = new ChartPluginAttributeValueConverter();
 
 	public ChartController()
 	{
@@ -117,16 +110,6 @@ public class ChartController extends AbstractChartPluginAwareController
 	public void setAnalysisProjectService(AnalysisProjectService analysisProjectService)
 	{
 		this.analysisProjectService = analysisProjectService;
-	}
-
-	public ChartPluginManager getChartPluginManager()
-	{
-		return chartPluginManager;
-	}
-
-	public void setChartPluginManager(ChartPluginManager chartPluginManager)
-	{
-		this.chartPluginManager = chartPluginManager;
 	}
 
 	public DataSetEntityService getDataSetEntityService()
@@ -169,17 +152,6 @@ public class ChartController extends AbstractChartPluginAwareController
 		this.analysisProjectAwareSupport = analysisProjectAwareSupport;
 	}
 
-	public ChartPluginAttributeValueConverter getChartPluginAttributeValueConverter()
-	{
-		return chartPluginAttributeValueConverter;
-	}
-
-	public void setChartPluginAttributeValueConverter(
-			ChartPluginAttributeValueConverter chartPluginAttributeValueConverter)
-	{
-		this.chartPluginAttributeValueConverter = chartPluginAttributeValueConverter;
-	}
-
 	@RequestMapping("/add")
 	public String add(HttpServletRequest request, HttpServletResponse response, Model model)
 	{
@@ -216,9 +188,9 @@ public class ChartController extends AbstractChartPluginAwareController
 		return optSuccessDataResponseEntity(request, entity);
 	}
 
-	@RequestMapping("/edit")
+	@RequestMapping("/edit/{id}")
 	public String edit(HttpServletRequest request, HttpServletResponse response, Model model,
-			@RequestParam("id") String id)
+			@PathVariable("id") String id)
 	{
 		User user = getCurrentUser();
 		setFormAction(model, REQUEST_ACTION_EDIT, SUBMIT_ACTION_SAVE_EDIT);
@@ -306,9 +278,9 @@ public class ChartController extends AbstractChartPluginAwareController
 		entity.setId(null);
 	}
 
-	@RequestMapping("/view")
+	@RequestMapping("/view/{id}")
 	public String view(HttpServletRequest request, HttpServletResponse response, Model model,
-			@RequestParam("id") String id)
+			@PathVariable("id") String id)
 	{
 		User user = getCurrentUser();
 		setFormAction(model, REQUEST_ACTION_VIEW, SUBMIT_ACTION_NONE);
@@ -362,11 +334,11 @@ public class ChartController extends AbstractChartPluginAwareController
 	@RequestMapping(value = "/pagingQueryData", produces = CONTENT_TYPE_JSON)
 	@ResponseBody
 	public PagingData<HtmlChartWidgetEntity> pagingQueryData(HttpServletRequest request, HttpServletResponse response,
-			Model model, @RequestBody(required = false) APIDDataFilterPagingQuery pagingQueryParam)
+			Model model, @RequestBody(required = false) APIDDataFilterPagingQuery pagingQuery)
 			throws Exception
 	{
+		pagingQuery = (pagingQuery == null ? new APIDDataFilterPagingQuery() : pagingQuery);
 		User user = getCurrentUser();
-		APIDDataFilterPagingQuery pagingQuery = inflateAPIDDataFilterPagingQuery(request, pagingQueryParam);
 
 		PagingData<HtmlChartWidgetEntity> pagingData = this.htmlChartWidgetEntityService.pagingQuery(user, pagingQuery,
 				pagingQuery.getDataFilter(), pagingQuery.getAnalysisProjectId());
@@ -469,8 +441,8 @@ public class ChartController extends AbstractChartPluginAwareController
 		HtmlChartPlugin plugin = null;
 		if (!StringUtil.isEmpty(pluginId))
 		{
-			plugin = (HtmlChartPlugin) this.chartPluginManager.get(pluginId);
-			pluginVo = (plugin == null ? null : new HtmlChartPluginVo(plugin.getId(), plugin.getNameLabel()));
+			plugin = getHtmlChartPlugin(pluginId, false);
+			pluginVo = (plugin == null ? null : new HtmlChartPluginVo(plugin));
 			entity.setPluginVo(pluginVo);
 		}
 
@@ -484,33 +456,24 @@ public class ChartController extends AbstractChartPluginAwareController
 				vo.setQuery(query);
 			}
 		}
-
-		Map<String, Object> attrValues = entity.getAttrValues();
-		if (attrValues != null && plugin != null)
-		{
-			attrValues = getChartPluginAttributeValueConverter().convert(attrValues, plugin.getAttributes());
-			entity.setAttrValues(attrValues);
-		}
 	}
 
 	protected void toFormResponseData(HttpServletRequest request, HtmlChartWidgetEntity entity)
 	{
-		HtmlChartPlugin plugin = entity.getPluginVo();
-
-		if (plugin != null)
-			entity.setPluginVo(getHtmlChartPluginView(request, plugin.getId()));
-
+		HtmlChartPluginVo pluginVo = entity.getPluginVo();
+		HtmlChartPlugin plugin = getHtmlChartPlugin((pluginVo == null ? null : pluginVo.getId()), false);
+		entity.setPluginVo(toHtmlChartPluginVo(request, plugin, true));
 		entity.setDataSetBinds(toDataSetBindViews(entity.getDataSetBinds()));
 	}
 
 	protected void toQueryResponseData(HttpServletRequest request, List<HtmlChartWidgetEntity> items)
 	{
-		Locale locale = WebUtils.getLocale(request);
 		String themeName = resolveChartPluginIconThemeName(request);
+		Locale locale = WebUtils.getLocale(request);
 
 		for (HtmlChartWidgetEntity entity : items)
 		{
-			entity.setPluginVo(toHtmlChartPluginView(entity.getPluginVo(), themeName, locale));
+			entity.setPluginVo(toHtmlChartPluginVo(entity.getPluginVo(), false, locale, themeName));
 		}
 	}
 
