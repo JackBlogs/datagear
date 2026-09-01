@@ -472,7 +472,30 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	{
 		DbVersionManager bean = new DbVersionManager(this.dataSourceConfig.dataSource(),
 				this.resourcePatternResolver());
+
+		String sqlScriptLocation = getDbSqlScriptLocation();
+		if (!StringUtil.isEmpty(sqlScriptLocation))
+			bean.setSqlScriptLocation(sqlScriptLocation);
+
 		return bean;
+	}
+
+	/**
+	 * 获取数据库初始化/升级脚本位置。
+	 * <p>
+	 * 返回{@code null}表示使用{@linkplain DbVersionManager}的默认脚本位置（Derby）。
+	 * </p>
+	 *
+	 * @return
+	 */
+	protected String getDbSqlScriptLocation()
+	{
+		String dialectName = getApplicationProperties().getDatasourceDialect();
+
+		if ("mysql".equalsIgnoreCase(dialectName))
+			return DbVersionManager.DEFAULT_MYSQL_SQL_SCRIPT_LOCATION;
+
+		return null;
 	}
 
 	@Bean

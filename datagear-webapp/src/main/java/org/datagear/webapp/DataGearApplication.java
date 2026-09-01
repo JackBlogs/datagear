@@ -44,6 +44,13 @@ public class DataGearApplication
 {
 	public static void main(String[] args)
 	{
+		// 禁用 Spring Boot DevTools 的 RestartClassLoader。
+		// 使用 `mvn spring-boot:run` 启动时，devtools 的 RestartClassLoader 无法通过反射加载
+		// JDBC 驱动（如 com.mysql.cj.jdbc.Driver），会抛出 ClassNotFoundException 导致启动失败。
+		// 注意：此属性只能通过系统属性方式在 SpringApplication 启动前设置，
+		// 写在 application.properties 中不生效（RestartApplicationListener 只读取系统属性）。
+		System.setProperty("spring.devtools.restart.enabled", "false");
+
 		SpringApplication springApplication = new SpringApplication(DataGearApplication.class);
 		springApplication.setBanner(new ApplicationBanner());
 		springApplication.run(args);

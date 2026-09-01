@@ -66,6 +66,10 @@ public class DbVersionManager extends AbstractVersionContentReader
 	public static final String DEFAULT_SQL_SCRIPT_LOCATION = ResourceLoader.CLASSPATH_URL_PREFIX
 			+ "org/datagear/management/ddl/datagear.sql";
 
+	/** MySQL脚本资源文件路径 */
+	public static final String DEFAULT_MYSQL_SQL_SCRIPT_LOCATION = ResourceLoader.CLASSPATH_URL_PREFIX
+			+ "org/datagear/management/ddl/datagear-mysql.sql";
+
 	/** 注释行开头标识 */
 	public static final String COMMENT_LINE_PREFIX = "/*";
 
