@@ -14,7 +14,7 @@ const dtbsSources = ref<EntityRecord[]>([])
 const form = ref<SqlDataSetForm>({
   name: '',
   sql: 'SELECT * FROM ',
-  connectionFactory: { dtbsSource: { id: '' } },
+  dtbsCnFty: { dtbsSource: { id: '' } },
 })
 const saving = ref(false)
 const resolvedSql = ref('')
@@ -50,7 +50,7 @@ function dsName(ds: EntityRecord): string {
 }
 
 async function save() {
-  if (!form.value.name || !form.value.sql || !form.value.connectionFactory.dtbsSource.id) {
+  if (!form.value.name || !form.value.sql || !form.value.dtbsCnFty.dtbsSource.id) {
     fail('请填写名称、SQL 并选择数据源')
     return
   }
@@ -79,7 +79,7 @@ onMounted(loadDtbsSources)
       </div>
       <div class="flex align-items-center gap-2">
         <label class="label">数据源</label>
-        <select v-model="form.connectionFactory.dtbsSource.id" class="input flex-1">
+        <select v-model="form.dtbsCnFty.dtbsSource.id" class="input flex-1">
           <option value="">（选择数据源）</option>
           <option v-for="ds in dtbsSources" :key="ds.id" :value="ds.id">{{ dsName(ds) }}</option>
         </select>

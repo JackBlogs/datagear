@@ -46,5 +46,5 @@ export async function deleteUsers(ids: string[], migrateToId: string): Promise<v
 
 /** 管理员修改用户密码（旧 /user/saveEditPsd，字段 id + password） */
 export async function changeUserPassword(id: string, password: string): Promise<void> {
-  await request.post<OperationMessage>('/user/saveEditPsd', { id, password })
+  await request.post<OperationMessage>('/api/user/password', { id, password })
 }

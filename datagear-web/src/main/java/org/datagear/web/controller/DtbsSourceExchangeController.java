@@ -125,7 +125,7 @@ import org.springframework.web.multipart.MultipartFile;
  *
  */
 @Controller
-@RequestMapping("/dtbsSourceExchange")
+@RequestMapping({ "/dtbsSourceExchange", "/api/dtbsSourceExchange" })
 public class DtbsSourceExchangeController extends AbstractDtbsSourceConnController
 {
 	public static final Pattern TABLE_NAME_QUERY_PATTERN = Pattern.compile("^\\s*\\S+\\s*$", Pattern.CASE_INSENSITIVE);

@@ -18,6 +18,7 @@
 package org.datagear.web.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -32,7 +33,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 数据库驱动程序 API 控制器（{@code /api/driverEntity} 前缀）。
@@ -50,9 +53,23 @@ public class DriverEntityApiController extends AbstractController
 	@Autowired
 	private DriverEntityManager driverEntityManager;
 
+	@Autowired
+	private DriverEntityController driverEntityController;
+
 	public DriverEntityApiController()
 	{
 		super();
+	}
+
+	/**
+	 * 上传驱动 jar 文件（替代旧 /driverEntity/uploadDriverFile）。
+	 */
+	@RequestMapping(value = "/uploadFile", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public Map<String, Object> uploadFile(HttpServletRequest request, @RequestParam("id") String id,
+			@RequestParam("file") MultipartFile multipartFile) throws Exception
+	{
+		return this.driverEntityController.uploadDriverFile(request, id, multipartFile);
 	}
 
 	@RequestMapping(value = "/list", produces = CONTENT_TYPE_JSON)

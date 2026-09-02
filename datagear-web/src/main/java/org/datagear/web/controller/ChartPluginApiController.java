@@ -23,16 +23,21 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.datagear.analysis.DataSignSpec;
 import org.datagear.analysis.support.html.HtmlChartPlugin;
 import org.datagear.web.util.OperationMessage;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 图表插件 API 控制器（{@code /api/chartPlugin} 前缀）。
@@ -47,9 +52,37 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @RequestMapping("/api/chartPlugin")
 public class ChartPluginApiController extends AbstractChartPluginAwareController
 {
+	@Autowired
+	private ChartPluginController chartPluginController;
+
 	public ChartPluginApiController()
 	{
 		super();
+	}
+
+	/**
+	 * 上传插件文件（替代旧 /chartPlugin/uploadFile）。
+	 */
+	@RequestMapping(value = "/uploadFile", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public Map<String, Object> uploadFile(HttpServletRequest request, HttpServletResponse response,
+			@RequestParam("file") MultipartFile multipartFile) throws Exception
+	{
+		return this.chartPluginController.uploadFile(request, response, multipartFile);
+	}
+
+	/**
+	 * 保存上传（替代旧 /chartPlugin/saveUpload）。
+	 */
+	@RequestMapping(value = "/saveUpload", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveUpload(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody Map<String, Object> body) throws Exception
+	{
+		ChartPluginController.saveUploadForm form = new ChartPluginController.saveUploadForm();
+		form.setPluginFileName((String) body.get("pluginFileName"));
+
+		return this.chartPluginController.saveUpload(request, response, form);
 	}
 
 	/**

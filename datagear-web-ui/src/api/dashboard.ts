@@ -25,7 +25,7 @@ export interface DashboardResource {
 
 /** 获取看板模板内容 */
 export async function getDashboardResourceContent(id: string, resourceName = 'index.html'): Promise<DashboardResource> {
-  const res = await request.get<DashboardResource>('/dashboard/getResourceContent', {
+  const res = await request.get<DashboardResource>('/api/dashboard/getResourceContent', {
     params: { id, resourceName },
   })
   return res.data
@@ -38,7 +38,7 @@ export async function saveDashboardResourceContent(id: string, resourceName: str
   form.append('resourceName', resourceName)
   form.append('resourceContent', content)
   form.append('isTemplate', 'true')
-  await request.post('/dashboard/saveResourceContent', form, {
+  await request.post('/api/dashboard/saveResourceContent', form, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   })
 }
@@ -69,7 +69,7 @@ export async function uploadDashboardImportFile(
   const fd = new FormData()
   fd.append('file', file)
   const res = await request.post<{ dashboardName: string; dashboardFileName: string; templates: string[] }>(
-    '/dashboard/uploadImportFile',
+    '/api/dashboard/uploadImportFile',
     fd,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   )
@@ -83,7 +83,7 @@ export async function saveDashboardImport(form: {
   dashboardFileName: string
   apiVersion?: string
 }): Promise<unknown> {
-  const res = await request.post<OperationMessage>('/dashboard/saveImport', {
+  const res = await request.post<OperationMessage>('/api/dashboard/saveImport', {
     ...form,
     apiVersion: form.apiVersion ?? '2.0',
   })

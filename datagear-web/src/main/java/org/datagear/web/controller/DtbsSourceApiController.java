@@ -22,13 +22,23 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.datagear.management.domain.DtbsSource;
 import org.datagear.management.service.DataPermissionEntityService;
 import org.datagear.management.service.DtbsSourceService;
+import org.datagear.management.util.PagingQuery;
+import org.datagear.meta.SimpleTable;
+import org.datagear.meta.Table;
+import org.datagear.util.query.PagingData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * 数据源管理 API 控制器（{@code /api/dtbsSource} 前缀）。
@@ -42,6 +52,9 @@ public class DtbsSourceApiController extends AbstractDataPermissionApiController
 {
 	@Autowired
 	private DtbsSourceService dtbsSourceService;
+
+	@Autowired
+	private DtbsSourceController dtbsSourceController;
 
 	public DtbsSourceApiController()
 	{
@@ -82,6 +95,30 @@ public class DtbsSourceApiController extends AbstractDataPermissionApiController
 	protected void toFormResponseData(HttpServletRequest request, DtbsSource entity)
 	{
 		entity.clearPassword();
+	}
+
+	/**
+	 * 查询数据源下的数据表（替代旧 /dtbsSource/{id}/pagingQueryTable）。
+	 */
+	@RequestMapping(value = "/{dtbsSourceId}/pagingQueryTable", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public PagingData<SimpleTable> pagingQueryTable(HttpServletRequest request, HttpServletResponse response, Model model,
+			@PathVariable("dtbsSourceId") String dtbsSourceId, @RequestBody(required = false) PagingQuery pagingQuery)
+			throws Throwable
+	{
+		return this.dtbsSourceController.pagingQueryTable(request, response, model, dtbsSourceId, pagingQuery);
+	}
+
+	/**
+	 * 获取数据表结构（替代旧 /dtbsSource/{id}/table/{tableName}）。
+	 */
+	@RequestMapping(value = "/{dtbsSourceId}/table/{tableName}", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public Table getTable(HttpServletRequest request, HttpServletResponse response, Model model,
+			@PathVariable("dtbsSourceId") String dtbsSourceId, @PathVariable("tableName") String tableName,
+			@RequestParam(value = "reload", required = false) Boolean forceReload) throws Throwable
+	{
+		return this.dtbsSourceController.getTable(request, response, model, dtbsSourceId, tableName, forceReload);
 	}
 
 	public DtbsSourceService getDtbsSourceService()

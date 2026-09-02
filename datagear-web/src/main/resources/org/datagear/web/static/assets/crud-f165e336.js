@@ -1,0 +1,1 @@
+import{r as a,u as o}from"./request-948ad71a.js";function u(e,t){return a.get(`/api/${e}/get/${t}`).then(n=>o(n))}function s(e,t){return a.post(`/api/${e}/save`,t).then(n=>o(n))}function i(e,t){return a.post(`/api/${e}/delete`,t).then(()=>{})}export{u as a,s as b,i as m};

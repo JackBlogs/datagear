@@ -30,7 +30,7 @@ export type DataRow = Record<string, unknown>
 
 /** 表列表（POST /dtbsSource/{id}/pagingQueryTable，裸 PagingData<SimpleTable>） */
 export async function listTables(dtbsSourceId: string, keyword = ''): Promise<SimpleTable[]> {
-  const res = await request.post<PagingData<SimpleTable>>(`/dtbsSource/${dtbsSourceId}/pagingQueryTable`, {
+  const res = await request.post<PagingData<SimpleTable>>(`/api/dtbsSource/${dtbsSourceId}/pagingQueryTable`, {
     page: 1,
     pageSize: 500,
     keyword,
@@ -40,7 +40,7 @@ export async function listTables(dtbsSourceId: string, keyword = ''): Promise<Si
 
 /** 表结构（GET /dtbsSource/{id}/table/{tableName}，裸 Table） */
 export async function getTable(dtbsSourceId: string, tableName: string): Promise<TableMeta> {
-  const res = await request.get<TableMeta>(`/dtbsSource/${dtbsSourceId}/table/${tableName}`)
+  const res = await request.get<TableMeta>(`/api/dtbsSource/${dtbsSourceId}/table/${tableName}`)
   return res.data
 }
 
@@ -52,7 +52,7 @@ export async function pagingQueryData(
   pageSize: number,
 ): Promise<PagingData<DataRow>> {
   const res = await request.post<PagingData<DataRow>>(
-    `/dtbsSourceData/${dtbsSourceId}/${tableName}/pagingQueryData`,
+    `/api/dtbsSourceData/${dtbsSourceId}/${tableName}/pagingQueryData`,
     { page, pageSize },
   )
   return res.data
@@ -65,7 +65,7 @@ export async function saveRow(
   row: DataRow,
 ): Promise<DataRow> {
   const res = await request.post<OperationMessage<DataRow>>(
-    `/dtbsSourceData/${dtbsSourceId}/${tableName}/saveAdd`,
+    `/api/dtbsSourceData/${dtbsSourceId}/${tableName}/saveAdd`,
     row,
   )
   return res.data.data ?? row
@@ -79,7 +79,7 @@ export async function updateRow(
   data: DataRow,
 ): Promise<DataRow> {
   const res = await request.post<OperationMessage<DataRow>>(
-    `/dtbsSourceData/${dtbsSourceId}/${tableName}/saveEdit`,
+    `/api/dtbsSourceData/${dtbsSourceId}/${tableName}/saveEdit`,
     { originalData, data },
   )
   return res.data.data ?? data
@@ -91,5 +91,5 @@ export async function deleteRows(
   tableName: string,
   rows: DataRow[],
 ): Promise<void> {
-  await request.post<OperationMessage>(`/dtbsSourceData/${dtbsSourceId}/${tableName}/delete`, rows)
+  await request.post<OperationMessage>(`/api/dtbsSourceData/${dtbsSourceId}/${tableName}/delete`, rows)
 }

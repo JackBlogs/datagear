@@ -45,7 +45,7 @@ export async function uploadDriverFile(
   fd.append('id', id)
   fd.append('file', file)
   const res = await request.post<{ fileInfos: unknown[]; driverClassNames: string[] }>(
-    '/driverEntity/uploadDriverFile',
+    '/api/driverEntity/uploadFile',
     fd,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   )

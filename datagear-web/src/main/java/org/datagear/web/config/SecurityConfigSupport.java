@@ -514,9 +514,11 @@ public class SecurityConfigSupport
 		// 数据源数据管理、导入导出、SQL工作台、SQL编辑器
 		// 用户针对数据源数据的所有操作都已受其所属数据源权限控制，所以不必再引入数据管理员/数据分析员权限
 
-		UrlsAccess ua0 = new UrlsAccess(accessAuthorizationManager(), "/dtbsSourceData/**", "/dtbsSourceSqlEditor/**");
+		UrlsAccess ua0 = new UrlsAccess(accessAuthorizationManager(), "/dtbsSourceData/**", "/dtbsSourceSqlEditor/**",
+				"/api/dtbsSourceData/**");
 		// 高级、高风险功能禁止匿名用户
-		UrlsAccess ua1 = new UrlsAccess(userAuthorizationManager(), "/dtbsSourceExchange/**", "/dtbsSourceSqlpad/**");
+		UrlsAccess ua1 = new UrlsAccess(userAuthorizationManager(), "/dtbsSourceExchange/**", "/dtbsSourceSqlpad/**",
+				"/api/dtbsSourceExchange/**", "/api/dtbsSourceSqlpad/**");
 
 		return new ModuleAccess(ua0, ua1);
 	}

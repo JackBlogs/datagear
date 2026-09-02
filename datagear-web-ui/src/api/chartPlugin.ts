@@ -35,7 +35,7 @@ export async function uploadChartPluginFile(file: File): Promise<{ pluginFileNam
   const fd = new FormData()
   fd.append('file', file)
   const res = await request.post<{ pluginFileName: string; pluginInfos: unknown[] }>(
-    '/chartPlugin/uploadFile',
+    '/api/chartPlugin/uploadFile',
     fd,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   )
@@ -44,5 +44,5 @@ export async function uploadChartPluginFile(file: File): Promise<{ pluginFileNam
 
 /** 保存上传（/chartPlugin/saveUpload） */
 export async function saveChartPluginUpload(pluginFileName: string): Promise<void> {
-  await request.post<OperationMessage>('/chartPlugin/saveUpload', { pluginFileName })
+  await request.post<OperationMessage>('/api/chartPlugin/saveUpload', { pluginFileName })
 }

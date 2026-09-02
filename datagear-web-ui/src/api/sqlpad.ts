@@ -55,7 +55,7 @@ export interface SqlpadSelectForm {
 /** 提交 SQL 执行（异步，返回 OperationMessage） */
 export async function executeSql(dtbsSourceId: string, sqlpadId: string, sql: string) {
   const res = await request.post<OperationMessage>(
-    `/dtbsSourceSqlpad/${dtbsSourceId}/execute`,
+    `/api/dtbsSourceSqlpad/${dtbsSourceId}/execute`,
     null,
     { params: { sqlpadId, sql } },
   )
@@ -69,7 +69,7 @@ export async function pollMessages(
   messageCount = 50,
 ): Promise<SqlpadMessage[]> {
   const res = await request.post<SqlpadMessage[]>(
-    `/dtbsSourceSqlpad/${dtbsSourceId}/message`,
+    `/api/dtbsSourceSqlpad/${dtbsSourceId}/message`,
     null,
     { params: { sqlpadId, messageCount } },
   )
@@ -82,7 +82,7 @@ export async function sqlHistoryData(
   query: PagingQuery,
 ): Promise<PagingData<SqlHistory>> {
   const res = await request.post<PagingData<SqlHistory>>(
-    `/dtbsSourceSqlpad/${dtbsSourceId}/sqlHistoryData`,
+    `/api/dtbsSourceSqlpad/${dtbsSourceId}/sqlHistoryData`,
     query,
   )
   return res.data
@@ -90,7 +90,7 @@ export async function sqlHistoryData(
 
 /** 结果分页（同步查询更多行，裸 SqlSelectResult） */
 export async function selectData(dtbsSourceId: string, form: SqlpadSelectForm): Promise<SqlSelectResult> {
-  const res = await request.post<SqlSelectResult>(`/dtbsSourceSqlpad/${dtbsSourceId}/select`, form)
+  const res = await request.post<SqlSelectResult>(`/api/dtbsSourceSqlpad/${dtbsSourceId}/select`, form)
   return res.data
 }
 

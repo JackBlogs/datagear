@@ -39,7 +39,7 @@ export async function getProfileDataSetByIds(ids: string[]): Promise<ProfileData
 export interface SqlDataSetForm {
   name: string
   sql: string
-  connectionFactory: {
+  dtbsCnFty: {
     dtbsSource: { id: string }
     schemaName?: string | null
     properties?: unknown[]
@@ -48,7 +48,7 @@ export interface SqlDataSetForm {
 
 /** 保存 SQL 数据集（旧 /dataSet/saveAdd/SQL 端点，OperationMessage） */
 export async function saveSqlDataSet(entity: SqlDataSetForm): Promise<unknown> {
-  const res = await request.post<OperationMessage>('/dataSet/saveAdd/SQL', entity)
+  const res = await request.post<OperationMessage>('/api/dataSet/saveAdd/SQL', entity)
   return unwrap(res)
 }
 
@@ -85,12 +85,12 @@ export async function getDataSet(id: string): Promise<DataSetForm> {
 
 /** 保存数据集（新增，旧 /dataSet/saveAdd/{type}，OperationMessage） */
 export async function saveDataSetAdd(type: string, entity: DataSetForm): Promise<DataSetForm> {
-  const res = await request.post<OperationMessage<DataSetForm>>(`/dataSet/saveAdd/${type}`, entity)
+  const res = await request.post<OperationMessage<DataSetForm>>(`/api/dataSet/saveAdd/${type}`, entity)
   return unwrap(res)!
 }
 
 /** 保存数据集（编辑，旧 /dataSet/saveEdit/{type}，OperationMessage） */
 export async function saveDataSetEdit(type: string, entity: DataSetForm): Promise<DataSetForm> {
-  const res = await request.post<OperationMessage<DataSetForm>>(`/dataSet/saveEdit/${type}`, entity)
+  const res = await request.post<OperationMessage<DataSetForm>>(`/api/dataSet/saveEdit/${type}`, entity)
   return unwrap(res)!
 }

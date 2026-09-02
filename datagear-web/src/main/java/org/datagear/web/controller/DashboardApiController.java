@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.datagear.analysis.support.html.DashboardApiVersion;
 import org.datagear.analysis.support.html.HtmlTplDashboardWidget;
@@ -36,10 +37,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 看板 API 控制器（{@code /api/dashboard} 前缀）。
@@ -59,6 +63,9 @@ public class DashboardApiController extends AbstractDataPermissionApiController<
 
 	@Autowired
 	private DashboardShareSetService dashboardShareSetService;
+
+	@Autowired
+	private DashboardController dashboardController;
 
 	public DashboardApiController()
 	{
@@ -196,6 +203,54 @@ public class DashboardApiController extends AbstractDataPermissionApiController<
 				getMessage(request, "operationSuccess"), entity);
 
 		return new ResponseEntity<OperationMessage<DashboardShareSet>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 获取看板模板资源内容（替代旧 /dashboard/getResourceContent）。
+	 */
+	@RequestMapping(value = "/getResourceContent", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public Map<String, Object> getResourceContent(HttpServletRequest request, HttpServletResponse response, Model model,
+			@RequestParam("id") String id, @RequestParam("resourceName") String resourceName) throws Exception
+	{
+		return this.dashboardController.getResourceContent(request, response, model, id, resourceName);
+	}
+
+	/**
+	 * 保存看板模板资源内容（替代旧 /dashboard/saveResourceContent）。
+	 */
+	@RequestMapping(value = "/saveResourceContent", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveResourceContent(HttpServletRequest request, HttpServletResponse response,
+			@RequestParam("id") String id, @RequestParam("resourceName") String resourceName,
+			@RequestParam("resourceContent") String resourceContent,
+			@RequestParam(value = "isTemplate", required = false) Boolean isTemplate) throws Exception
+	{
+		return this.dashboardController.saveResourceContent(request, response, id, resourceName, resourceContent,
+				isTemplate);
+	}
+
+	/**
+	 * 上传看板导入文件（替代旧 /dashboard/uploadImportFile）。
+	 */
+	@RequestMapping(value = "/uploadImportFile", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public Map<String, Object> uploadImportFile(HttpServletRequest request, HttpServletResponse response,
+			@RequestParam("file") MultipartFile multipartFile,
+			@RequestParam(name = "zipFileNameEncoding", required = false) String zipFileNameEncoding) throws Exception
+	{
+		return this.dashboardController.uploadImportFile(request, response, multipartFile, zipFileNameEncoding);
+	}
+
+	/**
+	 * 保存看板导入（替代旧 /dashboard/saveImport）。
+	 */
+	@RequestMapping(value = "/saveImport", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveImport(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody DashboardController.DashboardImportForm form) throws Exception
+	{
+		return this.dashboardController.saveImport(request, response, form);
 	}
 
 	public HtmlTplDashboardWidgetEntityService getHtmlTplDashboardWidgetEntityService()

@@ -161,6 +161,56 @@ public class UserApiController extends AbstractEntityApiController<User>
 		entity.clearPassword();
 	}
 
+	/**
+	 * 修改用户密码（管理员，替代旧 /user/saveEditPsd）。
+	 */
+	@RequestMapping(value = "/password", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> password(HttpServletRequest request, @RequestBody ChangePasswordForm form)
+	{
+		if (isEmpty(form.getId()) || isBlank(form.getPassword()))
+			throw new IllegalInputException();
+
+		this.userService.updatePasswordById(form.getId(), form.getPassword(), true);
+
+		return optSuccessResponseEntity(request);
+	}
+
+	/** 修改密码请求体 */
+	public static class ChangePasswordForm
+	{
+		private static final long serialVersionUID = 1L;
+
+		private String id;
+
+		private String password;
+
+		public ChangePasswordForm()
+		{
+			super();
+		}
+
+		public String getId()
+		{
+			return id;
+		}
+
+		public void setId(String id)
+		{
+			this.id = id;
+		}
+
+		public String getPassword()
+		{
+			return password;
+		}
+
+		public void setPassword(String password)
+		{
+			this.password = password;
+		}
+	}
+
 	/** 删除用户请求体（待删用户 + 业务数据迁移目标用户） */
 	public static class DeleteUserForm
 	{

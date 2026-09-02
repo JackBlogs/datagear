@@ -1,1 +1,0 @@
-import{I as r}from"./index-c8e63e8d.js";function o(){const e=r();function t(s){e.add({severity:"success",summary:"成功",detail:s,life:3e3})}function a(s){e.add({severity:"error",summary:"失败",detail:s,life:5e3})}return{success:t,fail:a,toast:e}}export{o as u};

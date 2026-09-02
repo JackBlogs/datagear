@@ -74,7 +74,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  */
 @Controller
-@RequestMapping("/dtbsSourceSqlpad")
+@RequestMapping({ "/dtbsSourceSqlpad", "/api/dtbsSourceSqlpad" })
 public class DtbsSourceSqlpadController extends AbstractDtbsSourceConnController
 {
 	public static final int DEFAULT_SQL_RESULTSET_FETCH_SIZE = 20;

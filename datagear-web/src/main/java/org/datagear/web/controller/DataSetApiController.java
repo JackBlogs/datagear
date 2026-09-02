@@ -22,12 +22,20 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.datagear.analysis.DataSetQuery;
 import org.datagear.analysis.support.ProfileDataSet;
 import org.datagear.analysis.support.datasettpl.DataSetFmkTemplateResolvers;
 import org.datagear.analysis.support.datasettpl.TemplateContext;
+import org.datagear.management.domain.CsvFileDataSetEntity;
+import org.datagear.management.domain.CsvValueDataSetEntity;
 import org.datagear.management.domain.DataSetEntity;
+import org.datagear.management.domain.ExcelDataSetEntity;
+import org.datagear.management.domain.HttpDataSetEntity;
+import org.datagear.management.domain.JsonFileDataSetEntity;
+import org.datagear.management.domain.JsonValueDataSetEntity;
+import org.datagear.management.domain.SqlDataSetEntity;
 import org.datagear.management.domain.User;
 import org.datagear.management.service.DataPermissionEntityService;
 import org.datagear.management.service.DataSetEntityService;
@@ -37,6 +45,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -60,6 +69,9 @@ public class DataSetApiController extends AbstractDataPermissionApiController<Da
 
 	@Autowired
 	private WebDashboardQueryConverter webDashboardQueryConverter;
+
+	@Autowired
+	private DataSetController dataSetController;
 
 	public DataSetApiController()
 	{
@@ -141,6 +153,163 @@ public class DataSetApiController extends AbstractDataPermissionApiController<Da
 				getMessage(request, "operationSuccess"), dataSets);
 
 		return new ResponseEntity<OperationMessage<List<ProfileDataSet>>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 新增 SQL 数据集（替代旧 /dataSet/saveAdd/SQL）。
+	 */
+	@RequestMapping(value = "/saveAdd/SQL", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveAddSql(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody SqlDataSetEntity entity)
+	{
+		return this.dataSetController.saveAddSql(request, response, entity);
+	}
+
+	/**
+	 * 新增 JSON 值数据集。
+	 */
+	@RequestMapping(value = "/saveAdd/JsonValue", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveAddJsonValue(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody JsonValueDataSetEntity entity)
+	{
+		return this.dataSetController.saveAddJsonValue(request, response, entity);
+	}
+
+	/**
+	 * 新增 JSON 文件数据集。
+	 */
+	@RequestMapping(value = "/saveAdd/JsonFile", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveAddJsonFile(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody JsonFileDataSetEntity entity) throws Throwable
+	{
+		return this.dataSetController.saveAddJsonFile(request, response, entity);
+	}
+
+	/**
+	 * 新增 Excel 数据集。
+	 */
+	@RequestMapping(value = "/saveAdd/Excel", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveAddExcel(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody ExcelDataSetEntity entity) throws Throwable
+	{
+		return this.dataSetController.saveAddExcel(request, response, entity);
+	}
+
+	/**
+	 * 新增 CSV 值数据集。
+	 */
+	@RequestMapping(value = "/saveAdd/CsvValue", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveAddCsvValue(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody CsvValueDataSetEntity entity) throws Throwable
+	{
+		return this.dataSetController.saveAddCsvValue(request, response, entity);
+	}
+
+	/**
+	 * 新增 CSV 文件数据集。
+	 */
+	@RequestMapping(value = "/saveAdd/CsvFile", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveAddCsvFile(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody CsvFileDataSetEntity entity) throws Throwable
+	{
+		return this.dataSetController.saveAddCsvFile(request, response, entity);
+	}
+
+	/**
+	 * 新增 HTTP 数据集。
+	 */
+	@RequestMapping(value = "/saveAdd/Http", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveAddHttp(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody HttpDataSetEntity entity) throws Throwable
+	{
+		return this.dataSetController.saveAddHttp(request, response, entity);
+	}
+
+	/**
+	 * 编辑 SQL 数据集（替代旧 /dataSet/saveEdit/SQL）。
+	 */
+	@RequestMapping(value = "/saveEdit/SQL", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveEditSql(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody SqlDataSetEntity entity)
+	{
+		return this.dataSetController.saveEditSql(request, response, entity);
+	}
+
+	/**
+	 * 编辑 JSON 值数据集。
+	 */
+	@RequestMapping(value = "/saveEdit/JsonValue", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveEditJsonValue(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody JsonValueDataSetEntity entity)
+	{
+		return this.dataSetController.saveEditJsonValue(request, response, entity);
+	}
+
+	/**
+	 * 编辑 JSON 文件数据集。
+	 */
+	@RequestMapping(value = "/saveEdit/JsonFile", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveEditJsonFile(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody JsonFileDataSetEntity entity,
+			@RequestParam(value = "originalFileName", required = false) String originalFileName) throws Throwable
+	{
+		return this.dataSetController.saveEditJsonFile(request, response, entity, originalFileName);
+	}
+
+	/**
+	 * 编辑 Excel 数据集。
+	 */
+	@RequestMapping(value = "/saveEdit/Excel", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveEditExcel(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody ExcelDataSetEntity entity,
+			@RequestParam(value = "originalFileName", required = false) String originalFileName) throws Throwable
+	{
+		return this.dataSetController.saveEditExcel(request, response, entity, originalFileName);
+	}
+
+	/**
+	 * 编辑 CSV 值数据集。
+	 */
+	@RequestMapping(value = "/saveEdit/CsvValue", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveEditCsvValue(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody CsvValueDataSetEntity entity)
+	{
+		return this.dataSetController.saveEditCsvValue(request, response, entity);
+	}
+
+	/**
+	 * 编辑 CSV 文件数据集。
+	 */
+	@RequestMapping(value = "/saveEdit/CsvFile", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveEditCsvFile(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody CsvFileDataSetEntity entity,
+			@RequestParam(value = "originalFileName", required = false) String originalFileName) throws Throwable
+	{
+		return this.dataSetController.saveEditCsvFile(request, response, entity, originalFileName);
+	}
+
+	/**
+	 * 编辑 HTTP 数据集。
+	 */
+	@RequestMapping(value = "/saveEdit/Http", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveEditHttp(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody HttpDataSetEntity entity) throws Throwable
+	{
+		return this.dataSetController.saveEditHttp(request, response, entity);
 	}
 
 	public DataSetEntityService getDataSetEntityService()

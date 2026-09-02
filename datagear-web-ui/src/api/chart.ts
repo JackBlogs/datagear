@@ -31,7 +31,7 @@ export async function saveChart(entity: ChartEntity): Promise<void> {
       fieldOrders: b.fieldOrders ?? {},
     })),
   }
-  await request.post<OperationMessage>('/chart/saveEdit', body)
+  await request.post<OperationMessage>('/api/chart/saveEdit', body)
 }
 
 /** 图表预览数据（/api/chart/preview/{id} 执行结果，供前端 ECharts 渲染，脱离 iframe） */

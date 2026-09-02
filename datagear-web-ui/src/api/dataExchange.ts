@@ -28,13 +28,13 @@ export function newId(): string {
 
 /** 获取数据源下的所有表名 */
 export async function getAllTableNames(dtbsSourceId: string): Promise<string[]> {
-  const res = await request.get<string[]>(`/dtbsSourceExchange/${dtbsSourceId}/getAllTableNames`)
+  const res = await request.get<string[]>(`/api/dtbsSourceExchange/${dtbsSourceId}/getAllTableNames`)
   return res.data ?? []
 }
 
 /** 提交导出（异步） */
 export async function doExport(dtbsSourceId: string, type: ExportType, form: DataExportForm): Promise<void> {
-  await request.post<OperationMessage>(`/dtbsSourceExchange/${dtbsSourceId}/export/${type}/doExport`, form)
+  await request.post<OperationMessage>(`/api/dtbsSourceExchange/${dtbsSourceId}/export/${type}/doExport`, form)
 }
 
 /** 轮询导出消息 */
@@ -43,7 +43,7 @@ export async function pollExportMessages(
   dataExchangeId: string,
   messageCount = 50,
 ): Promise<unknown[]> {
-  const res = await request.post<unknown[]>(`/dtbsSourceExchange/${dtbsSourceId}/message`, null, {
+  const res = await request.post<unknown[]>(`/api/dtbsSourceExchange/${dtbsSourceId}/message`, null, {
     params: { dataExchangeId, messageCount },
   })
   return res.data ?? []
@@ -51,7 +51,7 @@ export async function pollExportMessages(
 
 /** 导出 ZIP 下载地址（export/downloadAll） */
 export function downloadAllUrl(dtbsSourceId: string, dataExchangeId: string, fileName: string): string {
-  return `/dtbsSourceExchange/${dtbsSourceId}/export/downloadAll?dataExchangeId=${encodeURIComponent(
+  return `/api/dtbsSourceExchange/${dtbsSourceId}/export/downloadAll?dataExchangeId=${encodeURIComponent(
     dataExchangeId,
   )}&fileName=${encodeURIComponent(fileName)}`
 }
@@ -93,7 +93,7 @@ export async function uploadImportFile(
   fd.append('dataExchangeId', dataExchangeId)
   fd.append('file', file)
   const res = await request.post<DataImportFileInfo[]>(
-    `/dtbsSourceExchange/${dtbsSourceId}/import/${type}/uploadImportFile`,
+    `/api/dtbsSourceExchange/${dtbsSourceId}/import/${type}/uploadImportFile`,
     fd,
   )
   return res.data ?? []
@@ -105,5 +105,5 @@ export async function doImport(
   type: ImportType,
   form: DataImportForm,
 ): Promise<void> {
-  await request.post(`/dtbsSourceExchange/${dtbsSourceId}/import/${type}/doImport`, form)
+  await request.post(`/api/dtbsSourceExchange/${dtbsSourceId}/import/${type}/doImport`, form)
 }
