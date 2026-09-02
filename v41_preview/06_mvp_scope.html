@@ -1,0 +1,269 @@
+<html><head><meta charset='utf-8'><style>
+body{font-family:'FangSong','仿宋',serif;font-size:12pt;margin:24px;}
+table{border-collapse:collapse;margin:8px 0;}
+td,th{border:1px solid #333;padding:3px 8px;font-size:10.5pt;}
+</style></head><body>用最少的功能验证"语义层驱动的一站式BI平台"的核心价值假设，本版（V4.1）起聚焦验证"口径统一"单一假设，即：指标统一定义能否解决口径不一致问题？指标中心最小闭环能否被看板/图表真实消费？（原"嵌入能力能否被第三方系统快速集成"的验证随签名嵌入移至 Phase 1，见 MVP 范围（不做/后置）。）</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>维度</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>MVP目标</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>验证指标</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>目标值</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>核心价值</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>验证语义层+指标中心的可用性（口径统一）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标创建到看板引用的完成率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥90%</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>核心价值</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>验证自助取数（分阶段口径，见产品目标-体验目标）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>分析师通过数据集/指标自助完成取数的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥60%（Phase 1 考核；业务人员零SQL口径在 Phase 2 问数/构建器就绪后考核）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>技术可行性</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>验证轻量部署体验</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Docker一键部署到可用的时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≤5分钟</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>技术可行性</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>验证调度基建稳定性</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>定时任务7天连续运行成功率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥99.5%</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>用户体验</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>验证核心流程流畅度</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>从数据源接入到看板发布的端到端时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≤30分钟</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b></b><br></p>
+<p class="p14"><b>MVP范围（做）</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>模块</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>MVP包含功能</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>对应需求</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>优先级</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>基建</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>调度框架（Quartz）+ 邮件模块 + 任务管理UI</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-ALERT-06</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>基建</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Docker镜像 + docker-compose + 环境变量化配置</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-DELIV-01</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>基建</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>备份恢复工具（系统库+HOME一键备份/恢复）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-DELIV-02</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>语义层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>维度/度量定义（支持层级和6种聚合）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-SEM-01</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>语义层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>原子指标定义（度量+聚合+口径说明）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-SEM-02</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>语义层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标目录（按主题域分类+检索）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-SEM-03</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>语义层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标统一消费（图表直接引用指标+指标卡片组件）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-SEM-06</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>数据接入</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>数据源CRUD + 连接校验 + 驱动管理（已有，确保稳定）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-DS-01~09/FR-DRIVER-01~04</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0（已有）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>数据建模</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>数据集CRUD + 参数化 + 字段定义（已有，确保稳定）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-MODEL-01</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0（已有）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>数据展示</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>图表库70+ + 看板设计器（已有，确保稳定）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-CHART-01~08</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0（已有）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>系统管理</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>用户/角色/资源级权限（已有，确保稳定）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>FR-AUTH-01~09/12~17</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0（已有）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b></b><br></p>
+<p class="p14"><b></body></html>

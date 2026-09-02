@@ -23,11 +23,16 @@ import java.io.StringWriter;
 
 /**
  * 操作消息。
+ * <p>
+ * 泛型化：{@code T} 为操作返回数据{@linkplain #getData()}的类型。
+ * 作为 {@code /api} 前缀接口的统一顶层包装。
+ * </p>
  * 
  * @author datagear@163.com
  *
+ * @param <T>
  */
-public class OperationMessage implements Serializable
+public class OperationMessage<T> implements Serializable
 {
 	private static final long serialVersionUID = 1L;
 
@@ -47,7 +52,7 @@ public class OperationMessage implements Serializable
 	private boolean throwableDetail;
 
 	/** 操作返回数据 */
-	private Object data;
+	private T data;
 
 	public OperationMessage()
 	{
@@ -142,12 +147,12 @@ public class OperationMessage implements Serializable
 		return (this.data != null);
 	}
 
-	public Object getData()
+	public T getData()
 	{
 		return data;
 	}
 
-	public void setData(Object data)
+	public void setData(T data)
 	{
 		this.data = data;
 	}
@@ -213,9 +218,9 @@ public class OperationMessage implements Serializable
 	 * @param message
 	 * @return
 	 */
-	public static OperationMessage valueOfSuccess(String code, String message)
+	public static <T> OperationMessage<T> valueOfSuccess(String code, String message)
 	{
-		OperationMessage om = new OperationMessage(MessageType.SUCCESS, code, message);
+		OperationMessage<T> om = new OperationMessage<T>(MessageType.SUCCESS, code, message);
 
 		return om;
 	}
@@ -228,9 +233,9 @@ public class OperationMessage implements Serializable
 	 * @param data
 	 * @return
 	 */
-	public static OperationMessage valueOfSuccess(String code, String message, Object data)
+	public static <T> OperationMessage<T> valueOfSuccess(String code, String message, T data)
 	{
-		OperationMessage om = new OperationMessage(MessageType.SUCCESS, code, message);
+		OperationMessage<T> om = new OperationMessage<T>(MessageType.SUCCESS, code, message);
 		om.setData(data);
 
 		return om;
@@ -243,9 +248,9 @@ public class OperationMessage implements Serializable
 	 * @param message
 	 * @return
 	 */
-	public static OperationMessage valueOfFail(String code, String message)
+	public static <T> OperationMessage<T> valueOfFail(String code, String message)
 	{
-		OperationMessage om = new OperationMessage(MessageType.FAIL, code, message);
+		OperationMessage<T> om = new OperationMessage<T>(MessageType.FAIL, code, message);
 
 		return om;
 	}
@@ -258,9 +263,9 @@ public class OperationMessage implements Serializable
 	 * @param data
 	 * @return
 	 */
-	public static OperationMessage valueOfFail(String code, String message, Object data)
+	public static <T> OperationMessage<T> valueOfFail(String code, String message, T data)
 	{
-		OperationMessage om = new OperationMessage(MessageType.FAIL, code, message);
+		OperationMessage<T> om = new OperationMessage<T>(MessageType.FAIL, code, message);
 		om.setData(data);
 
 		return om;
@@ -274,9 +279,9 @@ public class OperationMessage implements Serializable
 	 * @param throwable
 	 * @return
 	 */
-	public static OperationMessage valueOfThrowableFail(String code, String message, Throwable throwable)
+	public static <T> OperationMessage<T> valueOfThrowableFail(String code, String message, Throwable throwable)
 	{
-		OperationMessage om = new OperationMessage(MessageType.FAIL, code, message);
+		OperationMessage<T> om = new OperationMessage<T>(MessageType.FAIL, code, message);
 
 		om.setThrowable(throwable);
 
@@ -292,9 +297,9 @@ public class OperationMessage implements Serializable
 	 * @param throwable
 	 * @return
 	 */
-	public static OperationMessage valueOfThrowableFail(String code, String message, Object data, Throwable throwable)
+	public static <T> OperationMessage<T> valueOfThrowableFail(String code, String message, T data, Throwable throwable)
 	{
-		OperationMessage om = new OperationMessage(MessageType.FAIL, code, message);
+		OperationMessage<T> om = new OperationMessage<T>(MessageType.FAIL, code, message);
 		om.setThrowable(throwable);
 		om.setData(data);
 

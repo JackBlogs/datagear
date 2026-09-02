@@ -100,7 +100,11 @@ public class AjaxAwareAuthenticationEntryPoint implements AuthenticationEntryPoi
 		}
 		else
 		{
-			response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+			// API 错误一律 JSON：直写 OperationMessage，替代 sendError(401) 的 HTML 错误页
+			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+			response.setContentType("application/json;charset=UTF-8");
+			response.getWriter().write(
+					"{\"type\":\"FAIL\",\"code\":\"error.httpError401\",\"message\":\"未登录或会话已过期\",\"data\":null}");
 		}
 	}
 

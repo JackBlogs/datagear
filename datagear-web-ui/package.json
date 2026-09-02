@@ -1,0 +1,32 @@
+{
+  "name": "datagear-web-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DataGear 前端 Vue 化 SPA（Vite + Vue 3 + TypeScript + Pinia + PrimeVue 3）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "1.6.8",
+    "codemirror": "^5.64.0",
+    "pinia": "2.0.36",
+    "primeflex": "3.3.1",
+    "primeicons": "6.0.1",
+    "primevue": "3.34.1",
+    "vue": "3.2.47",
+    "vue-i18n": "9.2.2",
+    "vue-router": "4.1.6"
+  },
+  "devDependencies": {
+    "@types/codemirror": "^5.60.15",
+    "@types/node": "20.11.30",
+    "@vitejs/plugin-vue": "4.6.2",
+    "typescript": "5.3.3",
+    "vite": "4.5.3",
+    "vue-tsc": "1.8.27"
+  }
+}

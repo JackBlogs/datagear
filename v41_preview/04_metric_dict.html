@@ -1,0 +1,732 @@
+<html><head><meta charset='utf-8'><style>
+body{font-family:'FangSong','仿宋',serif;font-size:12pt;margin:24px;}
+table{border-collapse:collapse;margin:8px 0;}
+td,th{border:1px solid #333;padding:3px 8px;font-size:10.5pt;}
+</style></head><body>本表为全文唯一指标口径来源，其他章节只引用不重述；与 MVP 成功度量、产品KPI 中的目标值一一对应。基线列统一为"待采集（Phase 0 埋点上线后回填）"。</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>指标名</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>定义</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>口径</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>基线</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>目标值</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>时间窗</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>采集方式</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Docker镜像下载量</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Docker Hub 拉取次数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>双口径：MVP期月下载≥5000；12个月月下载≥10000</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥5000/月（MVP期）；≥10000/月（12个月）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>MVP期/12个月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Docker Hub统计</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>GitHub Star增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>累计Star数同比增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>年增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥50%（年）；MVP发布后3个月≥1000</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>12个月/3个月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>GitHub统计</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>首次部署成功率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Docker部署后5分钟内可访问的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>全部首次部署</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥90%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>持续</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>部署监控+埋点</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>核心流程完成率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>从数据源接入到看板发布完成的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>端到端流程</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥80%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>MVP期</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>埋点+用户调研</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>次月留存率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>上月活跃用户本月仍活跃的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>双口径：MVP期≥35%；12个月≥40%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥35%（MVP期）；≥40%（12个月）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>MVP期/12个月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>埋点/使用分析</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>用户满意度（NPS）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>净推荐值调研</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>种子用户/全量用户</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥30</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>每半年</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>用户调研</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Issue响应时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>GitHub Issue创建到首次响应的时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>P95</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≤24小时</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>持续</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>GitHub统计</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>版本Bug率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>每版本发布后1个月内发现的P0/P1 Bug数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>全部版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≤5个/版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>每版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Bug系统</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>指标中心使用率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>创建过指标的用户占比</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>活跃用户</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥40%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>MVP期起</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>埋点/使用分析</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>嵌入功能使用率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>使用嵌入功能的部署占比</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>全部部署（匿名统计）；与嵌入SDK月下载按"下载→激活→接入使用"漏斗换算（转化率为假设值）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥15%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Phase 1 嵌入交付后</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>匿名埋点统计</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>嵌入SDK月下载</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Embed JS SDK npm/CDN 下载量</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>月下载</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥5000/月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Phase 1 起</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>npm/CDN统计</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>社区活跃用户数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>月登录/访问用户数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>月活</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥5000</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>12个月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>系统日志/埋点</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>核心功能使用率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>使用过指标中心/看板/问数的用户占比</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>活跃用户</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥60%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>持续</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>埋点/使用分析</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>自助分析使用率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>通过自助方式（数据集/指标/问数/构建器）完成取数的占比</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>分阶段：Phase 1 考核分析师口径；Phase 2 起考核业务人员零SQL口径</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥60%（Phase 1，分析师）；业务人员零SQL完成80%常规分析（Phase 2 考核）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Phase 1/Phase 2</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>埋点+用户调研</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>问数准确率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>标准问题集回答正确的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>标准问题集≥200题、≥5名外部种子用户盲测；评测集与口径随版本公开</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥85%（验收门槛）；&lt;80%触发降级退路</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Phase 2 验收</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>问数评估</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>看板加载P95</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>看板从打开到数据渲染完成的P95时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>常规查询</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（Phase 0 埋点上线后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≤3秒</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>持续</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>性能监控</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>企业版付费客户数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>付费企业客户数同比增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>年增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（商业模式启动后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥30%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>12个月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>CRM</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>企业版续费率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>到期企业版客户续费比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>到期客户</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（商业模式启动后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥80%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>12个月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>CRM</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>增值包收入占比</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>填报/报表/信创认证等增值包收入占总收入比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>年度收入</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>待采集（商业模式启动后回填）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>≥40%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>12个月</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>财务</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p14"><b>产品KPI</b></p>
+<p class="p15"><b>注：本节所有指标以指标字典为准（定义/口径/基线/目标值/时间窗/采集方式见"指标字典"）。</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>维度</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>指标</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>目标值</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>统计口径</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>数据来源</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>获取</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>GitHub Star增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>年增长≥50%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>累计Star数同比增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>GitHub</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>获取</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Docker镜像下载量</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>月下载≥10000（12个月口径；MVP期口径为月下载≥5000，见MVP成功度量与指标字典）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Docker Hub拉取次数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Docker Hub</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>获取</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>社区活跃用户数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>月活≥5000</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>月登录/访问用户数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>系统日志</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>激活</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>首次部署成功率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥90%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Docker部署后5分钟内可访问的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>部署监控</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>激活</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>核心功能使用率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥60%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>使用过指标中心/看板/问数的用户占比</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>使用分析</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>留存</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>次月留存率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥40%（12个月口径；MVP期口径为≥35%，见MVP成功度量与指标字典）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>上月活跃用户本月仍活跃的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>使用分析</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>留存</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>企业版续费率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥80%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>到期企业版客户续费比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>CRM</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>满意度</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>用户满意度（NPS）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥30</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>净推荐值调研</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>用户调研</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>满意度</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Issue响应时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P95≤24h</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>GitHub Issue从创建到首次响应的时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>GitHub</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>质量</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>版本Bug率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P0/P1 Bug≤5个/版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>每个版本发布后1个月内发现的P0/P1 Bug数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Bug系统</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>质量</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>问数准确率</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥85%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>标准问题集回答正确的比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>问数评估</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>性能</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>看板加载P95</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≤3s</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>看板从打开到数据渲染完成的P95时间</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>性能监控</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>商业化</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>企业版付费客户数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>年增长≥30%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>付费企业客户数同比增长</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>CRM</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>商业化</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>增值包收入占比</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>≥40%</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>填报/报表/信创认证等增值包收入占总收入比例</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>财务</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b></b><br></p>
+<p class="p14"><b></body></html>

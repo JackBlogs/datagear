@@ -405,7 +405,7 @@ public class SecurityConfigSupport
 				"/dashboard/uploadImportFile", "/dashboard/saveImport", "/dashboard/delete", //
 				"/dashboard/shareSet", "/dashboard/saveShareSet", "/dashboard/export");
 
-		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dashboard/**");
+		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dashboard/**", "/api/dashboard/**");
 
 		return new ModuleAccess(edit, read);
 	}
@@ -427,7 +427,7 @@ public class SecurityConfigSupport
 				"/chart/add", "/chart/saveAdd", "/chart/edit/**", "/chart/saveEdit", //
 				"/chart/copy", "/chart/delete");
 
-		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/chart/**");
+		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/chart/**", "/api/chart/**");
 
 		return new ModuleAccess(edit, read);
 	}
@@ -449,7 +449,7 @@ public class SecurityConfigSupport
 				"/dataSet/add/**", "/dataSet/saveAdd/**", "/dataSet/edit/**", "/dataSet/saveEdit/**",
 				"/dataSet/preview/**", "/dataSet/copy", "/dataSet/delete", "/dataSet/uploadFile");
 
-		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dataSet/**");
+		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dataSet/**", "/api/dataSet/**");
 
 		return new ModuleAccess(edit, read);
 	}
@@ -471,7 +471,7 @@ public class SecurityConfigSupport
 				"/analysisProject/add", "/analysisProject/saveAdd",
 				"/analysisProject/edit", "/analysisProject/saveEdit", "/analysisProject/delete");
 
-		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/analysisProject/**");
+		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/analysisProject/**", "/api/analysisProject/**");
 
 		return new ModuleAccess(edit, read);
 	}
@@ -493,7 +493,7 @@ public class SecurityConfigSupport
 				"/dtbsSource/add", "/dtbsSource/saveAdd", "/dtbsSource/edit", "/dtbsSource/saveEdit",
 				"/dtbsSource/testConnection", "/dtbsSource/delete");
 
-		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dtbsSource/**");
+		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(), "/dtbsSource/**", "/api/dtbsSource/**");
 
 		return new ModuleAccess(edit, read);
 	}
@@ -539,8 +539,9 @@ public class SecurityConfigSupport
 		UrlsAccess icon = new UrlsAccess(dataAnalystAuthManager, "/chartPlugin/icon/**");
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthManager,
 				"/chartPlugin/view/**", "/chartPlugin/select", "/chartPlugin/selectData", "/chartPlugin/detailValue/**",
-				"/chartPlugin/manual/**", "/chartPlugin/manualContent/**");
-		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/chartPlugin/**");
+				"/chartPlugin/manual/**", "/chartPlugin/manualContent/**",
+				"/api/chartPlugin/dataSigns/**");
+		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/chartPlugin/**", "/api/chartPlugin/**");
 
 		return new ModuleAccess(icon, read, edit);
 	}
@@ -560,9 +561,10 @@ public class SecurityConfigSupport
 	{
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(),
 				"/fileSource/view", "/fileSource/select", "/fileSource/pagingQueryData", "/fileSource/file/select",
-				"/fileSource/file/pagingQueryData");
+				"/fileSource/file/pagingQueryData",
+				"/api/fileSource/pagingQueryData", "/api/fileSource/meta");
 
-		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/fileSource/**");
+		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/fileSource/**", "/api/fileSource/**");
 
 		return new ModuleAccess(read, edit);
 	}
@@ -646,9 +648,10 @@ public class SecurityConfigSupport
 	{
 		UrlsAccess other = new UrlsAccess(userAuthorizationManager(),
 				"/user/personalSet", "/user/savePersonalSet", "/user/personalPsd", "/user/savePersonalPsd",
-				"/user/select", "/user/pagingQueryData");
+				"/user/select", "/user/pagingQueryData",
+				"/api/user/pagingQueryData", "/api/user/meta");
 
-		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/user/**");
+		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/user/**", "/api/user/**");
 
 		return new ModuleAccess(other, edit);
 	}
@@ -667,9 +670,10 @@ public class SecurityConfigSupport
 	protected ModuleAccess roleModuleAccess()
 	{
 		UrlsAccess read = new UrlsAccess(userAuthorizationManager(),
-				"/role/select", "/role/pagingQueryData");
+				"/role/select", "/role/pagingQueryData",
+				"/api/role/pagingQueryData", "/api/role/meta");
 
-		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/role/**");
+		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/role/**", "/api/role/**");
 
 		return new ModuleAccess(read, edit);
 	}
@@ -687,7 +691,7 @@ public class SecurityConfigSupport
 
 	protected ModuleAccess dtbsSourceGuardModuleAccess()
 	{
-		UrlsAccess ua = new UrlsAccess(adminAuthorizationManager(), "/dtbsSourceGuard/**");
+		UrlsAccess ua = new UrlsAccess(adminAuthorizationManager(), "/dtbsSourceGuard/**", "/api/dtbsSourceGuard/**");
 
 		return new ModuleAccess(ua);
 	}

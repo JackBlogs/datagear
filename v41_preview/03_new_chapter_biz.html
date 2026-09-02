@@ -1,0 +1,409 @@
+<html><head><meta charset='utf-8'><style>
+body{font-family:'FangSong','仿宋',serif;font-size:12pt;margin:24px;}
+table{border-collapse:collapse;margin:8px 0;}
+td,th{border:1px solid #333;padding:3px 8px;font-size:10.5pt;}
+</style></head><body>本章为 V4.1 新增，响应评审"商业闭环未证明"问题。本章所有金额、转化率、人月成本均为估算/假设值，待市场验证，不作为对外承诺。</b></p>
+<p class="p14"><b>商业模式与定价</b></p>
+<p class="p8"><b>企业版/增值包功能边界</b></p>
+<p class="p15"><b>沿用 R8（业务风险）的边界定义：核心能力开源免费，重工程/合规/交付类能力做企业版增值包，边界公开承诺。</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>功能范围</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>对应需求</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>开源社区版（LGPL-3.0）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>语义层与指标中心、告警与订阅推送、签名嵌入+SDK、智能问数基础版、数据API、Docker交付、移动端H5、行列权限与脱敏</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>FR-SEM/FR-ALERT/FR-EMBED/FR-AI-01~04/FR-EXCH/FR-DELIV/FR-MOB/FR-AUTH</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>企业版增值包</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>中国式复杂报表、数据填报、大屏设计器与三维图表、审计增强与外发审批、国密支持</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>FR-RPT、FR-FILL、FR-SCREEN/FR-3D、FR-EXCH-18~20、FR-XC-03</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>信创认证包</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>信创适配验证报告（达梦/人大金仓等）、全栈兼容性清单、专属适配支持</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>FR-XC-01/02</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>OEM/嵌入授权</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>面向ISV的白标嵌入商业授权（解除LGPL对衍生分发的顾虑）、专属支持SLA</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>FR-EMBED系列</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p8"><b>定价档位（估算，待验证）</b></p>
+<p class="p15"><b>参照 DataEase X-Pack 公开定价模式（社区版免费+增值包订阅）设定档位；以下为估算区间，正式发布前需按竞品时价与目标客户支付意愿重新校准。</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>档位</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>形态</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>估算价格（待验证）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>目标客户</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>社区版</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>开源免费</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>0</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>全部开源用户</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>专业版（增值包订阅）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>按年订阅/按节点</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 ¥2万--5万/年/节点（估算）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>中型企业数据分析团队</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>企业版</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>按年订阅（含信创认证包+专属支持）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 ¥8万--20万/年/项目（估算）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>信创政企（央国企/政府信息中心）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>OEM/嵌入授权</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>按项目一次性+年维保</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 ¥10万起/项目（估算）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>ISV嵌入集成商（如 Persona 4 陈磊所在 SaaS 公司）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p8"><b>目标客户画像</b></p>
+<p class="p15"><b>● 信创政企：央国企/政府信息中心（如 Persona 5 赵静），核心诉求为私有化、行列权限、审计、信创全栈适配与验证报告；采购方式为项目制/年订阅。</b></p>
+<p class="p15"><b>● ISV 嵌入集成商：SaaS 与行业软件厂商（如 Persona 4 陈磊），核心诉求为签名嵌入、白标、数据API、OEM 授权与 LGPL 商业豁免。</b></p>
+<p class="p15"><b>● 中型企业数据分析团队：制造/零售/金融企业数据部（如 Persona 1 李明），核心诉求为口径统一、自助分析、告警订阅。</b></p>
+<p class="p8"><b>首年收入假设与转化漏斗（假设值）</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>漏斗阶段</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>口径</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>首年假设量级（假设，待验证）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>假设转化率</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>开源用户</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Docker 月下载/部署</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>月下载≥10000（12个月口径）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>—</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>试用/活跃</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>月活部署</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 2000--3000 活跃部署（假设）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>下载→活跃约 20%--30%（假设）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>商机</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>试用企业版/咨询</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 100--150 个（假设）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>活跃→商机约 5%（假设）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>付费</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>付费客户</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 15--25 个（假设）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>商机→付费约 15%--20%（假设）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p15"><b>首年收入假设：约 15--25 个付费客户 × 平均客单价 ¥5万--8万（估算）≈ ¥100万--180万（估算，待验证）。</b></p>
+<p class="p14"><b>ROI与投入测算</b></p>
+<p class="p8"><b>投入汇总（估算）</b></p>
+<p class="p15"><b>基于优先级矩阵（13.1）人周估算加总：</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>优先级</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>人周估算（区间）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>说明</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>P0</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 12--18 人周</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>调度框架、指标中心最小闭环、Docker、备份恢复、签名嵌入</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>P1</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 24--35 人周</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>术语库/认证/开放API/血缘、告警订阅、数据API、行列权限、实时OLAP方言、脱敏、综合首页、项目导入导出</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>P2</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 34--50 人周</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>智能问数V1、自助查询构建器、内容治理、AI解读归因、拖拽设计器、移动端H5、数据治理基础</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>P3</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 27--45 人周</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>AI报告/问数嵌入/MCP、复杂报表与填报、大屏/三维、流式数据源与信创全栈</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>合计</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 97--148 人周</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>估算</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p15"><b>应用缓冲系数 ×1.5（覆盖联调、返工、社区支持与发布成本）：总投入约 146--222 人周（估算），按 2 名核心工程师全力投入折算约 1.5--2.3 人年；内核类条目（行列权限SQL改写、指标SQL编译）工期以 Phase 0 POC 结论为准，偏差风险高。</b></p>
+<p class="p8"><b>收益场景与盈亏平衡（估算，待验证）</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>收益场景</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>假设客单价</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>达成盈亏平衡所需规模（假设）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>企业版/专业版订阅</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>¥5万--8万/年（估算）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 15--25 个付费客户/年</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>信创项目交付</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>¥20万--50万/项目（估算）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 3--5 个项目/年</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>嵌入 OEM 授权</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>¥10万--30万/项目（估算）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 5--8 个项目/年</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p15"><b>成本侧假设：2 名核心工程师年综合成本约 ¥80万--120万（估算）。盈亏平衡点（首年）：订阅客户 ≥20 个，或信创/OEM 项目 ≥4 个，或两者组合（假设，待验证）。</b></p>
+<p class="p14"><b>资源与团队假设</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>项目</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>假设</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>说明</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>核心团队</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>2 名熟悉 DataGear 的工程师 + 社区贡献者</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>Roadmap 各 Phase 工期按 2 人全力投入折算；社区贡献为增量，不计入关键路径</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>开源/商业人力切分</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>约 70% 开源核心 / 30% 企业版与交付支持（估算）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>企业版增值包（报表/填报/信创认证）按项目驱动动态调配</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>缓冲系数</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>所有人周估算 ×1.5</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>覆盖联调、返工、文档、发布与社区支持成本；内核工程另以 POC 结论校准</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>人力不足时的降级顺序</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>1. 砍 P3（报表/填报/大屏/MCP）；2. 缓 P2 非核心（拖拽深化、移动深化）；3. 缩减 P1 广度（数据治理、信创按需）；4. 保底 P0（指标中心最小闭环+Docker+备份+调度）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>任何情况下不动"口径统一"主线与 Phase 0 技术 Spike</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p13"><b>成功度量指标</b></p>
+<p class="p14"><b></body></html>

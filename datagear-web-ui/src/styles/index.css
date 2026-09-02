@@ -1,0 +1,12 @@
+/* 自建覆盖层：对应现状 static/theme/style.css 覆盖层的迁移目标（后续迁入）。 */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.app-root {
+  height: 100%;
+}

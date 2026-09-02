@@ -667,6 +667,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param request
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected ResponseEntity<OperationMessage> optSuccessResponseEntity(HttpServletRequest request)
 	{
 		return optSuccessDataResponseEntity(request, null);
@@ -680,6 +681,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 *            允许为{@code null}
 	 * @return
 	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	protected ResponseEntity<OperationMessage> optSuccessDataResponseEntity(HttpServletRequest request, Object data)
 	{
 		ResponseEntity<OperationMessage> responseEntity = optSuccessResponseEntity(request, "operationSuccess");
@@ -697,6 +699,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param messageArgs
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected ResponseEntity<OperationMessage> optSuccessResponseEntity(HttpServletRequest request, String code,
 			Object... messageArgs)
 	{
@@ -710,6 +713,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param request
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected ResponseEntity<OperationMessage> optFailResponseEntity(HttpServletRequest request)
 	{
 		return optFailDataResponseEntity(request, null);
@@ -723,6 +727,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 *            允许为{@code null}
 	 * @return
 	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	protected ResponseEntity<OperationMessage> optFailDataResponseEntity(HttpServletRequest request, Object data)
 	{
 		ResponseEntity<OperationMessage> responseEntity = optFailResponseEntity(request, "operationFail");
@@ -741,6 +746,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param messageArgs
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected ResponseEntity<OperationMessage> optFailResponseEntity(HttpServletRequest request, String code,
 			Object... messageArgs)
 	{
@@ -757,6 +763,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param messageArgs
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected ResponseEntity<OperationMessage> optFailResponseEntity(HttpServletRequest request,
 			HttpStatus httpStatus, String code, Object... messageArgs)
 	{
@@ -771,6 +778,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param operationMessage
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected ResponseEntity<OperationMessage> optResponseEntity(HttpStatus httpStatus,
 			OperationMessage operationMessage)
 	{
@@ -829,6 +837,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param messageArgs
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected OperationMessage optMsgSuccess(HttpServletRequest request, String code, Object... messageArgs)
 	{
 		String message = getMessage(request, code, messageArgs);
@@ -843,6 +852,7 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param messageArgs
 	 * @return
 	 */
+	@SuppressWarnings("rawtypes")
 	protected OperationMessage optMsgFail(HttpServletRequest request, String code, Object... messageArgs)
 	{
 		String message = getMessage(request, code, messageArgs);

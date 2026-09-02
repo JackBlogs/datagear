@@ -1,0 +1,199 @@
+<html><head><meta charset='utf-8'><style>
+body{font-family:'FangSong','仿宋',serif;font-size:12pt;margin:24px;}
+table{border-collapse:collapse;margin:8px 0;}
+td,th{border:1px solid #333;padding:3px 8px;font-size:10.5pt;}
+</style></head><body>商业智能分析平台</b></p>
+<p class="p2"><b>产品需求文档（PRD）</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>项目</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>内容</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品名称</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>DataGear 商业智能分析平台（数据可视化分析与商业智能平台）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>基线版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>6.0.0（Java 8 / Spring Boot 2.7 / jQuery+Vue3+PrimeVue 混合前端 / Freemarker 服务端渲染）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>文档版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V4.1（优化版：在V4.0最终整合版基础上完成一致性校准与商业闭环补章）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>文档目的</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>定义 DataGear 从「数据可视化看板工具」升级为「语义层驱动的一站式 BI 平台」的完整需求，包含用户分析、场景业务流、用户故事、交互设计、入口终端、功能规格、MVP规划、验收标准与版本规划</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>适用范围</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品、设计、开发、测试、实施及二次开发团队</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>许可协议</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>LGPL-3.0（开源版）；另提供企业版</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>国内参照</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>帆软 FineBI 7.0/FineChatBI、阿里 Quick BI、观远数据、Smartbi、Kyligence Zen、永洪、亿信 ABI、DataEase/SQLBot</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>国际参照</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Tableau、Power BI、Looker、Qlik、ThoughtSpot、Apache Superset、Metabase</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>状态标注约定</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>【已实现】= 6.0.0 代码已具备；【部分实现】= 已有雏形需增强；【全新建设】= 代码零实现需新建</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b></b><br></p>
+<p class="p6"><b></b><br></p>
+<p class="p7"><b></b><br></p>
+<p class="p8"><b>修订记录</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>日期</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>修订人</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p3"><b>修订内容</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V1.0</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>2025-06</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品组</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>初始版本，完整能力蓝图</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V2.0</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>2025-09</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品组</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>竞品深化、现状盘点与实施路径</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V3.0</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>2026-03</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品组</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V1+V2整合最终版，统一需求基线</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V4.0</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>2026-08</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品组</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>按标准PRD模板深化：补充用户画像Personas、用户旅程地图、信息架构、数据模型、核心功能用户故事与验收标准、成功度量指标、灰度发布策略</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V4.0最终整合版</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>2026-09</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品组</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>整合V4.0原始与深化版全部内容；新增场景与业务流、用户故事与核心用例、用户交互设计、入口与终端要求、用户与角色定义、MVP规划与实现、核心用例描述</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>V4.1</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>2026-09</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>产品组</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>依据《PRD-V4.0评审报告》修订：①一致性校准（ChatBI优先级统一P2/Phase 2、MVP与UC-003验收冲突解除、KPI双口径互注、FR-GOV编号修复、术语表合并）；②商业闭环补章（商业模式与定价、ROI与投入测算、资源与团队假设、指标字典、埋点方案、用户旅程地图、数据迁移与升级兼容）；③MVP瘦身（签名嵌入移至Phase 1，聚焦"口径统一"单一假设）；④AI验收硬化（≥200题盲测、评测集公开、&lt;80%降级退路）；⑤信创提前半档（Phase 2并行双库适配专项）；⑥可用性补强（新手引导与模板中心FR、交互原则落地、实施工程师角色补齐、体验目标分阶段口径）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b></b><br></p>
+<p class="p9"></p>
+<p dir="rtl" class="p10"><b></body></html>

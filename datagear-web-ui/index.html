@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DataGear</title>
+    <!--
+      主题机制：复刻现状“换 link href”（非 CSS 变量）。
+      blue = saga-blue（亮色），blueDark = vela-blue（暗色）。
+      骨架期由 main.ts 静态引入 saga-blue；blueDark 双主题切换为阶段一 POC 验证项之一，
+      见 stores/theme.ts 的 useTheme()。
+    -->
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
