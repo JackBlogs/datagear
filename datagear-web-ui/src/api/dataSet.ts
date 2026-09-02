@@ -61,3 +61,36 @@ export async function resolveSql(sql: string): Promise<string> {
   })
   return unwrap(res) ?? ''
 }
+
+/** 通用数据集表单（非 SQL 类型，字段按 dataSetType 填充） */
+export interface DataSetForm {
+  id?: string
+  name: string
+  dataSetType?: string
+  value?: string
+  uri?: string
+  requestMethod?: string
+  requestContent?: string
+  fileName?: string
+  nameRow?: number
+  description?: string
+  [key: string]: unknown
+}
+
+/** 获取数据集（/api/dataSet/get/{id}，返回具体类型实体 JSON） */
+export async function getDataSet(id: string): Promise<DataSetForm> {
+  const res = await request.get<OperationMessage<DataSetForm>>(`/api/dataSet/get/${id}`)
+  return unwrap(res)!
+}
+
+/** 保存数据集（新增，旧 /dataSet/saveAdd/{type}，OperationMessage） */
+export async function saveDataSetAdd(type: string, entity: DataSetForm): Promise<DataSetForm> {
+  const res = await request.post<OperationMessage<DataSetForm>>(`/dataSet/saveAdd/${type}`, entity)
+  return unwrap(res)!
+}
+
+/** 保存数据集（编辑，旧 /dataSet/saveEdit/{type}，OperationMessage） */
+export async function saveDataSetEdit(type: string, entity: DataSetForm): Promise<DataSetForm> {
+  const res = await request.post<OperationMessage<DataSetForm>>(`/dataSet/saveEdit/${type}`, entity)
+  return unwrap(res)!
+}

@@ -169,15 +169,10 @@ SQL数据集
 编译完成后，将在`datagear-webapp/target/datagear-[version]-packages/`内生成程序包。
 
 # 调试
-	
 1. 将`datagear`以maven工程导入至IDE工具
-
 2. 以调试模式运行`datagear-webapp`模块的启动类`org.datagear.webapp.DataGearApplication`
-
 3. 打开浏览器，输入：`http://localhost:50401`
-	
 ## 调试注意
-
 在调试开发分支前（`dev-*`），建议先备份DataGear工作目录（`[用户主目录]/.datagear`），
 因为开发分支程序启动时会修改DataGear工作目录，可能会导致先前使用的正式版程序、以及后续发布的正式版程序无法正常启动。
 

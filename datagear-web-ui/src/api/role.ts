@@ -33,3 +33,20 @@ export async function roleMeta(): Promise<RoleMeta> {
   const res = await request.get<OperationMessage<RoleMeta>>('/api/role/meta')
   return unwrap(res)
 }
+
+/** 获取角色（/api/role/get/{id}） */
+export async function getRole(id: string): Promise<Role> {
+  const res = await request.get<OperationMessage<Role>>(`/api/role/get/${id}`)
+  return unwrap(res)!
+}
+
+/** 保存角色（新增或更新，/api/role/save） */
+export async function saveRole(entity: Role): Promise<Role> {
+  const res = await request.post<OperationMessage<Role>>('/api/role/save', entity)
+  return unwrap(res)!
+}
+
+/** 删除角色（/api/role/delete，批量 ID） */
+export async function deleteRoles(ids: string[]): Promise<void> {
+  await request.post<OperationMessage>('/api/role/delete', ids)
+}

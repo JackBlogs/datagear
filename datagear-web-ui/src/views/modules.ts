@@ -1,5 +1,6 @@
 import { createPagingLoader } from '@/api/paging'
-import type { PagingColumn } from '@/components/PagingTable.vue'
+import { moduleDelete } from '@/api/crud'
+import type { PagingColumn, RowAction } from '@/components/PagingTable.vue'
 
 /** 常规 CRUD 模块列表页配置（阶段四批量迁移） */
 export interface ModuleListConfig {
@@ -10,7 +11,20 @@ export interface ModuleListConfig {
   createPath?: string
   createLabel?: string
   /** 行操作按钮 */
-  rowActions?: { label: string; path: (id: string) => string }[]
+  rowActions?: RowAction[]
+}
+
+/** 生成某模块的「编辑 + 删除」行操作 */
+function crudActions(module: string): RowAction[] {
+  return [
+    { label: '编辑', path: (id) => `/${module}/${id}/edit` },
+    { label: '删除', action: (id) => moduleDelete(module, [id]) },
+  ]
+}
+
+/** 「授权」行操作（资源类型见后端 Authorization.AUTHORIZATION_RESOURCE_TYPE 语义） */
+function authAction(resourceType: string): RowAction {
+  return { label: '授权', path: (id) => `/authorization/${resourceType}/${id}` }
 }
 
 export const moduleListConfigs: Record<string, ModuleListConfig> = {
@@ -23,10 +37,15 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
       { field: 'url', header: 'URL' },
       { field: 'createTime', header: '创建时间' },
     ],
+    createPath: '/dtbsSource/add',
+    createLabel: '新建数据源',
     rowActions: [
-      { label: 'SQL 工作台', path: (id) => `/sqlpad-editor/${id}` },
+      { label: '编辑', path: (id) => `/dtbsSource/${id}/edit` },
+      { label: 'SQL 工作台', path: (id) => `/sqlpad/${id}` },
       { label: '导入', path: (id) => `/dataExchange-import/${id}` },
       { label: '导出', path: (id) => `/dataExchange-export/${id}` },
+      authAction('DtbsSource'),
+      { label: '删除', action: (id) => moduleDelete('dtbsSource', [id]) },
     ],
   },
   fileSource: {
@@ -38,6 +57,9 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
       { field: 'directory', header: '目录' },
       { field: 'description', header: '描述' },
     ],
+    createPath: '/fileSource/add',
+    createLabel: '新建文件源',
+    rowActions: [...crudActions('fileSource'), authAction('FileSource')],
   },
   analysisProject: {
     module: 'analysisProject',
@@ -47,6 +69,9 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
       { field: 'name', header: '名称', sortable: true },
       { field: 'createTime', header: '创建时间' },
     ],
+    createPath: '/analysisProject/add',
+    createLabel: '新建项目',
+    rowActions: [...crudActions('analysisProject'), authAction('AnalysisProject')],
   },
   dataSet: {
     module: 'dataSet',
@@ -56,8 +81,13 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
       { field: 'name', header: '名称', sortable: true },
       { field: 'createTime', header: '创建时间' },
     ],
-    createPath: '/dataSet/add/sql',
-    createLabel: '新建 SQL 数据集',
+    createPath: '/dataSet/add',
+    createLabel: '新建数据集',
+    rowActions: [
+      { label: '编辑', path: (id) => `/dataSet/${id}/edit` },
+      authAction('DataSet'),
+      { label: '删除', action: (id) => moduleDelete('dataSet', [id]) },
+    ],
   },
   chart: {
     module: 'chart',
@@ -67,6 +97,11 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
       { field: 'name', header: '名称', sortable: true },
       { field: 'createTime', header: '创建时间' },
     ],
+    rowActions: [
+      { label: '设计', path: (id) => `/chart/${id}/design` },
+      authAction('Chart'),
+      { label: '删除', action: (id) => moduleDelete('chart', [id]) },
+    ],
   },
   dashboard: {
     module: 'dashboard',
@@ -75,6 +110,14 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
       { field: 'id', header: 'ID', sortable: true },
       { field: 'name', header: '名称', sortable: true },
       { field: 'createTime', header: '创建时间' },
+    ],
+    createPath: '/dashboard/add',
+    createLabel: '新建看板',
+    rowActions: [
+      { label: '编辑', path: (id) => `/dashboard/${id}/edit` },
+      { label: '设计', path: (id) => `/dashboard/${id}/design` },
+      authAction('Dashboard'),
+      { label: '删除', action: (id) => moduleDelete('dashboard', [id]) },
     ],
   },
   dtbsSourceGuard: {
@@ -87,6 +130,9 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
       { field: 'permitted', header: '允许' },
       { field: 'enabled', header: '启用' },
     ],
+    createPath: '/dtbsSourceGuard/add',
+    createLabel: '新建防护规则',
+    rowActions: crudActions('dtbsSourceGuard'),
   },
 }
 

@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         // 阶段五「包装迁移」：复杂模块旧视图（iframe 外壳内嵌），双轨期由后端渲染
-        '/dashboard/design': {
+        '/dashboard': {
           target: backendTarget,
           changeOrigin: true,
         },
@@ -82,6 +82,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         '/dataSet': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        '/chart': {
           target: backendTarget,
           changeOrigin: true,
         },

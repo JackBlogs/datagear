@@ -1,0 +1,124 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getChart, saveChart, type ChartEntity } from '@/api/chart'
+import ChartPropertyPanel from '@/components/dashboard/ChartPropertyPanel.vue'
+import ChartPreview from '@/components/chart/ChartPreview.vue'
+import { newChartModel, type ChartModel } from '@/types/dashboard'
+import { useOperationMessage } from '@/composables/useOperationMessage'
+
+// 图表设计器（5c「脱离 iframe」第一步）：加载图表 → 属性面板（插件/数据绑定/样式/交互）→ 保存回写。
+const route = useRoute()
+const router = useRouter()
+const { success, fail } = useOperationMessage()
+
+const chartId = route.params.id as string
+const model = ref<ChartModel>(newChartModel())
+const loading = ref(false)
+const saving = ref(false)
+const previewKey = ref(0)
+
+function entityToModel(e: ChartEntity): ChartModel {
+  return {
+    pluginId: e.pluginVo?.id,
+    dataSetBinds: e.dataSetBinds ?? [{ fieldSigns: {} }],
+    style: { ...(model.value.style), name: e.name },
+    interaction: model.value.interaction,
+  }
+}
+
+function modelToEntity(): ChartEntity {
+  return {
+    id: chartId,
+    name: model.value.style.name ?? '',
+    pluginVo: model.value.pluginId ? { id: model.value.pluginId } : undefined,
+    dataSetBinds: model.value.dataSetBinds,
+  }
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const e = await getChart(chartId)
+    model.value = entityToModel(e)
+  } catch (e) {
+    fail((e as Error).message || '加载图表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function save() {
+  saving.value = true
+  try {
+    await saveChart(modelToEntity())
+    success('保存成功')
+    previewKey.value++
+  } catch (e) {
+    fail((e as Error).message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+onMounted(load)
+</script>
+
+<template>
+  <div class="p-4">
+    <div class="flex align-items-center gap-2 mb-2">
+      <h3 class="flex-1">图表设计器（Vue）</h3>
+      <Button label="保存" :loading="saving" @click="save" />
+      <Button label="返回" text @click="router.push('/chart')" />
+    </div>
+    <div v-if="loading" class="text-color-secondary">加载中…</div>
+    <template v-else>
+      <div class="designer flex">
+        <div class="panel flex-1">
+          <div class="flex align-items-center gap-2 mb-2">
+            <label class="label">图表名称</label>
+            <input v-model="model.style.name" class="input" placeholder="图表名称" />
+          </div>
+          <ChartPropertyPanel v-model="model" />
+        </div>
+        <div class="preview">
+          <div class="preview-title">预览（保存后刷新）</div>
+          <div class="preview-frame">
+            <ChartPreview :key="previewKey" :chart-id="chartId" />
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
+<style scoped>
+.label {
+  min-width: 64px;
+  font-weight: 600;
+}
+.input {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 8px;
+  flex: 1;
+}
+.designer {
+  gap: 16px;
+  align-items: flex-start;
+}
+.preview {
+  width: 50%;
+  min-width: 320px;
+}
+.preview-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.preview-frame {
+  width: 100%;
+  height: 480px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+</style>

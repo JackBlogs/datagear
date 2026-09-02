@@ -605,9 +605,10 @@ public class SecurityConfigSupport
 	{
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(),
 				"/driverEntity/view", "/driverEntity/select", "/driverEntity/queryData",
-				"/driverEntity/downloadDriverFile", "/driverEntity/listDriverFile");
+				"/driverEntity/downloadDriverFile", "/driverEntity/listDriverFile",
+				"/api/driverEntity/list", "/api/driverEntity/get/**");
 
-		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/driverEntity/**");
+		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/driverEntity/**", "/api/driverEntity/**");
 
 		return new ModuleAccess(read, edit);
 	}
@@ -715,7 +716,7 @@ public class SecurityConfigSupport
 		{
 			return new AuthorizationDecision(authSecurity.hasDataManager(auth.get()));
 		}, //
-				"/authorization/**");
+				"/authorization/**", "/api/authorization/**");
 
 		return new ModuleAccess(ua);
 	}
@@ -794,7 +795,7 @@ public class SecurityConfigSupport
 	 */
 	protected void configAccessForAbout(HttpSecurity http) throws Exception
 	{
-		http.authorizeHttpRequests().antMatchers("/about/**").permitAll();
+		http.authorizeHttpRequests().antMatchers("/about/**", "/api/about/**").permitAll();
 	}
 
 	/**
@@ -805,7 +806,7 @@ public class SecurityConfigSupport
 	 */
 	protected void configAccessForChangelog(HttpSecurity http) throws Exception
 	{
-		http.authorizeHttpRequests().antMatchers("/changelog/**", "/changelogs/**").permitAll();
+		http.authorizeHttpRequests().antMatchers("/changelog/**", "/changelogs/**", "/api/changelog/**").permitAll();
 	}
 
 	/**

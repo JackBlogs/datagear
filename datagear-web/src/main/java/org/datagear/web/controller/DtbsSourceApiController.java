@@ -71,6 +71,19 @@ public class DtbsSourceApiController extends AbstractDataPermissionApiController
 		return columns;
 	}
 
+	@Override
+	protected void checkSaveEntity(HttpServletRequest request, DtbsSource entity)
+	{
+		if (isBlank(entity.getTitle()) || isBlank(entity.getUrl()))
+			throw new IllegalInputException();
+	}
+
+	@Override
+	protected void toFormResponseData(HttpServletRequest request, DtbsSource entity)
+	{
+		entity.clearPassword();
+	}
+
 	public DtbsSourceService getDtbsSourceService()
 	{
 		return dtbsSourceService;

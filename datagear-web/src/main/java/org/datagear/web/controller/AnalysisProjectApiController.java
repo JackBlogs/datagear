@@ -70,6 +70,13 @@ public class AnalysisProjectApiController extends AbstractDataPermissionApiContr
 		return columns;
 	}
 
+	@Override
+	protected void checkSaveEntity(HttpServletRequest request, AnalysisProject entity)
+	{
+		if (isBlank(entity.getName()))
+			throw new IllegalInputException();
+	}
+
 	public AnalysisProjectService getAnalysisProjectService()
 	{
 		return analysisProjectService;

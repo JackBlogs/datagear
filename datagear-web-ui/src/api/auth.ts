@@ -38,3 +38,11 @@ export async function getMe(): Promise<AuthMe> {
 export function checkCodeUrl(module = 'LOGIN'): string {
   return `/checkCode?_=${Date.now()}&m=${module}`
 }
+
+/** 注册（POST /register/doRegister，字段 name/password/checkCode） */
+export function doRegister(form: { name: string; password: string; checkCode?: string }) {
+  return request.post<OperationMessage>('/register/doRegister', {
+    user: { name: form.name, password: form.password },
+    checkCode: form.checkCode,
+  })
+}

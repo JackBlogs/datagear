@@ -71,6 +71,13 @@ public class FileSourceApiController extends AbstractDataPermissionApiController
 		return columns;
 	}
 
+	@Override
+	protected void checkSaveEntity(HttpServletRequest request, FileSource entity)
+	{
+		if (isBlank(entity.getName()))
+			throw new IllegalInputException();
+	}
+
 	public FileSourceService getFileSourceService()
 	{
 		return fileSourceService;

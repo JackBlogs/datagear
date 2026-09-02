@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { userPagingQueryData, type User } from '@/api/user'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 
-// 与 RoleListView 同构的列表页（后续沉淀为 usePagingTable() 组合函数）。
+// 用户管理列表（/api/user）+ 新建/编辑。
+const router = useRouter()
 const items = ref<User[]>([])
 const total = ref(0)
 const loading = ref(false)
@@ -30,12 +32,19 @@ function onPage(event: { page: number; rows: number }) {
   load()
 }
 
+function editRow(id: string) {
+  router.push(`/user/${id}/edit`)
+}
+
 onMounted(load)
 </script>
 
 <template>
   <div class="p-4">
-    <h3>用户管理（/api/user）</h3>
+    <div class="flex align-items-center gap-2 mb-2">
+      <h3 class="flex-1">用户管理</h3>
+      <Button label="新建用户" size="small" @click="router.push('/user/add')" />
+    </div>
     <DataTable
       :value="items"
       :lazy="true"
@@ -52,6 +61,11 @@ onMounted(load)
       <Column field="realName" header="姓名" />
       <Column field="email" header="邮箱" />
       <Column field="admin" header="管理员" />
+      <Column header="操作">
+        <template #body="slotProps">
+          <Button label="编辑" size="small" text @click="editRow(slotProps.data.id)" />
+        </template>
+      </Column>
     </DataTable>
   </div>
 </template>

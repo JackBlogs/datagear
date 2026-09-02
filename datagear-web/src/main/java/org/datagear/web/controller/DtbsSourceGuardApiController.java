@@ -26,9 +26,13 @@ import javax.servlet.http.HttpServletRequest;
 import org.datagear.management.domain.DtbsSourceGuard;
 import org.datagear.management.service.DtbsSourceGuardService;
 import org.datagear.management.service.EntityService;
+import org.datagear.web.util.OperationMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * 数据源防护 API 控制器（{@code /api/dtbsSourceGuard} 前缀）。
@@ -70,6 +74,20 @@ public class DtbsSourceGuardApiController extends AbstractEntityApiController<Dt
 		columns.add(column("permitted", "允许", false));
 		columns.add(column("enabled", "启用", false));
 		return columns;
+	}
+
+	@Override
+	protected void checkSaveEntity(HttpServletRequest request, DtbsSourceGuard entity)
+	{
+		if (isBlank(entity.getName()) || isBlank(entity.getPattern()))
+			throw new IllegalInputException();
+	}
+
+	@RequestMapping(value = "/delete", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> delete(HttpServletRequest request, @RequestBody String[] ids)
+	{
+		return deleteByIds(request, ids);
 	}
 
 	public DtbsSourceGuardService getDtbsSourceGuardService()

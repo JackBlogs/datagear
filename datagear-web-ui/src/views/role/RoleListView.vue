@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { rolePagingQueryData, type Role } from '@/api/role'
+import { useRouter } from 'vue-router'
+import { rolePagingQueryData, deleteRoles, type Role } from '@/api/role'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 
-// 阶段二 POC：PrimeVue npm 版 DataTable 懒加载 ↔ 后端 PagingData（证伪点 #3）。
-// 后续沉淀为 usePagingTable() 组合函数（《方案》§6.3 P0）。
+// 角色管理列表（/api/role）+ 新建/编辑/删除。
+const router = useRouter()
 const items = ref<Role[]>([])
 const total = ref(0)
 const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(5)
-const { fail } = useOperationMessage()
+const { success, fail } = useOperationMessage()
 
 async function load() {
   loading.value = true
@@ -31,12 +32,29 @@ function onPage(event: { page: number; rows: number }) {
   load()
 }
 
+function editRow(id: string) {
+  router.push(`/role/${id}/edit`)
+}
+
+async function removeRow(role: Role) {
+  try {
+    await deleteRoles([role.id])
+    success('删除成功')
+    load()
+  } catch (e) {
+    fail((e as Error).message || '删除失败')
+  }
+}
+
 onMounted(load)
 </script>
 
 <template>
   <div class="p-4">
-    <h3>角色管理（/api/role）</h3>
+    <div class="flex align-items-center gap-2 mb-2">
+      <h3 class="flex-1">角色管理</h3>
+      <Button label="新建角色" size="small" @click="router.push('/role/add')" />
+    </div>
     <DataTable
       :value="items"
       :lazy="true"
@@ -52,6 +70,14 @@ onMounted(load)
       <Column field="name" header="名称" />
       <Column field="description" header="描述" />
       <Column field="enabled" header="启用" />
+      <Column header="操作">
+        <template #body="slotProps">
+          <div class="flex gap-1">
+            <Button label="编辑" size="small" text @click="editRow(slotProps.data.id)" />
+            <Button label="删除" size="small" text severity="danger" @click="removeRow(slotProps.data)" />
+          </div>
+        </template>
+      </Column>
     </DataTable>
   </div>
 </template>

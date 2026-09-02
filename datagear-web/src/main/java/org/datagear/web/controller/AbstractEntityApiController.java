@@ -27,11 +27,13 @@ import javax.servlet.http.HttpServletResponse;
 import org.datagear.management.domain.Entity;
 import org.datagear.management.service.EntityService;
 import org.datagear.management.util.PagingQuery;
+import org.datagear.util.IDUtil;
 import org.datagear.util.query.PagingData;
 import org.datagear.web.util.OperationMessage;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -159,6 +161,131 @@ public abstract class AbstractEntityApiController<T extends Entity<String>> exte
 	 * @param items
 	 */
 	protected void toQueryResponseData(HttpServletRequest request, List<T> items)
+	{
+	}
+
+	/**
+	 * 获取实体（{@code OperationMessage<T>} 包装，供编辑/查看表单加载）。
+	 * 
+	 * @param request
+	 * @param id
+	 * @return
+	 */
+	@RequestMapping(value = "/get/{id}", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<T>> get(HttpServletRequest request, @PathVariable("id") String id)
+	{
+		T entity = getEntityForEdit(request, id);
+		toFormResponseData(request, entity);
+
+		OperationMessage<T> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), entity);
+
+		return new ResponseEntity<OperationMessage<T>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 保存实体（新增或更新，按 {@code id} 是否为空判定）。
+	 * 
+	 * @param request
+	 * @param entity
+	 * @return
+	 */
+	@RequestMapping(value = "/save", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<T>> save(HttpServletRequest request, @RequestBody T entity)
+	{
+		boolean add = isEmpty(entity.getId());
+
+		if (add)
+			entity.setId(IDUtil.randomIdOnTime20());
+
+		prepareSaveEntity(request, entity, add);
+		checkSaveEntity(request, entity);
+
+		persistEntity(request, entity, add);
+
+		toFormResponseData(request, entity);
+
+		OperationMessage<T> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), entity);
+
+		return new ResponseEntity<OperationMessage<T>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 删除实体（供子类 {@code /delete} 端点复用，默认按 ID 批量删除）。
+	 * 
+	 * @param request
+	 * @param ids
+	 * @return
+	 */
+	protected ResponseEntity<OperationMessage> deleteByIds(HttpServletRequest request, String[] ids)
+	{
+		if (isEmpty(ids))
+			throw new IllegalInputException();
+
+		getEntityService().deleteByIds(ids);
+
+		return optSuccessResponseEntity(request);
+	}
+
+	/**
+	 * 获取待编辑实体（子类可覆盖为带数据权限的获取）。
+	 * 
+	 * @param request
+	 * @param id
+	 * @return
+	 */
+	protected T getEntityForEdit(HttpServletRequest request, String id)
+	{
+		return getByIdForEdit(getEntityService(), id);
+	}
+
+	/**
+	 * 保存前的二次加工（子类按需覆盖，默认不做）。
+	 * 
+	 * @param request
+	 * @param entity
+	 * @param add
+	 *            是否新增
+	 */
+	protected void prepareSaveEntity(HttpServletRequest request, T entity, boolean add)
+	{
+	}
+
+	/**
+	 * 持久化实体（子类可覆盖为带数据权限/创建用户的保存，默认按 ID 判增删改）。
+	 * 
+	 * @param request
+	 * @param entity
+	 * @param add
+	 */
+	protected void persistEntity(HttpServletRequest request, T entity, boolean add)
+	{
+		if (add)
+			getEntityService().add(entity);
+		else
+			getEntityService().update(entity);
+	}
+
+	/**
+	 * 保存前的输入校验（子类按需覆盖，默认不做）。
+	 * 
+	 * @param request
+	 * @param entity
+	 */
+	protected void checkSaveEntity(HttpServletRequest request, T entity)
+	{
+	}
+
+	/**
+	 * 表单响应前的二次加工（子类按需覆盖，默认不做，如清空密码）。
+	 * 
+	 * @param request
+	 * @param entity
+	 */
+	protected void toFormResponseData(HttpServletRequest request, T entity)
 	{
 	}
 }

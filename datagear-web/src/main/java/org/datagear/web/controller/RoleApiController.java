@@ -26,9 +26,13 @@ import javax.servlet.http.HttpServletRequest;
 import org.datagear.management.domain.Role;
 import org.datagear.management.service.EntityService;
 import org.datagear.management.service.RoleService;
+import org.datagear.web.util.OperationMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
  * 角色管理 API 控制器（{@code /api/role} 前缀）。
@@ -72,6 +76,20 @@ public class RoleApiController extends AbstractEntityApiController<Role>
 		columns.add(column("description", "描述", false));
 		columns.add(column("enabled", "启用", false));
 		return columns;
+	}
+
+	@Override
+	protected void checkSaveEntity(HttpServletRequest request, Role entity)
+	{
+		if (isBlank(entity.getName()))
+			throw new IllegalInputException();
+	}
+
+	@RequestMapping(value = "/delete", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> delete(HttpServletRequest request, @RequestBody String[] ids)
+	{
+		return deleteByIds(request, ids);
 	}
 
 	public RoleService getRoleService()
