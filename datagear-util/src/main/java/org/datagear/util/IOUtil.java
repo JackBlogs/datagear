@@ -39,6 +39,7 @@ import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -864,6 +865,7 @@ public class IOUtil
 		while ((zipEntry = zipInputStream.getNextEntry()) != null)
 		{
 			File my = FileUtil.getFile(directory, zipEntry.getName());
+			checkZipEntryInTarget(directory, my);
 
 			if (zipEntry.isDirectory())
 			{
@@ -891,6 +893,22 @@ public class IOUtil
 
 			zipInputStream.closeEntry();
 		}
+	}
+
+	/**
+	 * 校验ZIP条目位于目标目录内，防止ZipSlip。
+	 *
+	 * @param directory
+	 * @param entry
+	 * @throws IOException
+	 */
+	protected static void checkZipEntryInTarget(File directory, File entry) throws IOException
+	{
+		Path dirPath = directory.getCanonicalFile().toPath();
+		Path entryPath = entry.getCanonicalFile().toPath();
+
+		if (!entryPath.startsWith(dirPath))
+			throw new IOException("Zip entry [" + entry + "] is outside of target directory [" + directory + "]");
 	}
 
 	/**

@@ -45,6 +45,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -196,8 +202,37 @@ public class SecurityConfigSupport
 	 */
 	protected void configureHeaders(HttpSecurity http) throws Exception
 	{
-		// 默认"X-Frame-Options"值为"DENY"，这会导致系统的图表/看板展示页面无法被其他应用嵌入iframe，因此需禁用
-		http.headers().frameOptions().disable();
+		// 默认"X-Frame-Options"值为"DENY"，会导致系统的图表/看板展示页面无法被其他应用嵌入iframe，
+		// 因此对这些展示路径不设置，其他路径默认仍应禁止嵌入以防御点击劫持
+		http.headers().frameOptions().disable()
+				.addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
+						new NegatedRequestMatcher(showChartAndDashboardRequestMatcher()),
+						new XFrameOptionsHeaderWriter(XFrameOptionsHeaderWriter.XFrameOptionsMode.DENY)));
+	}
+
+	/**
+	 * 获取图表、看板展示路径的请求匹配器。
+	 *
+	 * @return
+	 */
+	protected RequestMatcher showChartAndDashboardRequestMatcher()
+	{
+		return new OrRequestMatcher(
+				new AntPathRequestMatcher("/cv/**"),
+				new AntPathRequestMatcher("/dv/**"),
+				new AntPathRequestMatcher("/chart/show/**"),
+				new AntPathRequestMatcher("/chart/showData*"),
+				new AntPathRequestMatcher("/chart/heartbeat*"),
+				new AntPathRequestMatcher("/chart/unload*"),
+				new AntPathRequestMatcher("/dashboard/show/**"),
+				new AntPathRequestMatcher("/dashboard/showData*"),
+				new AntPathRequestMatcher("/dashboard/loadChart*"),
+				new AntPathRequestMatcher("/dashboard/auth/**"),
+				new AntPathRequestMatcher("/dashboard/authcheck/**"),
+				new AntPathRequestMatcher("/dashboard/heartbeat*"),
+				new AntPathRequestMatcher("/dashboard/unload*"),
+				new AntPathRequestMatcher("/analysis/chart/show/**"),
+				new AntPathRequestMatcher("/analysis/dashboard/show/**"));
 	}
 
 	/**
@@ -980,11 +1015,6 @@ public class SecurityConfigSupport
 	public StrictHttpFirewall httpFirewall()
 	{
 		StrictHttpFirewall firewall = new StrictHttpFirewall();
-
-		// 看板有些功能需要URL中允许分号（;）
-		// 参考：AbstractDataAnalysisController.addJsessionidParam(String, String)，
-		// 因此这里需要设置为允许，不然功能将无法使用
-		firewall.setAllowSemicolon(true);
 		return firewall;
 	}
 

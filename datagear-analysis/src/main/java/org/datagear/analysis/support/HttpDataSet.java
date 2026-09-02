@@ -17,8 +17,12 @@
 
 package org.datagear.analysis.support;
 
+import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -383,6 +387,7 @@ public class HttpDataSet extends AbstractResolvableDataSet implements ResultJson
 		{
 			uri = resolveTemplateUri(query);
 			uri = encodeUriIfRequired(uri);
+			checkUriSafe(uri);
 			ClassicHttpRequest request = createHttpRequest(uri);
 			headerContent = setHttpHeaders(request, query);
 			requestContent = setHttpEntity(request, query);
@@ -446,6 +451,66 @@ public class HttpDataSet extends AbstractResolvableDataSet implements ResultJson
 			return uri;
 
 		return new URI(uri).toASCIIString();
+	}
+
+	/**
+	 * 校验HTTP请求地址是否安全，防御SSRF攻击。
+	 * <p>
+	 * 仅允许{@code http}、{@code https}协议，禁止访问回环、私有、本地链路、多播等内部地址。
+	 * </p>
+	 *
+	 * @param uri
+	 * @throws DataSetException
+	 */
+	protected void checkUriSafe(String uri) throws DataSetException
+	{
+		if (StringUtil.isEmpty(uri))
+			return;
+
+		try
+		{
+			URL url = new URL(uri);
+			String protocol = url.getProtocol();
+
+			if (!("http".equalsIgnoreCase(protocol) || "https".equalsIgnoreCase(protocol)))
+				throw new DataSetException("HTTP dataset URI protocol [" + protocol + "] is not allowed");
+
+			String host = url.getHost();
+
+			if (StringUtil.isEmpty(host))
+				throw new DataSetException("HTTP dataset URI host is empty");
+
+			if (isUnsafeHost(host))
+				throw new DataSetException("HTTP dataset URI host [" + host + "] is not allowed");
+		}
+		catch (MalformedURLException e)
+		{
+			throw new DataSetException("Invalid HTTP dataset URI [" + uri + "]", e);
+		}
+	}
+
+	/**
+	 * 判断主机是否属于内部/不安全地址。
+	 *
+	 * @param host
+	 * @return
+	 */
+	protected boolean isUnsafeHost(String host)
+	{
+		if ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host) || "::1".equals(host)
+				|| "0:0:0:0:0:0:0:1".equals(host))
+			return true;
+
+		try
+		{
+			InetAddress address = InetAddress.getByName(host);
+			return address.isLoopbackAddress() || address.isLinkLocalAddress() || address.isSiteLocalAddress()
+					|| address.isMulticastAddress() || address.isAnyLocalAddress();
+		}
+		catch (UnknownHostException e)
+		{
+			return false;
+		}
 	}
 
 	protected String buildResolvedTemplate(String uri, boolean buildDetail, String headerContent, String requestContent)

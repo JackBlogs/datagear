@@ -22,6 +22,7 @@ import java.util.Properties;
 
 import org.datagear.management.service.impl.AbstractMybatisService;
 import org.datagear.management.util.Query;
+import org.datagear.util.JdbcUtil;
 import org.datagear.util.StringUtil;
 import org.datagear.util.query.Order;
 
@@ -119,7 +120,7 @@ public abstract class MbSqlDialect
 	public String quote(String identifier)
 	{
 		String iq = getIdentifierQuote();
-		return iq + identifier + iq;
+		return JdbcUtil.quote(identifier, iq);
 	}
 	/**
 	 * 获取要传递给Mybatis的全局变量。

@@ -253,7 +253,10 @@ public class FileUtil
 			checkBackwardPathNoTrim(file);
 		
 		File reFile = (parent == null ? new File(file) : new File(parent, file));
-		
+
+		if (parent != null)
+			checkInParent(parent, reFile);
+
 		if (createDirectory)
 		{
 			createParentIfNone(reFile);
@@ -803,12 +806,13 @@ public class FileUtil
 		if (path == null)
 			return false;
 
-		return (path.indexOf(".." + PATH_SEPARATOR) > -1 || path.indexOf(PATH_SEPARATOR + "..") > -1);
+		return (path.indexOf("../") > -1 || path.indexOf("..\\") > -1
+				|| path.indexOf("/..") > -1 || path.indexOf("\\..") > -1);
 	}
 
 	/**
 	 * 确保{@code path}中不包含上行路径。
-	 * 
+	 *
 	 * @param path
 	 * @throws IllegalArgumentException
 	 */
@@ -824,6 +828,23 @@ public class FileUtil
 	{
 		if (containsBackwardPathNoTrim(path))
 			throw new IllegalArgumentException("[../] and [..\\] is not allowed in path [" + path + "]");
+	}
+
+	/**
+	 * 确保{@code child}在{@code parent}目录内（使用规范化路径校验）。
+	 *
+	 * @param parent
+	 * @param child
+	 * @throws IllegalArgumentException
+	 */
+	protected static void checkInParent(File parent, File child) throws IllegalArgumentException
+	{
+		Path parentPath = parent.getAbsoluteFile().toPath().normalize();
+		Path childPath = child.getAbsoluteFile().toPath().normalize();
+
+		if (!childPath.startsWith(parentPath))
+			throw new IllegalArgumentException(
+					"path [" + childPath + "] is outside of parent [" + parentPath + "]");
 	}
 
 	/**

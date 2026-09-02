@@ -17,8 +17,10 @@
 
 package org.datagear.management.domain;
 
+import java.io.File;
 import java.util.Date;
 
+import org.datagear.util.FileUtil;
 import org.springframework.beans.BeanUtils;
 
 /**
@@ -76,6 +78,15 @@ public class FileSource extends AbstractStringIdEntity
 
 	public void setDirectory(String directory)
 	{
+		if (directory != null)
+		{
+			FileUtil.checkBackwardPath(directory);
+
+			File file = new File(directory);
+			if (!file.isAbsolute())
+				throw new IllegalArgumentException("[directory] must be an absolute path");
+		}
+
 		this.directory = directory;
 	}
 
