@@ -163,17 +163,7 @@ public class LoginController extends AbstractController
 	@RequestMapping
 	public String login(HttpServletRequest request, HttpServletResponse response, Model model)
 	{
-		setFormAction(model, "login", "doLogin");
-
-		LoginForm form = createLoginForm(request, response, model);
-		setFormModel(model, form);
-		this.detectNewVersionScriptResolver.enableIf(request);
-		
-		String redirect = request.getParameter(REDIRECT_PARAM_NAME);
-		if (!StringUtil.isEmpty(redirect))
-			model.addAttribute("redirect", redirect);
-
-		return "/login";
+		return "forward:/index.html";
 	}
 
 	protected LoginForm createLoginForm(HttpServletRequest request, HttpServletResponse response, Model model)

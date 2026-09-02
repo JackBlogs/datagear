@@ -19,6 +19,7 @@ const tabTitles = computed(() => tabs.tabs.map((t) => t.title))
       <router-link class="menu-item" to="/dashboard">看板</router-link>
       <router-link class="menu-item" to="/dtbsSourceGuard">数据源防护</router-link>
       <router-link class="menu-item" to="/driverEntity">驱动管理</router-link>
+      <router-link class="menu-item" to="/chartPlugin">图表插件</router-link>
       <router-link class="menu-item" to="/role">角色管理</router-link>
       <router-link class="menu-item" to="/user">用户管理</router-link>
     </aside>

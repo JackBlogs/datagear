@@ -24,3 +24,25 @@ export async function listChartPlugins(): Promise<ChartPluginItem[]> {
   const res = await request.get<OperationMessage<ChartPluginItem[]>>('/api/chartPlugin/list')
   return unwrap(res) ?? []
 }
+
+/** 删除图表插件（/api/chartPlugin/delete） */
+export async function deleteChartPlugins(ids: string[]): Promise<void> {
+  await request.post<OperationMessage>('/api/chartPlugin/delete', ids)
+}
+
+/** 上传插件文件（/chartPlugin/uploadFile，multipart）→ 返回临时文件名 + 插件信息 */
+export async function uploadChartPluginFile(file: File): Promise<{ pluginFileName: string; pluginInfos: unknown[] }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await request.post<{ pluginFileName: string; pluginInfos: unknown[] }>(
+    '/chartPlugin/uploadFile',
+    fd,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+  return res.data
+}
+
+/** 保存上传（/chartPlugin/saveUpload） */
+export async function saveChartPluginUpload(pluginFileName: string): Promise<void> {
+  await request.post<OperationMessage>('/chartPlugin/saveUpload', { pluginFileName })
+}

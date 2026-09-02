@@ -25,8 +25,10 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.datagear.analysis.support.html.DashboardApiVersion;
 import org.datagear.analysis.support.html.HtmlTplDashboardWidget;
+import org.datagear.management.domain.DashboardShareSet;
 import org.datagear.management.domain.HtmlTplDashboardWidgetEntity;
 import org.datagear.management.domain.User;
+import org.datagear.management.service.DashboardShareSetService;
 import org.datagear.management.service.DataPermissionEntityService;
 import org.datagear.management.service.HtmlTplDashboardWidgetEntityService;
 import org.datagear.web.util.OperationMessage;
@@ -35,6 +37,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -53,6 +56,9 @@ public class DashboardApiController extends AbstractDataPermissionApiController<
 {
 	@Autowired
 	private HtmlTplDashboardWidgetEntityService htmlTplDashboardWidgetEntityService;
+
+	@Autowired
+	private DashboardShareSetService dashboardShareSetService;
 
 	public DashboardApiController()
 	{
@@ -139,6 +145,57 @@ public class DashboardApiController extends AbstractDataPermissionApiController<
 				getMessage(request, "operationSuccess"), entity);
 
 		return new ResponseEntity<OperationMessage<HtmlTplDashboardWidgetEntity>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 获取看板分享设置。
+	 */
+	@RequestMapping(value = "/shareSet/{id}", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<DashboardShareSet>> getShareSet(HttpServletRequest request,
+			@PathVariable("id") String id)
+	{
+		User user = getCurrentUser();
+		getByIdForEdit(this.htmlTplDashboardWidgetEntityService, user, id);
+
+		DashboardShareSet entity = this.dashboardShareSetService.getById(id);
+		if (entity == null)
+		{
+			entity = new DashboardShareSet(id);
+			entity.setEnablePassword(false);
+			entity.setAnonymousPassword(false);
+		}
+
+		entity.setPassword("");
+
+		OperationMessage<DashboardShareSet> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), entity);
+
+		return new ResponseEntity<OperationMessage<DashboardShareSet>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 保存看板分享设置。
+	 */
+	@RequestMapping(value = "/shareSet", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<DashboardShareSet>> saveShareSet(HttpServletRequest request,
+			@RequestBody DashboardShareSet entity)
+	{
+		if (isEmpty(entity.getId()))
+			throw new IllegalInputException();
+
+		User user = getCurrentUser();
+		getByIdForEdit(this.htmlTplDashboardWidgetEntityService, user, entity.getId());
+
+		this.dashboardShareSetService.save(entity);
+
+		entity.setPassword("");
+
+		OperationMessage<DashboardShareSet> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), entity);
+
+		return new ResponseEntity<OperationMessage<DashboardShareSet>>(om, HttpStatus.OK);
 	}
 
 	public HtmlTplDashboardWidgetEntityService getHtmlTplDashboardWidgetEntityService()

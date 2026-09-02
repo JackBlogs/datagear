@@ -105,4 +105,24 @@ public class ChartPluginApiController extends AbstractChartPluginAwareController
 
 		return new ResponseEntity<OperationMessage<List<Map<String, Object>>>>(om, HttpStatus.OK);
 	}
+
+	/**
+	 * 删除图表插件。
+	 * 
+	 * @param request
+	 * @param ids
+	 * @return
+	 */
+	@RequestMapping(value = "/delete", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> delete(HttpServletRequest request,
+			@org.springframework.web.bind.annotation.RequestBody String[] ids)
+	{
+		if (isEmpty(ids))
+			throw new IllegalInputException();
+
+		getDirectoryHtmlChartPluginManager().remove(ids);
+
+		return optSuccessResponseEntity(request);
+	}
 }

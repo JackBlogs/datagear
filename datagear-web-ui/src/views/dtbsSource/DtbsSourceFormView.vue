@@ -68,6 +68,7 @@ onMounted(load)
       <div class="flex align-items-center gap-2">
         <label class="label">URL</label>
         <input v-model="form.url" class="input flex-1" placeholder="jdbc:mysql://host:3306/db" />
+        <Button label="构建器" size="small" text @click="router.push('/dtbsSourceUrlBuilder')" />
       </div>
       <div class="flex align-items-center gap-2">
         <label class="label">用户</label>

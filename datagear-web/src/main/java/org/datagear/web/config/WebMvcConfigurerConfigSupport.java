@@ -17,20 +17,14 @@
 
 package org.datagear.web.config;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 
-import org.datagear.analysis.support.datasettpl.DataSetFmkTemplateResolver;
 import org.datagear.util.Global;
 import org.datagear.util.IOUtil;
 import org.datagear.web.config.support.ClearCssCommentResourceTransformer;
 import org.datagear.web.config.support.ClearJsCommentResourceTransformer;
 import org.datagear.web.config.support.CustomErrorPageRegistrar;
 import org.datagear.web.config.support.EnumCookieThemeResolver;
-import org.datagear.web.freemarker.CustomFreeMarkerView;
-import org.datagear.web.freemarker.WriteJsonTemplateDirectiveModel;
 import org.datagear.web.util.ThemeSpec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -45,14 +39,10 @@ import org.springframework.web.multipart.commons.CommonsMultipartResolver;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.ViewResolverRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.i18n.CookieLocaleResolver;
 import org.springframework.web.servlet.i18n.LocaleChangeInterceptor;
 import org.springframework.web.servlet.theme.ThemeChangeInterceptor;
-import org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer;
-import org.springframework.web.servlet.view.freemarker.FreeMarkerView;
-import org.springframework.web.servlet.view.freemarker.FreeMarkerViewResolver;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -96,9 +86,6 @@ public class WebMvcConfigurerConfigSupport implements WebMvcConfigurer
 	/** 系统静态资源位置 */
 	public static final String STATIC_RES_LOCATION = "classpath:org/datagear/web/static/";
 
-	/** Freemarker模板路径 */
-	public static final String FREEMARKER_TEMPLATE_PATH = "classpath:org/datagear/web/templates/";
-
 	/** 系统主题配置基础前缀 */
 	public static final String THEME_SOURCE_BASENAME_PREFIX = "org.datagear.web.theme.";
 
@@ -132,6 +119,10 @@ public class WebMvcConfigurerConfigSupport implements WebMvcConfigurer
 			.resourceChain(false)
 			.addTransformer(clearCssCommentResourceTransformer())
 			.addTransformer(clearJsCommentResourceTransformer());
+
+		// SPA（Vue/Vite）产物：/index.html 与 /assets/**
+		registry.addResourceHandler("/index.html").addResourceLocations(STATIC_RES_LOCATION);
+		registry.addResourceHandler("/assets/**").addResourceLocations(STATIC_RES_LOCATION + "assets/");
 	}
 	
 	protected ClearCssCommentResourceTransformer clearCssCommentResourceTransformer()
@@ -208,72 +199,6 @@ public class WebMvcConfigurerConfigSupport implements WebMvcConfigurer
 			converters.add(oldIndex, messageConverter);
 		else
 			converters.add(messageConverter);
-	}
-
-	@Override
-	public void configureViewResolvers(ViewResolverRegistry registry)
-	{
-		FreeMarkerViewResolver viewResolver = createFreeMarkerViewResolver();
-		configFreeMarkerViewResolver(viewResolver);
-		registry.viewResolver(viewResolver);
-	}
-
-	protected FreeMarkerViewResolver createFreeMarkerViewResolver()
-	{
-		return new FreeMarkerViewResolver();
-	}
-
-	protected void configFreeMarkerViewResolver(FreeMarkerViewResolver viewResolver)
-	{
-		viewResolver.setViewClass(freeMarkerViewClass());
-		viewResolver.setContentType("text/html;charset=" + IOUtil.CHARSET_UTF_8);
-		viewResolver.setExposeRequestAttributes(true);
-		viewResolver.setAllowRequestOverride(true);
-		viewResolver.setCache(true);
-		viewResolver.setPrefix("");
-		viewResolver.setSuffix(".ftl");
-	}
-
-	protected Class<? extends FreeMarkerView> freeMarkerViewClass()
-	{
-		return CustomFreeMarkerView.class;
-	}
-
-	@Bean
-	public FreeMarkerConfigurer freeMarkerConfigurer()
-	{
-		FreeMarkerConfigurer bean = createFreeMarkerConfigurer();
-
-		Properties settings = new Properties();
-		settings.setProperty("datetime_format", org.datagear.util.DateFormat.DEFAULT_TIMESTAMP_FORMAT);
-		settings.setProperty("date_format", org.datagear.util.DateFormat.DEFAULT_DATE_FORMAT);
-		settings.setProperty("number_format", DataSetFmkTemplateResolver.FREEMARKER_NUMBER_FORMAT_COMPUTER);
-
-		// 开启自动转义功能，并设置默认转义格式为HTML，页面不再需要每个地方都转义
-		// ${content?html}
-		// 可简写为
-		// ${content}
-		settings.setProperty("output_format", "HTMLOutputFormat");
-
-		Map<String, Object> variables = new HashMap<>();
-		variables.put("writeJson", new WriteJsonTemplateDirectiveModel(this.coreConfig.objectMapperBuilder()));
-
-		bean.setTemplateLoaderPaths(getFreeMarkerTemplateLoaderPaths());
-		bean.setDefaultEncoding(IOUtil.CHARSET_UTF_8);
-		bean.setFreemarkerSettings(settings);
-		bean.setFreemarkerVariables(variables);
-
-		return bean;
-	}
-	
-	protected FreeMarkerConfigurer createFreeMarkerConfigurer()
-	{
-		return new FreeMarkerConfigurer();
-	}
-	
-	protected String[] getFreeMarkerTemplateLoaderPaths()
-	{
-		return new String[] { FREEMARKER_TEMPLATE_PATH };
 	}
 
 	@Bean("themeSource")

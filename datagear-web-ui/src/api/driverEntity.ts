@@ -35,3 +35,19 @@ export async function saveDriverEntity(entity: DriverEntity): Promise<DriverEnti
 export async function deleteDriverEntities(ids: string[]): Promise<void> {
   await request.post<OperationMessage>('/api/driverEntity/delete', ids)
 }
+
+/** 上传驱动 jar 文件（/driverEntity/uploadDriverFile，multipart） */
+export async function uploadDriverFile(
+  id: string,
+  file: File,
+): Promise<{ fileInfos: unknown[]; driverClassNames: string[] }> {
+  const fd = new FormData()
+  fd.append('id', id)
+  fd.append('file', file)
+  const res = await request.post<{ fileInfos: unknown[]; driverClassNames: string[] }>(
+    '/driverEntity/uploadDriverFile',
+    fd,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+  return res.data
+}

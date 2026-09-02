@@ -43,6 +43,53 @@ export async function saveDashboardResourceContent(id: string, resourceName: str
   })
 }
 
+/** 看板分享设置（对应后端 DashboardShareSet） */
+export interface DashboardShareSet {
+  id: string
+  enablePassword: boolean
+  anonymousPassword: boolean
+  password?: string
+}
+
+/** 获取看板分享设置（/api/dashboard/shareSet/{id}） */
+export async function getDashboardShareSet(id: string): Promise<DashboardShareSet> {
+  const res = await request.get<OperationMessage<DashboardShareSet>>(`/api/dashboard/shareSet/${id}`)
+  return unwrap(res)!
+}
+
+/** 保存看板分享设置（/api/dashboard/shareSet） */
+export async function saveDashboardShareSet(entity: DashboardShareSet): Promise<void> {
+  await request.post<OperationMessage>('/api/dashboard/shareSet', entity)
+}
+
+/** 上传看板导入文件（/dashboard/uploadImportFile，multipart）→ 返回临时文件名/名称/模板 */
+export async function uploadDashboardImportFile(
+  file: File,
+): Promise<{ dashboardName: string; dashboardFileName: string; templates: string[] }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await request.post<{ dashboardName: string; dashboardFileName: string; templates: string[] }>(
+    '/dashboard/uploadImportFile',
+    fd,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+  return res.data
+}
+
+/** 保存看板导入（/dashboard/saveImport） */
+export async function saveDashboardImport(form: {
+  name: string
+  template: string
+  dashboardFileName: string
+  apiVersion?: string
+}): Promise<unknown> {
+  const res = await request.post<OperationMessage>('/dashboard/saveImport', {
+    ...form,
+    apiVersion: form.apiVersion ?? '2.0',
+  })
+  return res.data.data
+}
+
 /** 解析看板模板中的图表挂件（dg-chart-widget="chartId"） */
 export function parseChartWidgets(html: string): string[] {
   const re = /dg-chart-widget="([^"]*)"/g

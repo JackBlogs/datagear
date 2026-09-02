@@ -17,9 +17,12 @@
 
 package org.datagear.web.controller;
 
+import java.io.IOException;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.datagear.analysis.support.JsonSupport;
 import org.datagear.util.StringUtil;
 import org.datagear.web.util.OperationMessage;
 import org.datagear.web.util.WebUtils;
@@ -27,7 +30,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * 错误处理控制器。
+ * 错误处理控制器（脱离 FreeMarker，直接输出 JSON/HTML）。
  * 
  * @author datagear@163.com
  *
@@ -43,39 +46,43 @@ public class ErrorController extends AbstractController
 	}
 
 	@RequestMapping("/error")
-	public String handleError(HttpServletRequest request, HttpServletResponse response,
-			org.springframework.ui.Model springModel)
+	public void handleError(HttpServletRequest request, HttpServletResponse response) throws IOException
 	{
-		Integer paramStatus = getStatusParamValue(request, response, springModel);
+		Integer paramStatus = getStatusParamValue(request);
 		if (paramStatus != null)
-		{
 			response.setStatus(paramStatus);
-		}
 
 		OperationMessage operationMessage = getOptMsgForHttpError(request, response);
 		WebUtils.setOperationMessage(request, operationMessage);
 
-		return "/error";
+		boolean isJsonResponse = WebUtils.isJsonResponse(response);
+
+		if (isJsonResponse)
+		{
+			response.setContentType(CONTENT_TYPE_JSON);
+			response.getWriter().write(JsonSupport.generate(operationMessage, "{}"));
+		}
+		else
+		{
+			response.setContentType(CONTENT_TYPE_HTML);
+			response.getWriter().write("<html><body><h1>Error</h1><p>"
+					+ (operationMessage == null ? "" : operationMessage.getMessage()) + "</p></body></html>");
+		}
 	}
 
-	protected Integer getStatusParamValue(HttpServletRequest request, HttpServletResponse response,
-			org.springframework.ui.Model springModel)
+	protected Integer getStatusParamValue(HttpServletRequest request)
 	{
-		Integer re = null;
-
 		String statusStr = request.getParameter(STATUS_PARAM_NAME);
-		if (!StringUtil.isEmpty(statusStr))
-		{
-			try
-			{
-				re = Integer.parseInt(statusStr);
-			}
-			catch (Exception e)
-			{
-				re = null;
-			}
-		}
+		if (StringUtil.isEmpty(statusStr))
+			return null;
 
-		return re;
+		try
+		{
+			return Integer.parseInt(statusStr);
+		}
+		catch (Exception e)
+		{
+			return null;
+		}
 	}
 }

@@ -52,6 +52,7 @@ onMounted(load)
   <div class="p-4">
     <div class="flex align-items-center gap-2 mb-3">
       <h3 class="flex-1">{{ isEdit ? '编辑看板' : '新建看板' }}</h3>
+      <Button v-if="!isEdit" label="导入看板" text @click="router.push('/dashboard/import')" />
       <Button label="返回" text @click="router.push('/dashboard')" />
     </div>
     <div v-if="loading" class="text-color-secondary">加载中…</div>

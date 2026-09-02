@@ -34,6 +34,7 @@ import org.datagear.web.util.OperationMessage;
 import org.datagear.web.util.accesslatch.UsernameLoginLatch;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -133,19 +134,45 @@ public class ResetPasswordController extends AbstractController
 	@RequestMapping
 	public String resetPassword(HttpServletRequest request, HttpServletResponse response, Model model)
 	{
-		ResetPasswordStep resetPasswordStep = getSessionResetPasswordStep(request);
+		return "forward:/index.html";
+	}
 
-		if (resetPasswordStep == null || request.getParameter("step") == null)
+	/**
+	 * 初始化重置密码会话（供 SPA 启动流程，替代旧 GET /resetPassword 视图）。
+	 */
+	@RequestMapping(value = "/init", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<ResetPasswordStep>> init(HttpServletRequest request, HttpServletResponse response)
+	{
+		ResetPasswordStep step = createInitResetPasswordStep(request, response);
+		setSessionResetPasswordStep(request, step);
+
+		OperationMessage<ResetPasswordStep> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), step);
+
+		return new ResponseEntity<OperationMessage<ResetPasswordStep>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 获取当前重置密码会话步骤（不重新初始化，密码清空）。
+	 */
+	@RequestMapping(value = "/step", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<ResetPasswordStep>> step(HttpServletRequest request,
+			HttpServletResponse response)
+	{
+		ResetPasswordStep step = getSessionResetPasswordStep(request);
+
+		if (step == null)
 		{
-			resetPasswordStep = createInitResetPasswordStep(request, response);
-			setSessionResetPasswordStep(request, resetPasswordStep);
+			step = createInitResetPasswordStep(request, response);
+			setSessionResetPasswordStep(request, step);
 		}
 
-		model.addAttribute("step", toResetPasswordStepView(request, response, resetPasswordStep));
-		this.detectNewVersionScriptResolver.enableIf(request);
-		setUserPasswordStrengthInfo(model);
+		OperationMessage<ResetPasswordStep> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), toResetPasswordStepView(request, response, step));
 
-		return "/reset_password";
+		return new ResponseEntity<OperationMessage<ResetPasswordStep>>(om, HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/" + STEP_FILL_USER_INFO, produces = CONTENT_TYPE_JSON)

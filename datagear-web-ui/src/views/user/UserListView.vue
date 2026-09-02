@@ -36,6 +36,10 @@ function editRow(id: string) {
   router.push(`/user/${id}/edit`)
 }
 
+function changePassword(id: string) {
+  router.push(`/user/${id}/password`)
+}
+
 onMounted(load)
 </script>
 
@@ -63,7 +67,10 @@ onMounted(load)
       <Column field="admin" header="管理员" />
       <Column header="操作">
         <template #body="slotProps">
-          <Button label="编辑" size="small" text @click="editRow(slotProps.data.id)" />
+          <div class="flex gap-1">
+            <Button label="编辑" size="small" text @click="editRow(slotProps.data.id)" />
+            <Button label="改密码" size="small" text @click="changePassword(slotProps.data.id)" />
+          </div>
         </template>
       </Column>
     </DataTable>

@@ -96,33 +96,33 @@ public class MainController extends AbstractController
 	}
 
 	/**
-	 * 打开主页面。
+	 * 打开主页面（SPA，转发到 index.html）。
 	 * 
 	 * @param request
 	 * @param model
 	 * @return
 	 */
-	@RequestMapping({ "", "/", "/index.html" })
+	@RequestMapping({ "", "/" })
 	public String main(HttpServletRequest request, HttpServletResponse response, Model model)
 	{
-		this.detectNewVersionScriptResolver.enableIf(request);
-		
-		ModulePermissions mps = getAuthenticationSecurity()
-				.resolveModulePermissions(getCurrentAuthentication());
+		return "forward:/index.html";
+	}
 
-		addAttributeForWriteJson(model, "modulePermissions", mps);
-
-		String welcomeContent = this.welcomeContentLoader.load();
-		if (!StringUtil.isEmpty(welcomeContent))
-			model.addAttribute("welcomeContent", welcomeContent);
-
-		return "/main";
+	/**
+	 * SPA 前端路由回落：非 API/静态/冻结面的深层链接转发到 index.html（Vue Router history 模式）。
+	 * 
+	 * @return
+	 */
+	@RequestMapping({ "/{path:[^\\.]*}", "/**/{path:[^\\.]*}" })
+	public String forwardToIndex()
+	{
+		return "forward:/index.html";
 	}
 
 	@RequestMapping("/about")
 	public String about(HttpServletRequest request)
 	{
-		return "/about";
+		return "forward:/index.html";
 	}
 
 	@RequestMapping(value = "/changeThemeData")

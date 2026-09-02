@@ -62,38 +62,13 @@ public class ChangelogController extends AbstractController
 	@RequestMapping("/changelog")
 	public String changelog(HttpServletRequest request, Model model) throws IOException
 	{
-		Version version = null;
-
-		try
-		{
-			version = getLatestVersion();
-		}
-		catch (Exception e)
-		{
-		}
-
-		List<VersionContent> versionChangelogs = new ArrayList<>();
-
-		if (version != null)
-		{
-			VersionContent versionChangelog = this.changelogResolver.resolveVersion(version);
-			versionChangelogs.add(versionChangelog);
-		}
-
-		model.addAttribute("versionChangelogs", versionChangelogs);
-
-		return "/changelog";
+		return "forward:/index.html";
 	}
 
 	@RequestMapping("/changelogs")
 	public String changelogs(HttpServletRequest request, Model model) throws IOException
 	{
-		List<VersionContent> versionChangelogs = this.changelogResolver.resolveAll();
-
-		model.addAttribute("versionChangelogs", versionChangelogs);
-		model.addAttribute("allListed", true);
-
-		return "/changelog";
+		return "forward:/index.html";
 	}
 	
 	protected Version getLatestVersion() throws Exception

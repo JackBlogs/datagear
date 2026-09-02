@@ -1,0 +1,1 @@
+import{r as t,u as s}from"./request-f5c952e1.js";async function n(a){const e=await t.post("/api/role/pagingQueryData",a);return s(e)}async function o(a){const e=await t.get(`/api/role/get/${a}`);return s(e)}async function i(a){const e=await t.post("/api/role/save",a);return s(e)}async function u(a){await t.post("/api/role/delete",a)}export{u as d,o as g,n as r,i as s};

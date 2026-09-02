@@ -41,6 +41,7 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
     createLabel: '新建数据源',
     rowActions: [
       { label: '编辑', path: (id) => `/dtbsSource/${id}/edit` },
+      { label: '数据管理', path: (id) => `/dtbsSourceData/${id}` },
       { label: 'SQL 工作台', path: (id) => `/sqlpad/${id}` },
       { label: '导入', path: (id) => `/dataExchange-import/${id}` },
       { label: '导出', path: (id) => `/dataExchange-export/${id}` },
@@ -116,6 +117,7 @@ export const moduleListConfigs: Record<string, ModuleListConfig> = {
     rowActions: [
       { label: '编辑', path: (id) => `/dashboard/${id}/edit` },
       { label: '设计', path: (id) => `/dashboard/${id}/design` },
+      { label: '分享', path: (id) => `/dashboard/${id}/share` },
       authAction('Dashboard'),
       { label: '删除', action: (id) => moduleDelete('dashboard', [id]) },
     ],

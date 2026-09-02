@@ -540,7 +540,7 @@ public class SecurityConfigSupport
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthManager,
 				"/chartPlugin/view/**", "/chartPlugin/select", "/chartPlugin/selectData", "/chartPlugin/detailValue/**",
 				"/chartPlugin/manual/**", "/chartPlugin/manualContent/**",
-				"/api/chartPlugin/dataSigns/**");
+				"/api/chartPlugin/dataSigns/**", "/api/chartPlugin/list");
 		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/chartPlugin/**", "/api/chartPlugin/**");
 
 		return new ModuleAccess(icon, read, edit);
@@ -627,9 +627,9 @@ public class SecurityConfigSupport
 	protected ModuleAccess dtbsSourceUrlBuilderModuleAccess()
 	{
 		UrlsAccess read = new UrlsAccess(dataAnalystAuthorizationManager(),
-				"/dtbsSourceUrlBuilder/build");
+				"/dtbsSourceUrlBuilder/build", "/api/dtbsSourceUrlBuilder/builders");
 
-		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/dtbsSourceUrlBuilder/**");
+		UrlsAccess edit = new UrlsAccess(adminAuthorizationManager(), "/dtbsSourceUrlBuilder/**", "/api/dtbsSourceUrlBuilder/**");
 
 		return new ModuleAccess(read, edit);
 	}

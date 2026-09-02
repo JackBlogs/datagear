@@ -45,11 +45,11 @@ import org.datagear.management.service.AnalysisProjectService;
 import org.datagear.management.service.DataPermissionEntityService;
 import org.datagear.management.service.EntityService;
 import org.datagear.management.util.DataPermissionSpec;
+import org.datagear.analysis.support.JsonSupport;
 import org.datagear.util.Global;
 import org.datagear.util.IOUtil;
 import org.datagear.util.StringUtil;
 import org.datagear.web.config.support.DeliverContentTypeExceptionHandlerExceptionResolver;
-import org.datagear.web.freemarker.WriteJsonTemplateDirectiveModel;
 import org.datagear.web.security.AuthenticationSecurity;
 import org.datagear.web.security.AuthenticationUserGetter;
 import org.datagear.web.util.MessageSourceSupport;
@@ -66,8 +66,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.WebAttributes;
 import org.springframework.ui.Model;
 import org.springframework.web.multipart.MultipartFile;
-
-import freemarker.template.TemplateModel;
 
 /**
  * 抽象控制器。
@@ -384,20 +382,20 @@ public abstract class AbstractController extends MessageSourceSupport
 		model.addAttribute(KEY_REQUEST_ACTION, requestAction);
 	}
 
+	@SuppressWarnings("unchecked")
 	protected <T> T getFormModel(Model model)
 	{
-		Object fm = model.getAttribute(KEY_FORM_MODEL);
-		return fromWriteJsonTemplateModel(fm);
+		return (T) model.getAttribute(KEY_FORM_MODEL);
 	}
 
 	protected void setFormModel(Model model, Object formModel)
 	{
-		addAttributeForWriteJson(model, KEY_FORM_MODEL, formModel);
+		model.addAttribute(KEY_FORM_MODEL, formModel);
 	}
 
 	protected void addAttributeForWriteJson(Model model, String name, Object value)
 	{
-		model.addAttribute(name, toWriteJsonTemplateModel(value));
+		model.addAttribute(name, value);
 	}
 
 	protected void setRequestAnalysisProjectIfValid(HttpServletRequest request,
@@ -632,33 +630,41 @@ public abstract class AbstractController extends MessageSourceSupport
 	 */
 	protected String getErrorView(HttpServletRequest request, HttpServletResponse response)
 	{
-		setErrorAttrIfIsJsonResponse(request, response);
-		return ERROR_PAGE_URL;
-	}
-
-	/**
-	 * 设置JSON响应的错误页面属性。
-	 * 
-	 * @param request
-	 * @param response
-	 */
-	protected void setErrorAttrIfIsJsonResponse(HttpServletRequest request, HttpServletResponse response)
-	{
 		String expectedContentType = DeliverContentTypeExceptionHandlerExceptionResolver.getHandlerContentType(request);
 		if (expectedContentType != null && !expectedContentType.isEmpty())
 			response.setContentType(expectedContentType);
 
 		boolean isJsonResponse = WebUtils.isJsonResponse(response);
-
-		request.setAttribute("isJsonResponse", isJsonResponse);
+		OperationMessage operationMessage = getOptMsgForHttpError(request, response);
 
 		if (isJsonResponse)
 		{
-			OperationMessage operationMessage = getOptMsgForHttpError(request, response);
-			request.setAttribute(WebUtils.KEY_OPERATION_MESSAGE, toWriteJsonTemplateModel(operationMessage));
-
 			response.setContentType(CONTENT_TYPE_JSON);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+
+			try
+			{
+				response.getWriter().write(JsonSupport.generate(operationMessage, "{}"));
+			}
+			catch (java.io.IOException e)
+			{
+			}
 		}
+		else
+		{
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			try
+			{
+				response.getWriter().write(
+						"<html><body><h1>Error</h1><p>" + (operationMessage == null ? ""
+								: operationMessage.getMessage()) + "</p></body></html>");
+			}
+			catch (java.io.IOException e)
+			{
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -980,21 +986,28 @@ public abstract class AbstractController extends MessageSourceSupport
 	 * @param object
 	 * @return
 	 */
-	protected TemplateModel toWriteJsonTemplateModel(Object object)
+	/**
+	 * 直接返回对象本身（脱离 FreeMarker，原为包装为 {@code WrapperTemplateModel}）。
+	 * 
+	 * @param object
+	 * @return
+	 */
+	protected Object toWriteJsonTemplateModel(Object object)
 	{
-		return WriteJsonTemplateDirectiveModel.toWriteJsonTemplateModel(object);
+		return object;
 	}
 
 	/**
-	 * 获取由{@linkplain #toWriteJsonTemplateModel(Object)}转换的原始对象。
+	 * 获取由{@linkplain #toWriteJsonTemplateModel(Object)}转换的原始对象（现为恒等）。
 	 * 
 	 * @param <T>
 	 * @param templateModel
 	 * @return
 	 */
+	@SuppressWarnings("unchecked")
 	protected <T> T fromWriteJsonTemplateModel(Object templateModel)
 	{
-		return WriteJsonTemplateDirectiveModel.fromWriteJsonTemplateModel(templateModel);
+		return (T) templateModel;
 	}
 
 	/**

@@ -125,21 +125,7 @@ public class RegisterController extends AbstractController
 	@RequestMapping
 	public String register(HttpServletRequest request, HttpServletResponse response, org.springframework.ui.Model model)
 	{
-		if (this.applicationProperties.isDisableRegister())
-		{
-			WebUtils.setOperationMessage(request,
-					optMsgFail(request, "registerDisabled"));
-			return ERROR_PAGE_URL;
-		}
-
-		setFormAction(model, "register", "doRegister");
-
-		User entity = new User();
-		setFormModel(model, entity);
-		this.detectNewVersionScriptResolver.enableIf(request);
-		setUserPasswordStrengthInfo(model);
-		
-		return "/register";
+		return "forward:/index.html";
 	}
 
 	@RequestMapping(value = "/doRegister", produces = CONTENT_TYPE_JSON)

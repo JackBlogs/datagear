@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true, title: '更新日志' },
   },
   {
+    path: '/resetPassword',
+    name: 'resetPassword',
+    component: () => import('@/views/ResetPasswordView.vue'),
+    meta: { public: true, title: '重置密码' },
+  },
+  {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
@@ -100,6 +106,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/driverEntity/DriverEntityListView.vue'),
         meta: { title: '驱动管理', keepAlive: true },
       },
+      {
+        path: 'chartPlugin',
+        name: 'chartPlugin',
+        component: () => import('@/views/chartPlugin/ChartPluginListView.vue'),
+        meta: { title: '图表插件', keepAlive: true },
+      },
     ],
   },
   {
@@ -119,6 +131,18 @@ const routes: RouteRecordRaw[] = [
     name: 'dashboardDesigner',
     component: () => import('@/views/dashboard/DashboardDesignerView.vue'),
     meta: { title: '看板设计器' },
+  },
+  {
+    path: '/dashboard/:id/share',
+    name: 'dashboardShareSet',
+    component: () => import('@/views/dashboard/DashboardShareSetView.vue'),
+    meta: { title: '看板分享设置' },
+  },
+  {
+    path: '/dashboard/import',
+    name: 'dashboardImport',
+    component: () => import('@/views/dashboard/DashboardImportView.vue'),
+    meta: { title: '导入看板' },
   },
   {
     path: '/chart/:id/design',
@@ -155,6 +179,18 @@ const routes: RouteRecordRaw[] = [
     name: 'authorization',
     component: () => import('@/views/authorization/AuthorizationView.vue'),
     meta: { title: '资源授权' },
+  },
+  {
+    path: '/dtbsSourceUrlBuilder',
+    name: 'dtbsSourceUrlBuilder',
+    component: () => import('@/views/dtbsSourceUrlBuilder/DtbsSourceUrlBuilderView.vue'),
+    meta: { title: 'URL 构建器' },
+  },
+  {
+    path: '/dtbsSourceData/:dtbsSourceId',
+    name: 'dtbsSourceData',
+    component: () => import('@/views/dtbsSourceData/DtbsSourceDataView.vue'),
+    meta: { title: '数据管理' },
   },
   {
     path: '/dataSet/add/sql',
@@ -203,6 +239,12 @@ const routes: RouteRecordRaw[] = [
     name: 'userEdit',
     component: () => import('@/views/user/UserFormView.vue'),
     meta: { title: '编辑用户' },
+  },
+  {
+    path: '/user/:id/password',
+    name: 'userPassword',
+    component: () => import('@/views/user/UserPasswordView.vue'),
+    meta: { title: '修改用户密码' },
   },
   {
     path: '/analysisProject/add',
