@@ -31,7 +31,9 @@ import org.datagear.management.util.PagingQuery;
 import org.datagear.meta.SimpleTable;
 import org.datagear.meta.Table;
 import org.datagear.util.query.PagingData;
+import org.datagear.web.util.OperationMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -119,6 +121,17 @@ public class DtbsSourceApiController extends AbstractDataPermissionApiController
 			@RequestParam(value = "reload", required = false) Boolean forceReload) throws Throwable
 	{
 		return this.dtbsSourceController.getTable(request, response, model, dtbsSourceId, tableName, forceReload);
+	}
+
+	/**
+	 * 测试数据源连接（POST /api/dtbsSource/testConnection）。
+	 */
+	@RequestMapping(value = "/testConnection", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> testConnection(HttpServletRequest request, HttpServletResponse response,
+			@RequestBody DtbsSource entity) throws Exception
+	{
+		return this.dtbsSourceController.testConnection(request, response, entity);
 	}
 
 	public DtbsSourceService getDtbsSourceService()

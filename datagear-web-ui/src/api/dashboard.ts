@@ -1,12 +1,30 @@
 import request, { unwrap } from './request'
-import type { OperationMessage } from '@/types'
+import { moduleDelete, moduleSave } from './crud'
+import type { OperationMessage, PagingData, PagingQuery } from '@/types'
 
 /** 看板实体（对应后端 HtmlTplDashboardWidgetEntity） */
 export interface DashboardEntity {
   id: string
   name: string
+  /** 看板 API 版本（"1.0" / "2.0"，新建默认 "2.0"） */
+  apiVersion?: string
+  /** 所属分析项目（引用） */
+  analysisProject?: { id?: string; name?: string }
+  description?: string
+  createUser?: { id?: string; name?: string; realName?: string }
+  createTime?: string | number
   firstTemplate?: string
   templates?: Record<string, string>
+}
+
+/** 看板列表项（分页查询结果，对应 HtmlTplDashboardWidgetEntity 列表投影） */
+export interface DashboardListItem {
+  id: string
+  name: string
+  apiVersion?: string
+  analysisProject?: { id?: string; name?: string }
+  createUser?: { id?: string; name?: string; realName?: string }
+  createTime?: string | number
 }
 
 /** 获取看板（/api/dashboard/get/{id}） */
@@ -14,6 +32,21 @@ export async function getDashboard(id: string): Promise<DashboardEntity> {
   const res = await request.get<OperationMessage<DashboardEntity>>(`/api/dashboard/get/${id}`)
   return unwrap(res)!
 }
+
+/** 保存看板（新增或更新，/api/dashboard/save） */
+export const saveDashboard = (entity: DashboardEntity) => moduleSave<DashboardEntity>('dashboard', entity)
+
+/** 看板分页查询（POST /api/dashboard/pagingQueryData） */
+export async function dashboardPagingQueryData(query: PagingQuery): Promise<PagingData<DashboardListItem>> {
+  const res = await request.post<OperationMessage<PagingData<DashboardListItem>>>(
+    '/api/dashboard/pagingQueryData',
+    query,
+  )
+  return unwrap(res)
+}
+
+/** 删除看板（POST /api/dashboard/delete，批量 ID） */
+export const deleteDashboards = (ids: string[]) => moduleDelete('dashboard', ids)
 
 /** 看板资源内容（旧 /dashboard/getResourceContent，裸 Map） */
 export interface DashboardResource {

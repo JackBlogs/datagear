@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import CodeMirror from 'codemirror'
 import 'codemirror/mode/sql/sql'
+import 'codemirror/mode/javascript/javascript'
 import 'codemirror/lib/codemirror.css'
 
 /**
@@ -13,8 +14,9 @@ const props = withDefaults(
     modelValue: string
     mode?: string
     lineNumbers?: boolean
+    readonly?: boolean
   }>(),
-  { mode: 'text/x-sql', lineNumbers: true },
+  { mode: 'text/x-sql', lineNumbers: true, readonly: false },
 )
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
 
@@ -26,6 +28,7 @@ onMounted(() => {
   editor = CodeMirror.fromTextArea(el.value, {
     mode: props.mode,
     lineNumbers: props.lineNumbers,
+    readOnly: props.readonly,
     value: props.modelValue,
     lineWrapping: true,
   })
@@ -38,6 +41,13 @@ watch(
   () => props.modelValue,
   (v) => {
     if (editor && v !== editor.getValue()) editor.setValue(v)
+  },
+)
+
+watch(
+  () => props.readonly,
+  (v) => {
+    if (editor) editor.setOption('readOnly', v)
   },
 )
 

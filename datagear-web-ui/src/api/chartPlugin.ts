@@ -7,6 +7,35 @@ export interface DataSignSpec {
   dataSigns?: DataSign[]
 }
 
+/** 图表插件详情（对应后端 HtmlChartPluginVo，查看表单所需字段） */
+export interface ChartPlugin {
+  id: string
+  nameLabel?: { value?: string }
+  descLabel?: { value?: string }
+  version?: string
+  apiVersion?: string
+  platformVersion?: string
+  author?: string
+  contact?: string
+  issueDate?: string
+  hasManual?: boolean
+  dataSignSpec?: DataSignSpec
+}
+
+/** 获取图表插件详情（对应 /api/chartPlugin/get/{id}） */
+export async function getChartPlugin(id: string): Promise<ChartPlugin> {
+  const res = await request.get<OperationMessage<ChartPlugin>>(`/api/chartPlugin/get/${id}`)
+  return unwrap(res)!
+}
+
+/** 获取图表插件使用手册内容（/chartPlugin/manualContent/{id}，原始文本） */
+export async function getChartPluginManualContent(id: string): Promise<string> {
+  const res = await request.get<string>(`/chartPlugin/manualContent/${encodeURIComponent(id)}`, {
+    responseType: 'text',
+  })
+  return res.data ?? ''
+}
+
 /** 获取图表插件的数据签名（对应 /api/chartPlugin/dataSigns/{id}） */
 export async function getChartPluginDataSigns(pluginId: string): Promise<DataSign[]> {
   const res = await request.get<OperationMessage<DataSignSpec>>(`/api/chartPlugin/dataSigns/${pluginId}`)

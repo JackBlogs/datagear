@@ -26,6 +26,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.datagear.analysis.ChartQuery;
 import org.datagear.analysis.ChartResult;
+import org.datagear.util.IDUtil;
 import org.datagear.analysis.DataSetBind;
 import org.datagear.analysis.DataSetField;
 import org.datagear.analysis.DataSetResult;
@@ -101,6 +102,34 @@ public class ChartApiController extends AbstractDataPermissionApiController<Html
 	{
 		User user = getCurrentUser();
 		HtmlChartWidgetEntity entity = getByIdForEdit(this.htmlChartWidgetEntityService, user, id);
+
+		OperationMessage<HtmlChartWidgetEntity> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), entity);
+
+		return new ResponseEntity<OperationMessage<HtmlChartWidgetEntity>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 新增图表（供设计器首次保存）。
+	 * 
+	 * @param request
+	 * @param entity
+	 * @return
+	 */
+	@RequestMapping(value = "/saveAdd", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<HtmlChartWidgetEntity>> saveAdd(HttpServletRequest request,
+			@RequestBody HtmlChartWidgetEntity entity)
+	{
+		User user = getCurrentUser();
+
+		if (isEmpty(entity.getName()))
+			throw new IllegalInputException();
+
+		if (isEmpty(entity.getId()))
+			entity.setId(IDUtil.randomIdOnTime20());
+
+		this.htmlChartWidgetEntityService.add(user, entity);
 
 		OperationMessage<HtmlChartWidgetEntity> om = OperationMessage.valueOfSuccess("operationSuccess",
 				getMessage(request, "operationSuccess"), entity);

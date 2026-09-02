@@ -60,7 +60,11 @@ public class PublicApiController extends AbstractController
 	{
 		Map<String, Object> data = new HashMap<String, Object>();
 		data.put("name", Global.PRODUCT_NAME_EN);
+		data.put("fullName", Global.PRODUCT_NAME_EN + " 数据可视化分析平台");
 		data.put("version", Global.VERSION);
+		data.put("officialSite", Global.WEB_SITE);
+		data.put("sourceCode", Global.WEB_SITE);
+		data.put("license", "LGPL-3.0");
 
 		OperationMessage<Map<String, Object>> om = OperationMessage.valueOfSuccess("operationSuccess",
 				getMessage(request, "operationSuccess"), data);

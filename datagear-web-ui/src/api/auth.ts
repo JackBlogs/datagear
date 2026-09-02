@@ -39,10 +39,28 @@ export function checkCodeUrl(module = 'LOGIN'): string {
   return `/checkCode?_=${Date.now()}&m=${module}`
 }
 
-/** 注册（POST /register/doRegister，字段 name/password/checkCode） */
-export function doRegister(form: { name: string; password: string; checkCode?: string }) {
+/** 注册表单（confirmPassword 仅前端校验，不提交） */
+export interface RegisterForm {
+  name: string
+  password: string
+  confirmPassword: string
+  realName?: string
+  checkCode: string
+}
+
+/** 注册（POST /register/doRegister，字段 user.name/password/realName + checkCode） */
+export function doRegister(form: RegisterForm) {
   return request.post<OperationMessage>('/register/doRegister', {
-    user: { name: form.name, password: form.password },
+    user: {
+      name: form.name,
+      password: form.password,
+      realName: form.realName,
+    },
     checkCode: form.checkCode,
   })
+}
+
+/** 退出登录（POST /logout，Spring Security 默认退出端点，清除会话） */
+export function doLogout() {
+  return request.post('/logout')
 }

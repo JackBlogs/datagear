@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getUrlBuilders, type DbTypeUrlTemplate } from '@/api/dtbsSourceUrlBuilder'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 
-// 数据源 JDBC URL 构建器：选数据库类型 → 填主机/端口/库名 → 生成 URL。
+// JDBC URL 构建器，按原 dtbsSourceUrlBuilder_build.ftl 复刻。
 const router = useRouter()
+const { t } = useI18n()
 const { fail, success } = useOperationMessage()
 
 const builders = ref<DbTypeUrlTemplate[]>([])
@@ -39,7 +41,7 @@ async function load() {
       onSelect()
     }
   } catch (e) {
-    fail((e as Error).message || '加载失败')
+    fail((e as Error).message || t('loadFail'))
   } finally {
     loading.value = false
   }
@@ -48,9 +50,9 @@ async function load() {
 async function copyUrl() {
   try {
     await navigator.clipboard.writeText(url.value)
-    success('已复制到剪贴板')
+    success(t('copySuccess'))
   } catch {
-    fail('复制失败')
+    fail(t('copyFail'))
   }
 }
 
@@ -59,45 +61,61 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">JDBC URL 构建器</h3>
-      <Button label="返回" text @click="router.back()" />
+  <div class="page page-form h-full p-1">
+    <div class="flex align-items-center gap-2 mb-2">
+      <h3 class="flex-1">{{ t('module.dtbsSourceUrlBuilder') }}</h3>
+      <Button :label="t('back')" text size="small" @click="router.back()" />
     </div>
     <div v-if="loading" class="text-color-secondary">加载中…</div>
-    <div v-else class="form flex flex-column gap-3">
-      <div class="flex align-items-center gap-2">
-        <label class="label">数据库类型</label>
-        <select v-model="selected" class="input flex-1">
-          <option v-for="b in builders" :key="b.dbType" :value="b.dbType">{{ b.dbType }}</option>
-        </select>
+    <div v-else class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
+      <div class="field grid">
+        <label for="ub-dbType" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('databaseType') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <Dropdown
+            id="ub-dbType"
+            v-model="selected"
+            :options="builders"
+            option-label="dbType"
+            option-value="dbType"
+            class="input w-full"
+          />
+        </div>
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">主机</label>
-        <input v-model="host" class="input flex-1" />
+      <div class="field grid">
+        <label for="ub-host" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('host') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <InputText id="ub-host" v-model="host" class="input w-full" maxlength="200" />
+        </div>
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">端口</label>
-        <input v-model="port" class="input flex-1" />
+      <div class="field grid">
+        <label for="ub-port" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('port') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <InputText id="ub-port" v-model="port" class="input w-full" maxlength="10" />
+        </div>
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">库名</label>
-        <input v-model="name" class="input flex-1" />
+      <div class="field grid">
+        <label for="ub-name" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('databaseName') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <InputText id="ub-name" v-model="name" class="input w-full" maxlength="200" />
+        </div>
       </div>
-      <div class="flex gap-2">
-        <Button label="复制 URL" @click="copyUrl" />
+      <div class="field grid">
+        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('generatedUrl') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <div class="url-preview p-2">
+            <code>{{ url || '（请填写主机/端口/库名）' }}</code>
+          </div>
+        </div>
       </div>
-      <div class="url-preview">
-        <div class="url-label">生成的 URL</div>
-        <code>{{ url }}</code>
-      </div>
+    </div>
+    <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
+      <Button :label="t('copyUrl')" @click="copyUrl" />
     </div>
   </div>
 </template>
 
 <style scoped>
-.label {
-  min-width: 72px;
+.field-label {
   font-weight: 600;
 }
 .input {
@@ -105,18 +123,16 @@ onMounted(load)
   border-radius: 4px;
   padding: 6px 8px;
 }
-.url-preview {
-  background: #f7f7f7;
-  padding: 12px;
-  border-radius: 8px;
+select.input {
+  background: var(--surface-card);
 }
-.url-label {
-  color: #888;
-  font-size: 12px;
-  margin-bottom: 6px;
+.url-preview {
+  background: var(--surface-section);
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
 }
 code {
   word-break: break-all;
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 </style>

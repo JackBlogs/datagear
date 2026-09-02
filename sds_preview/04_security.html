@@ -1,0 +1,27 @@
+<html><head><meta charset='utf-8'><style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 28.0px Times; color: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 20.0px Times; color: #000000}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; min-height: 14.0px}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.5px Times; color: #000000}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times}
+    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Times; color: #000000}
+    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Times; color: #000000}
+    table.t1 {border-collapse: collapse}
+    td.td1 {border-style: solid; border-width: 1.0px 1.0px 1.0px 1.0px; border-color: #bfbfbf #bfbfbf #bfbfbf #bfbfbf; padding: 0.0px 5.0px 0.0px 5.0px}
+  </style><style>
+body{font-family:'FangSong','仿宋',serif;font-size:12pt;margin:24px;}
+table{border-collapse:collapse;margin:8px 0;}
+td,th{border:1px solid #333;padding:3px 8px;font-size:10.5pt;}
+</style></head><body><b>安全设计</b></p>
+<p class="p8"><b>认证与授权模型</b></p>
+<p class="p5"><b>三认证通道（会话/API Key/签名 JWT）统一汇入 Spring Security 过滤链；授权模型四层：功能权限（角色/菜单）→ 资源级数据权限（Authorization 四档）→ 行级权限 → 列级权限+动态脱敏。数据默认私有（仅创建者可见，授权共享）。关键约束：所有数据访问（查询/导出/API/问数/嵌入）均经过完整权限管道，无绕过路径（PRD UC-005 验收口径）。</b></p>
+<p class="p8"><b>行列级权限 SQL 解析改写方案</b></p>
+<p class="p5"><b>采用「SQL 解析器 + AST 改写」方案（详见「系统管理」★模块设计）：解析器选型在 Apache Calcite 与 JSqlParser 之间经 Phase 0 Spike① POC 验证后锁定，POC 结论（覆盖率/性能/方言兼容性）回填本节。安全兜底：解析或改写失败一律拒绝查询并记错误日志，不返回任何数据。权限规则读取走缓存、变更即失效（实时生效≤10 秒）。</b></p>
+<p class="p8"><b>签名嵌入 Token 机制</b></p>
+<p class="p5"><b>详见「数据交换、嵌入与开放 API」★模块设计。要点：HS256 共享密钥、Token 建议≤5 分钟时效、白名单域名、密钥可吊销即时生效、全程审计日志。</b></p>
+<p class="p8"><b>审计日志设计</b></p>
+<p class="p5"><b>DG_AUDIT_LOG 记录全部关键操作（登录失败/权限变更/数据导出/分享/API 调用/嵌入调用/回滚）；审计列表支持按时间/用户/操作类型筛选，关键操作高亮，可导出；日志中敏感信息脱敏（NFR-SEC-04）。</b></p>
+<p class="p8"><b>信创合规要点</b></p>
+<p class="p5"><b>达梦/人大金仓双库适配+冒烟验证清单（Phase 2 并行专项）作为政企交付材料；国密算法适配（传输/存储）为可选加分项（FR-XC-03）；数据安全合规（数据安全法/个保法）依赖行列权限+动态脱敏+审计日志+外发审批完整体系（PRD 风险 R11 对策）。</b></p>
+<p class="p7"><b></body></html>

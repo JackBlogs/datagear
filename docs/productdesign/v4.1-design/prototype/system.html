@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>系统管理 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  .tab-pane { display: none; }
+  .tab-pane.show { display: block; }
+  .mono { font-family: var(--font-mono); font-size: 12px; }
+  /* 角色卡 */
+  .role-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(230px,1fr)); gap: 14px; }
+  .role-card { background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l); padding: 15px 16px; transition: all var(--dur); cursor: pointer; }
+  .role-card:hover { border-color: var(--line-3); transform: translateY(-2px); }
+  .role-card .r-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .role-card .r-ava { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .role-card .r-ava svg { width: 17px; height: 17px; }
+  .role-card .r-name { font-size: 13.5px; font-weight: 600; }
+  .role-card .r-cnt { font-size: 11px; color: var(--tx-3); font-family: var(--font-num); }
+  .role-card .r-desc { font-size: 11.5px; color: var(--tx-3); line-height: 1.6; }
+  /* 权限校验链路 */
+  .chain { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 6px 0 10px; }
+  .chain-node {
+    flex: 1; min-width: 118px; text-align: center; padding: 12px 8px;
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-m);
+    position: relative;
+  }
+  .chain-node + .chain-node { margin-left: 26px; }
+  .chain-node + .chain-node::before {
+    content: ""; position: absolute; left: -26px; top: 50%; width: 26px; height: 2px;
+    background: linear-gradient(90deg, var(--line-3), var(--brand-line));
+  }
+  .chain-node + .chain-node::after {
+    content: ""; position: absolute; left: -5px; top: calc(50% - 4px);
+    border: 5px solid transparent; border-left-color: var(--brand-line);
+  }
+  .chain-node .c-name { font-size: 12.5px; font-weight: 600; }
+  .chain-node .c-sub { font-size: 10.5px; color: var(--tx-3); margin-top: 3px; line-height: 1.5; }
+  .chain-node.hl { border-color: var(--brand); background: var(--brand-soft); box-shadow: var(--shadow-glow-brand); }
+  .chain-node.ok .c-name { color: var(--ok); }
+  /* 组织架构树 */
+  .org-tree { font-size: 13px; }
+  .org-node { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+  .org-node:hover { background: var(--bg-glass-2); }
+  .org-node svg { width: 14px; height: 14px; color: var(--brand); flex: none; }
+  .org-node .o-cnt { margin-left: auto; font-size: 11px; color: var(--tx-4); font-family: var(--font-num); }
+  .org-lv1 { margin-left: 22px; }
+  .org-lv2 { margin-left: 44px; }
+  /* 效果说明卡 */
+  .effect-card {
+    display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px;
+    background: var(--info-soft); border: 1px solid rgba(96,165,250,.3); border-radius: var(--r-l);
+    font-size: 12.5px; color: var(--tx-2); line-height: 1.7;
+  }
+  .effect-card svg { width: 16px; height: 16px; color: var(--info); flex: none; margin-top: 2px; }
+  .effect-card b { color: var(--tx-1); }
+  .avatar-sm { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; flex: none; }
+</style>
+</head>
+<body data-page="system">
+<div id="page-content" style="display:none">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">系统管理</div>
+      <div class="page-desc">用户 / 角色 / 组织管理，行列级权限、动态脱敏与全量审计（PRD 10.12 · UC-005）</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="DG.toast('原型演示：LDAP / OA 组织架构同步')">同步组织架构</button>
+      <button class="btn primary" onclick="DG.toast('原型演示：新建用户并分配角色')"><span id="plusIco" style="display:flex"></span>新建用户</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="sysTabs">
+    <div class="tab active" data-pane="users">用户 <span class="cnt">312</span></div>
+    <div class="tab" data-pane="roles">角色 <span class="cnt">6</span></div>
+    <div class="tab" data-pane="orgs">组织</div>
+    <div class="tab" data-pane="rc">行列级权限 <span class="tag brand" style="margin-left:2px">核心</span></div>
+    <div class="tab" data-pane="mask">动态脱敏</div>
+    <div class="tab" data-pane="audit">审计日志</div>
+  </div>
+
+  <!-- 用户 -->
+  <div class="tab-pane show" data-pane="users">
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr><th>用户</th><th>账号</th><th>所属组织</th><th>角色</th><th>状态</th><th>最近登录</th><th style="width:170px">操作</th></tr></thead>
+        <tbody id="userTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 角色 -->
+  <div class="tab-pane" data-pane="roles">
+    <div class="role-grid" id="roleGrid"></div>
+  </div>
+
+  <!-- 组织 -->
+  <div class="tab-pane" data-pane="orgs">
+    <div class="grid" style="grid-template-columns:320px 1fr;gap:14px;align-items:start">
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>组织架构树</div>
+        <div class="org-tree" id="orgTree"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>华北油田分公司 · 组织详情</div>
+        <div class="grid g-3">
+          <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">组织编码</div><div class="mono bold" style="font-size:15px;margin-top:2px">ORG-CN-HB-001</div></div>
+          <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">在编用户</div><div class="num bold" style="font-size:15px;margin-top:2px">86 人</div></div>
+          <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">行级隔离键</div><div class="mono bold" style="font-size:15px;margin-top:2px;color:var(--gas)">org_code</div></div>
+        </div>
+        <div class="sm tx-3 mt-2" style="line-height:1.9">
+          该组织下用户访问启用「区域数据隔离」规则的资源时，自动附加 <span class="mono" style="color:var(--brand)">org_code = 'ORG-CN-HB-001'</span> 过滤条件；组织编码与 LDAP / 企业微信通讯录每日 03:00 同步。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 行列级权限 -->
+  <div class="tab-pane" data-pane="rc">
+    <div class="effect-card mb-3">
+      <span id="effectIco" style="display:flex"></span>
+      <div><b>效果演示（UC-005）</b>：华东区用户「王芳」与华北区用户「李明」打开同一张「华北油田生产日报看板」—— 系统自动按各自 <span class="mono" style="color:var(--brand)">org_code</span> 过滤行数据，王芳仅见华东区块数据；「工资总额」列对业务人员整体隐藏，「联系电话」列以 <span class="mono">138****1234</span> 动态脱敏返回。</div>
+    </div>
+
+    <!-- 校验链路图 -->
+    <div class="card mb-3">
+      <div class="card-title"><span class="bar"></span>权限校验链路（对齐 PRD 流程 6）</div>
+      <div class="chain" id="permChain"></div>
+    </div>
+
+    <div class="grid g-2" style="align-items:start">
+      <!-- 行级规则 -->
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>行级权限规则
+          <span class="more" onclick="DG.toast('原型演示：新建行级规则')">新建规则 ›</span>
+        </div>
+        <div class="table-wrap" style="border:none">
+          <table class="tbl">
+            <thead><tr><th>规则名</th><th>作用对象</th><th>过滤条件</th><th>适用角色</th><th>启用</th></tr></thead>
+            <tbody id="rowTbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 列级规则 -->
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>列级权限规则
+          <span class="more" onclick="DG.toast('原型演示：新建列级规则')">新建规则 ›</span>
+        </div>
+        <div class="table-wrap" style="border:none">
+          <table class="tbl">
+            <thead><tr><th>规则名</th><th>目标列</th><th>控制方式</th><th>适用角色</th><th>启用</th></tr></thead>
+            <tbody id="colTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 动态脱敏 -->
+  <div class="tab-pane" data-pane="mask">
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr><th>规则名</th><th>字段</th><th>脱敏算法</th><th>适用角色</th><th>原始值 → 展示值</th><th>状态</th></tr></thead>
+        <tbody id="maskTbody"></tbody>
+      </table>
+    </div>
+    <div class="sm tx-3 mt-2">脱敏在查询结果返回前即时执行，不落盘、不影响源数据；管理员与安全审计角色可见原始值。</div>
+  </div>
+
+  <!-- 审计日志 -->
+  <div class="tab-pane" data-pane="audit">
+    <div class="flex-between mb-2">
+      <div class="flex" style="gap:8px">
+        <select class="select" style="width:150px;padding:6px 30px 6px 12px;font-size:12.5px" onchange="DG.toast('原型演示：按操作类型过滤')">
+          <option>全部操作类型</option><option>登录</option><option>导出</option><option>授权</option><option>修改指标</option>
+        </select>
+        <select class="select" style="width:130px;padding:6px 30px 6px 12px;font-size:12.5px" onchange="DG.toast('原型演示：按时间范围过滤')">
+          <option>近 24 小时</option><option>近 7 天</option><option>近 30 天</option>
+        </select>
+      </div>
+      <button class="btn" onclick="DG.toast('已导出审计报告 audit_20260903.pdf')">导出审计报告</button>
+    </div>
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr><th>时间</th><th>用户</th><th>操作类型</th><th>操作对象</th><th>来源 IP</th><th>结果</th></tr></thead>
+        <tbody id="auditTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+  document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
+  document.getElementById('effectIco').innerHTML = DG.ICONS.spark;
+
+  /* 用户表 */
+  const USERS = [
+    { n: '李明', ac: 'liming', org: '华北油田分公司', role: ['数据分析师'], st: '正常', last: '今天 08:32', av: ['#22D3EE', '#0E7490'] },
+    { n: '王芳', ac: 'wangfang', org: '华东区销售分公司', role: ['业务人员'], st: '正常', last: '今天 08:15', av: ['#A78BFA', '#6D28D9'] },
+    { n: '张伟', ac: 'zhangwei', org: '集团数据中心', role: ['数据工程师'], st: '正常', last: '今天 07:58', av: ['#FF8A3D', '#C2410C'] },
+    { n: '陈磊', ac: 'chenlei', org: '煤矿安监部', role: ['业务人员'], st: '正常', last: '昨天 19:44', av: ['#E8B33C', '#A16207'] },
+    { n: '赵静', ac: 'zhaojing', org: '煤化工事业部', role: ['数据分析师', '业务人员'], st: '正常', last: '昨天 18:02', av: ['#34D399', '#047857'] },
+    { n: '刘总', ac: 'liuzong', org: '集团总部', role: ['决策层'], st: '正常', last: '今天 08:00', av: ['#F87171', '#B91C1C'] },
+    { n: '系统管理员', ac: 'admin', org: '集团数据中心', role: ['管理员'], st: '正常', last: '今天 08:05', av: ['#60A5FA', '#1D4ED8'] },
+    { n: '外部顾问-试用', ac: 'guest_ext', org: '—', role: ['开发人员'], st: '锁定', last: '08-28 11:12', av: ['#7C88A0', '#3B4457'] },
+  ];
+  const AVA = (c) => `background:linear-gradient(135deg,${c[0]},${c[1]});color:#0A0E17`;
+  document.getElementById('userTbody').innerHTML = USERS.map(u => `
+    <tr>
+      <td><div class="flex" style="gap:9px"><span class="avatar-sm" style="${AVA(u.av)}">${u.n.slice(0, 1)}</span><span class="cell-main">${u.n}</span></div></td>
+      <td class="mono tx-3">${u.ac}</td>
+      <td class="sm">${u.org}</td>
+      <td>${u.role.map(r => `<span class="tag ${r === '管理员' ? 'danger' : r === '数据工程师' ? 'brand' : r === '数据分析师' ? 'info' : r === '决策层' ? 'warn' : ''}" style="margin-right:4px">${r}</span>`).join('')}</td>
+      <td>${u.st === '正常' ? '<span class="tag ok">正常</span>' : '<span class="tag danger">已锁定</span>'}</td>
+      <td class="sm tx-3">${u.last}</td>
+      <td>
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：编辑用户与角色分配')">编辑</span> ·
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：重置密码并邮件通知')">重置密码</span> ·
+        <span style="color:var(--danger);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：停用账号')">停用</span>
+      </td>
+    </tr>`).join('');
+
+  /* 角色卡 */
+  const ROLES = [
+    { n: '管理员', c: 3, d: '平台全部功能与资源配置，负责用户、权限、系统参数', i: 'system', col: 'var(--danger)', bg: 'var(--danger-soft)' },
+    { n: '数据工程师', c: 12, d: '数据源 / 数据集 / 治理配置，指标开发与发布审核', i: 'db', col: 'var(--brand)', bg: 'var(--brand-soft)' },
+    { n: '数据分析师', c: 48, d: '看板与报表设计、问数、指标申请，不可改源配置', i: 'metric', col: 'var(--info)', bg: 'var(--info-soft)' },
+    { n: '业务人员', c: 196, d: '查看授权看板 / 报表 / 指标，受行列级权限约束', i: 'board', col: 'var(--ok)', bg: 'var(--ok-soft)' },
+    { n: '开发人员', c: 18, d: 'API / 嵌入 / MCP 接入，管理自己的 API Key', i: 'api', col: 'var(--gas)', bg: 'var(--gas-soft)' },
+    { n: '决策层', c: 35, d: '驾驶舱与大屏只读，订阅推送与批注审批', i: 'screen', col: 'var(--warn)', bg: 'var(--warn-soft)' },
+  ];
+  document.getElementById('roleGrid').innerHTML = ROLES.map(r => `
+    <div class="role-card" onclick="DG.toast('原型演示：角色「${r.n}」权限矩阵')">
+      <div class="r-head">
+        <span class="r-ava" style="color:${r.col};background:${r.bg}">${DG.ICONS[r.i]}</span>
+        <div><div class="r-name">${r.n}</div><div class="r-cnt">${r.c} 人</div></div>
+        <span class="more" style="margin-left:auto;font-size:12px;color:var(--tx-3)">权限矩阵 ›</span>
+      </div>
+      <div class="r-desc">${r.d}</div>
+    </div>`).join('');
+
+  /* 组织树 */
+  const ORGS = [
+    { n: '能源集团总部', lv: 0, c: 35 }, { n: '华北油田分公司', lv: 1, c: 86, sel: true },
+    { n: '采油一厂', lv: 2, c: 42 }, { n: '采油二厂', lv: 2, c: 44 },
+    { n: '管道分公司', lv: 1, c: 58 }, { n: '煤化工事业部', lv: 1, c: 47 },
+    { n: '煤矿安监部', lv: 1, c: 33 }, { n: '集团数据中心', lv: 1, c: 15 },
+  ];
+  document.getElementById('orgTree').innerHTML = ORGS.map(o => `
+    <div class="org-node ${o.lv === 1 ? 'org-lv1' : o.lv === 2 ? 'org-lv2' : ''}" style="${o.sel ? 'background:var(--brand-soft);color:var(--brand);font-weight:600' : ''}" onclick="DG.toast('原型演示：查看 ${o.n} 组织详情')">
+      ${DG.ICONS.home}<span>${o.n}</span><span class="o-cnt">${o.c} 人</span>
+    </div>`).join('');
+
+  /* 权限校验链路 */
+  const CHAIN = [
+    { n: '发起请求', s: '浏览器 / API / 嵌入', cls: '' },
+    { n: '身份识别', s: '会话 · API Key · 签名 Token', cls: '' },
+    { n: '功能权限', s: '菜单与操作授权', cls: 'ok' },
+    { n: '资源级', s: '看板 / 数据集可见性', cls: 'ok' },
+    { n: '行级过滤', s: "org_code = 用户组织", cls: 'hl' },
+    { n: '列级控制', s: '隐藏 / 脱敏列', cls: 'hl' },
+    { n: '动态脱敏', s: '按角色即时脱敏', cls: 'hl' },
+    { n: '返回结果', s: '审计留痕', cls: 'ok' },
+  ];
+  document.getElementById('permChain').innerHTML = CHAIN.map(c => `
+    <div class="chain-node ${c.cls}"><div class="c-name">${c.n}</div><div class="c-sub">${c.s}</div></div>`).join('');
+
+  /* 行级规则 */
+  const ROWS = [
+    { n: '区域数据隔离', o: '华北油田生产日报看板', c: "org_code = 当前用户组织", r: '业务人员', on: true },
+    { n: '采油厂分级可见', o: 'DS_采油日报', c: "cyf IN (用户授权采油厂)", r: '数据分析师', on: true },
+    { n: '煤矿按矿权隔离', o: 'DS_煤矿瓦斯监测', c: "mine_id = 当前用户矿权", r: '业务人员', on: true },
+    { n: '财务数据仅限总部', o: '集团财务核算库报表', c: "org_level = '总部'", r: '数据分析师', on: false },
+  ];
+  document.getElementById('rowTbody').innerHTML = ROWS.map(r => `
+    <tr>
+      <td class="cell-main">${r.n}</td>
+      <td class="sm">${r.o}</td>
+      <td class="mono" style="color:var(--brand)">${r.c}</td>
+      <td><span class="tag info">${r.r}</span></td>
+      <td><label class="switch"><input type="checkbox" ${r.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换行级规则')"/><i></i></label></td>
+    </tr>`).join('');
+
+  /* 列级规则 */
+  const COLS = [
+    { n: '工资总额隐藏', o: '薪酬表.salary_total', c: '<span class="tag danger">隐藏列</span>', r: '业务人员', on: true },
+    { n: '联系电话脱敏', o: '值班表.mobile', c: '<span class="tag warn">脱敏 138****1234</span>', r: '业务人员 · 分析师', on: true },
+    { n: '成本明细隐藏', o: '采购结算.cost_detail', c: '<span class="tag danger">隐藏列</span>', r: '业务人员', on: true },
+    { n: '井位坐标精度降权', o: 'DIM_井位.geo', c: '<span class="tag info">模糊至区块级</span>', r: '外部顾问', on: false },
+  ];
+  document.getElementById('colTbody').innerHTML = COLS.map(r => `
+    <tr>
+      <td class="cell-main">${r.n}</td>
+      <td class="mono" style="color:var(--gas)">${r.o}</td>
+      <td>${r.c}</td>
+      <td><span class="tag info">${r.r}</span></td>
+      <td><label class="switch"><input type="checkbox" ${r.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换列级规则')"/><i></i></label></td>
+    </tr>`).join('');
+
+  /* 动态脱敏 */
+  const MASKS = [
+    ['手机号掩码', '*.mobile / *.phone', '掩码', '业务人员', '13812341234 → 138****1234', true],
+    ['身份证掩码', '*.id_card', '掩码', '除人事外全部', '130102****1234****', true],
+    ['工资哈希', '薪酬表.salary', '哈希', '业务人员', '18,600 → a91f…c2', true],
+    ['银行账号截断', '采购结算.bank_no', '截断', '除财务外全部', '6222 **** **** 8102', false],
+    ['邮箱掩码', '*.email', '掩码', '外部角色', 'l***@huabei.oil', true],
+  ];
+  document.getElementById('maskTbody').innerHTML = MASKS.map(m => `
+    <tr>
+      <td class="cell-main">${m[0]}</td>
+      <td class="mono" style="color:var(--gas)">${m[1]}</td>
+      <td><span class="tag ${m[2] === '哈希' ? 'warn' : m[2] === '截断' ? 'brand' : 'info'}">${m[2]}</span></td>
+      <td class="sm">${m[3]}</td>
+      <td class="mono">${m[4]}</td>
+      <td>${m[5] ? '<span class="tag ok">启用</span>' : '<span class="tag warn">待审批</span>'}</td>
+    </tr>`).join('');
+
+  /* 审计日志 */
+  const AUDITS = [
+    ['今天 08:41', '系统管理员', '授权', '看板「集团经营驾驶舱」→ 决策层', '10.***.***.21', 'ok'],
+    ['今天 08:32', '李明', '登录', 'Web 端（企业微信免登）', '10.***.***.86', 'ok'],
+    ['今天 08:12', '王芳', '导出', '报表「管输量日报」→ Excel', '10.***.***.45', 'ok'],
+    ['今天 07:58', '张伟', '修改指标', 'M-OIL-021 吨油成本口径', '10.***.***.12', 'ok'],
+    ['今天 02:00', 'system', '数据备份', '自动备份 dg_backup_***.zip', '127.0.0.1', 'ok'],
+    ['昨天 19:44', '陈磊', '登录', '移动端 H5（异常设备检测）', '223.***.***.71', 'warn'],
+    ['昨天 17:20', 'guest_ext', '越权访问', '尝试访问「集团财务核算库」', '58.***.***.9', 'err'],
+  ];
+  const AUD_TAG = { ok: '<span class="tag ok">成功</span>', warn: '<span class="tag warn">二次验证</span>', err: '<span class="tag danger">已拦截</span>' };
+  const AUD_TYPE = { '登录': 'info', '导出': 'brand', '授权': 'ok', '修改指标': 'warn', '数据备份': '', '越权访问': 'danger' };
+  document.getElementById('auditTbody').innerHTML = AUDITS.map(a => `
+    <tr>
+      <td class="sm tx-3 num">${a[0]}</td>
+      <td class="cell-main">${a[1]}</td>
+      <td><span class="tag ${AUD_TYPE[a[2]] || ''}">${a[2]}</span></td>
+      <td class="sm">${a[3]}</td>
+      <td class="mono tx-3">${a[4]}</td>
+      <td>${AUD_TAG[a[5]]}</td>
+    </tr>`).join('');
+
+  /* Tabs */
+  document.querySelectorAll('#sysTabs .tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('#sysTabs .tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show'));
+      tab.classList.add('active');
+      document.querySelector(`.tab-pane[data-pane="${tab.dataset.pane}"]`).classList.add('show');
+    });
+  });
+</script>
+</body>
+</html>

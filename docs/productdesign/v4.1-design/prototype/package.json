@@ -1,0 +1,11 @@
+{
+  "name": "datagear-energy-bi-prototype",
+  "version": "4.1.0",
+  "private": true,
+  "description": "DataGear V4.1 能源行业BI平台高保真原型（石油/天然气/化工/煤矿主题）",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-server.js",
+    "start": "node scripts/dev-server.js"
+  }
+}

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>统计报表 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  .report-layout { display: grid; grid-template-columns: 320px 1fr; gap: 14px; align-items: start; }
+  .rp-item { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line-1); border-radius: var(--r-m); margin-bottom: 10px; cursor: pointer; transition: all var(--dur); background: var(--bg-glass); }
+  .rp-item:hover { border-color: var(--line-3); }
+  .rp-item.active { border-color: var(--brand); background: var(--brand-soft); }
+  .rp-item .r-ico { width: 36px; height: 36px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .rp-item .r-ico svg { width: 18px; height: 18px; }
+  .rp-item .r-name { font-size: 13px; font-weight: 600; }
+  .rp-item .r-sub { font-size: 11px; color: var(--tx-3); margin-top: 2px; }
+  /* 工具条 */
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-m); }
+  .toolbar .btn svg { width: 13px; height: 13px; }
+  /* 中国式复杂报表（纯 HTML 表格） */
+  .report-sheet { overflow: auto; border-radius: var(--r-m); border: 1px solid var(--line-2); background: rgba(7,10,18,.5); }
+  .sheet-title { text-align: center; font-size: 17px; font-weight: 700; letter-spacing: 2px; padding: 18px 0 4px; }
+  .sheet-sub { text-align: center; font-size: 11.5px; color: var(--tx-3); padding-bottom: 12px; }
+  .sheet-sub .u { margin: 0 18px; }
+  table.sheet { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 860px; }
+  .sheet th, .sheet td { border: 1px solid var(--line-2); padding: 7px 10px; text-align: center; white-space: nowrap; }
+  .sheet thead th { background: rgba(255,138,61,.08); color: var(--tx-1); font-weight: 600; }
+  .sheet .grp { background: rgba(255,255,255,.03); color: var(--tx-1); font-weight: 600; text-align: left; padding-left: 14px; }
+  .sheet .sub { color: var(--tx-3); font-weight: 400; text-align: left; padding-left: 28px; }
+  .sheet .numc { font-family: var(--font-num); text-align: right; padding-right: 12px; }
+  .sheet .subtotal td { background: rgba(255,138,61,.06); font-weight: 700; color: var(--tx-1); }
+  .sheet .total td { background: rgba(255,138,61,.12); font-weight: 700; color: var(--brand); }
+  .sheet .bad { color: var(--danger); font-weight: 600; }
+  .sheet .good { color: var(--ok); font-weight: 600; }
+  /* 斜线表头 */
+  .sheet .slash {
+    background-image: linear-gradient(to top right, transparent 49.4%, var(--line-3) 49.4%, var(--line-3) 50.6%, transparent 50.6%) !important;
+    position: relative; min-width: 108px; padding: 0 !important; height: 54px;
+  }
+  .sheet .slash i { position: absolute; font-style: normal; font-size: 11px; color: var(--tx-2); }
+  .sheet .slash i.a { right: 8px; top: 5px; }
+  .sheet .slash i.b { left: 8px; bottom: 5px; }
+  .ent-bar {
+    display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+    background: var(--chem-soft); border: 1px solid rgba(167,139,250,.3); border-radius: var(--r-m);
+    font-size: 12.5px; color: var(--tx-2);
+  }
+  .ent-bar svg { width: 15px; height: 15px; color: var(--chem); flex: none; }
+  .ent-bar b { color: var(--chem); }
+  @media (max-width: 1100px) { .report-layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-page="report">
+<div id="page-content" style="display:none">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">统计报表</div>
+      <div class="page-desc">中国式复杂报表：多级表头、合并单元格、小计合计、条件格式与填报（PRD 10.10）</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="DG.toast('原型演示：报表订阅管理')">订阅管理</button>
+      <button class="btn primary" onclick="DG.toast('原型演示：新建报表向导')"><span id="plusIco" style="display:flex"></span>新建报表</button>
+    </div>
+  </div>
+
+  <!-- 类型 chips -->
+  <div class="flex wrap mb-3" style="gap:8px" id="typeChips">
+    <span class="seg-item active" style="border:1px solid var(--line-2)">全部</span>
+    <span class="seg-item" style="border:1px solid var(--line-1)" onclick="DG.toast('原型演示：筛选分组报表')">分组报表 12</span>
+    <span class="seg-item" style="border:1px solid var(--line-1)" onclick="DG.toast('原型演示：筛选交叉报表')">交叉报表 8</span>
+    <span class="seg-item" style="border:1px solid var(--line-1)" onclick="DG.toast('原型演示：筛选电子表格')">电子表格 5</span>
+    <span class="seg-item" style="border:1px solid var(--line-1)" onclick="DG.toast('原型演示：筛选填报表单')">填报表单 6</span>
+  </div>
+
+  <div class="report-layout">
+    <!-- 左：报表列表 -->
+    <div class="card" style="padding:14px">
+      <div class="card-title"><span class="bar"></span>报表清单 <span class="more" onclick="DG.toast('原型演示：报表目录管理')">目录 ›</span></div>
+      <div id="rpList"></div>
+    </div>
+
+    <!-- 右：报表预览 -->
+    <div class="flex-col" style="gap:12px;min-width:0">
+      <div class="toolbar" id="reportToolbar">
+        <button class="btn sm" onclick="DG.toast('已导出 Excel：原油产量月报_202608.xlsx')">导出 Excel</button>
+        <button class="btn sm" onclick="DG.toast('已导出 PDF：原油产量月报_202608.pdf')">导出 PDF</button>
+        <button class="btn sm" onclick="DG.toast('原型演示：设置定时推送（每天 08:00 邮件）')">定时推送</button>
+        <button class="btn sm" onclick="DG.toast('原型演示：条件格式规则编辑')">条件格式</button>
+        <button class="btn sm" onclick="DG.toast('原型演示：打印排版预览')">打印</button>
+        <span class="sm tx-3" style="margin-left:auto;align-self:center">数据源：DS_采油日报 · 参数 ${month}=2026-08 · 已按行级权限过滤</span>
+      </div>
+
+      <div class="report-sheet">
+        <div class="sheet-title">2026 年 8 月 各采油厂生产情况月报</div>
+        <div class="sheet-sub"><span class="u">编制单位：生产运行部</span><span class="u">单位：万吨、%</span><span class="u">报表编号：SC-2026-08</span></div>
+        <table class="sheet">
+          <thead>
+            <tr>
+              <th rowspan="3" class="slash"><i class="a">指标</i><i class="b">单位</i></th>
+              <th colspan="3">原油产量</th>
+              <th colspan="3">天然气产量</th>
+              <th colspan="2">注水</th>
+              <th rowspan="3">综合含水率<br/>(%)</th>
+            </tr>
+            <tr>
+              <th>计划</th><th>实际</th><th>完成率(%)</th>
+              <th>计划</th><th>实际</th><th>完成率(%)</th>
+              <th>计划</th><th>实际</th>
+            </tr>
+            <tr>
+              <th>万吨</th><th>万吨</th><th>—</th>
+              <th>万方</th><th>万方</th><th>—</th>
+              <th>万方</th><th>万方</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="grp" rowspan="2">长庆油田</td>
+              <td class="numc">38.50</td><td class="numc">39.12</td><td class="numc good">101.6</td>
+              <td class="numc">12,400</td><td class="numc">12,815</td><td class="numc good">103.3</td>
+              <td class="numc">5,200</td><td class="numc">5,186</td>
+              <td class="numc">61.2</td>
+            </tr>
+            <tr>
+              <td class="sub">其中：页岩油</td>
+              <td class="numc">6.20</td><td class="numc">6.58</td><td class="numc good">106.1</td>
+              <td class="numc">—</td><td class="numc">—</td><td class="numc">—</td>
+              <td class="numc">—</td><td class="numc">—</td>
+              <td class="numc">58.4</td>
+            </tr>
+            <tr>
+              <td class="grp" rowspan="2">华北油田</td>
+              <td class="numc">30.00</td><td class="numc">28.94</td><td class="numc bad">96.5</td>
+              <td class="numc">4,600</td><td class="numc">4,522</td><td class="numc bad">98.3</td>
+              <td class="numc">3,800</td><td class="numc">3,902</td>
+              <td class="numc">72.5</td>
+            </tr>
+            <tr>
+              <td class="sub">其中：煤层气</td>
+              <td class="numc">—</td><td class="numc">—</td><td class="numc">—</td>
+              <td class="numc">1,050</td><td class="numc">1,183</td><td class="numc good">112.7</td>
+              <td class="numc">—</td><td class="numc">—</td>
+              <td class="numc">—</td>
+            </tr>
+            <tr>
+              <td class="grp">塔里木油田</td>
+              <td class="numc">26.80</td><td class="numc">27.35</td><td class="numc good">102.1</td>
+              <td class="numc">9,800</td><td class="numc">10,064</td><td class="numc good">102.7</td>
+              <td class="numc">2,600</td><td class="numc">2,577</td>
+              <td class="numc">45.8</td>
+            </tr>
+            <tr>
+              <td class="grp">大庆油田</td>
+              <td class="numc">24.50</td><td class="numc">23.86</td><td class="numc bad">97.4</td>
+              <td class="numc">1,200</td><td class="numc">1,156</td><td class="numc bad">96.3</td>
+              <td class="numc">6,100</td><td class="numc">6,240</td>
+              <td class="numc">83.1</td>
+            </tr>
+            <tr class="subtotal">
+              <td>小计（东部油田）</td>
+              <td class="numc">54.50</td><td class="numc">52.80</td><td class="numc bad">96.9</td>
+              <td class="numc">5,800</td><td class="numc">5,678</td><td class="numc bad">97.9</td>
+              <td class="numc">9,900</td><td class="numc">10,142</td>
+              <td class="numc">77.6</td>
+            </tr>
+            <tr class="total">
+              <td>合计</td>
+              <td class="numc">119.80</td><td class="numc">119.27</td><td class="numc">99.6</td>
+              <td class="numc">28,000</td><td class="numc">28,557</td><td class="numc good">102.0</td>
+              <td class="numc">17,700</td><td class="numc">17,905</td>
+              <td class="numc">66.4</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="sheet-sub" style="padding:10px 0 14px">注：完成率 &lt; 100% 以红色标注；数据经行级权限过滤，仅展示当前用户可见油田。审核人：刘总 · 审核时间：2026-09-02 16:30</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 企业版说明 -->
+  <div class="ent-bar mt-3">
+    <span id="entIco" style="display:flex"></span>
+    <span><b>企业版增值能力</b>：报表设计器、单元格公式计算、电子表格（类 Excel 在线建模）为企业版增值模块；开源版支持分组 / 交叉报表与填报表单基础能力。</span>
+  </div>
+
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+  document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
+  document.getElementById('entIco').innerHTML = DG.ICONS.star;
+
+  const RPS = [
+    { n: '原油产量月报', s: '分组报表 · 今天 06:00 · 李明', t: 'brand', active: true, ico: 'oil' },
+    { n: '管输量日报', s: '分组报表 · 今天 07:30 · 王芳', t: 'info', ico: 'gas' },
+    { n: '煤矿产量旬报', s: '交叉报表 · 09-01 · 陈磊', t: 'warn', ico: 'coal' },
+    { n: '化工品产销存月报', s: '电子表格 · 09-02 · 赵静', t: 'info', ico: 'chem' },
+    { n: '井场巡检填报单', s: '填报表单 · 持续 · 张伟', t: 'ok', ico: null },
+    { n: '设备完好率季报', s: '交叉报表 · 07-02 · 刘总', t: 'info', ico: null },
+  ];
+  const ICO_MAP = { oil: 'flame', gas: 'flame', chem: 'flame', coal: 'flame' };
+  const COL_MAP = { oil: ['var(--oil)', 'var(--oil-soft)'], gas: ['var(--gas)', 'var(--gas-soft)'], chem: ['var(--chem)', 'var(--chem-soft)'], coal: ['var(--coal)', 'var(--coal-soft)'] };
+  document.getElementById('rpList').innerHTML = RPS.map(r => {
+    const [col, bg] = r.ico ? COL_MAP[r.ico] : ['var(--info)', 'var(--info-soft)'];
+    return `
+    <div class="rp-item ${r.active ? 'active' : ''}" onclick="document.querySelectorAll('.rp-item').forEach(x=>x.classList.remove('active'));this.classList.add('active');DG.toast('原型演示：加载报表「${r.n}」')">
+      <span class="r-ico" style="color:${col};background:${bg}">${DG.ICONS.report}</span>
+      <div class="grow">
+        <div class="r-name">${r.n}</div>
+        <div class="r-sub">${r.s}</div>
+      </div>
+      <span class="tag ${r.t}" style="align-self:flex-start">${r.s.split(' · ')[0]}</span>
+    </div>`;
+  }).join('');
+
+  /* 类型 chips 交互 */
+  document.querySelectorAll('#typeChips .seg-item').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('#typeChips .seg-item').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>告警与订阅 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  .tab-pane { display: none; }
+  .tab-pane.show { display: block; }
+  /* 新建规则三步 */
+  .rule-steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .rule-step {
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l);
+    padding: 16px; position: relative;
+  }
+  .rule-step .rs-no {
+    position: absolute; top: -10px; left: 14px; font-size: 11px; font-family: var(--font-num);
+    font-weight: 700; padding: 1px 10px; border-radius: 9px;
+    background: var(--brand-grad); color: #241105;
+  }
+  .rule-step .rs-name { font-size: 13.5px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+  .rule-step .rs-name svg { width: 15px; height: 15px; color: var(--brand); }
+  .rule-step .mini {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 7px;
+    background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 8px; font-size: 12px;
+  }
+  .rule-step .mini .m-tag { font-size: 10.5px; color: var(--tx-3); flex: none; }
+  .rule-step .mini .m-val { font-family: var(--font-mono); color: var(--brand); font-weight: 600; }
+  /* 渠道卡 */
+  .ch-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 14px; }
+  .ch-card { background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l); padding: 16px; }
+  .ch-card .ch-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ch-card .ch-ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .ch-card .ch-ico svg { width: 18px; height: 18px; }
+  .ch-card .ch-name { font-size: 13.5px; font-weight: 600; }
+  .ch-card .ch-cfg { font-size: 11.5px; color: var(--tx-3); font-family: var(--font-mono); margin-top: 2px; }
+  .ch-card .ch-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-1); }
+  .ch-card .ch-stat { font-size: 11.5px; color: var(--tx-3); }
+  .ch-card .ch-stat b { font-family: var(--font-num); color: var(--tx-1); font-size: 14px; }
+  .cron { font-family: var(--font-mono); font-size: 12px; color: var(--gas); }
+</style>
+</head>
+<body data-page="alert">
+<div id="page-content" style="display:none">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">告警与订阅推送</div>
+      <div class="page-desc">基于语义指标的阈值告警、定时订阅推送与多通道通知（PRD 10.9）</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="DG.toast('原型演示：告警历史与静默管理')">告警历史</button>
+      <button class="btn primary" onclick="document.getElementById('rulePane').scrollIntoView({behavior:'smooth'})"><span id="plusIco" style="display:flex"></span>新建告警规则</button>
+    </div>
+  </div>
+
+  <!-- 顶部统计 -->
+  <section class="stat-grid mb-3">
+    <div class="stat-card" style="--sc-glow:rgba(255,138,61,.13)">
+      <div class="s-label">告警规则</div>
+      <div class="s-value"><span data-count="28">0</span><span class="unit">条</span></div>
+      <div class="s-foot"><span class="tag ok">启用 24</span><span class="tx-3">停用 4</span></div>
+    </div>
+    <div class="stat-card" style="--sc-glow:rgba(248,113,113,.13)">
+      <div class="s-label">今日触发</div>
+      <div class="s-value"><span data-count="3">0</span><span class="unit">次</span></div>
+      <div class="s-foot"><span class="trend down">▼ 40%</span><span>较昨日 5 次</span></div>
+    </div>
+    <div class="stat-card" style="--sc-glow:rgba(34,211,238,.12)">
+      <div class="s-label">订阅任务</div>
+      <div class="s-value"><span data-count="15">0</span><span class="unit">个</span></div>
+      <div class="s-foot"><span class="tx-3">覆盖 6 个接收人组 · 213 人</span></div>
+    </div>
+    <div class="stat-card" style="--sc-glow:rgba(167,139,250,.12)">
+      <div class="s-label">通知渠道</div>
+      <div class="s-value"><span data-count="5">0</span><span class="unit">种</span></div>
+      <div class="s-foot"><span class="trend up">▲ 今日送达 386 条</span></div>
+    </div>
+  </section>
+
+  <div class="tabs" id="alertTabs">
+    <div class="tab active" data-pane="rules">告警规则 <span class="cnt">28</span></div>
+    <div class="tab" data-pane="subs">订阅推送 <span class="cnt">15</span></div>
+    <div class="tab" data-pane="jobs">调度任务 <span class="cnt">46</span></div>
+    <div class="tab" data-pane="channels">通知渠道 <span class="cnt">5</span></div>
+  </div>
+
+  <!-- 告警规则 -->
+  <div class="tab-pane show" data-pane="rules">
+    <div class="table-wrap mb-3">
+      <table class="tbl">
+        <thead><tr>
+          <th>规则名称</th><th>监控指标</th><th>触发条件</th><th>检测频率</th><th>通知渠道</th><th>状态</th><th>最近触发</th><th style="width:150px">操作</th>
+        </tr></thead>
+        <tbody id="ruleTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- 新建规则三步 -->
+    <div class="card" id="rulePane">
+      <div class="card-title"><span class="bar"></span>新建告警规则 · 三步配置
+        <span class="more" onclick="DG.toast('原型演示：规则草稿已保存')">保存草稿 ›</span>
+      </div>
+      <div class="rule-steps">
+        <div class="rule-step">
+          <span class="rs-no">STEP 1</span>
+          <div class="rs-name"><span id="rsIco1" style="display:flex"></span>选择监控指标</div>
+          <div class="mini"><span class="m-tag">来源</span>指标中心</div>
+          <div class="mini"><span class="m-tag">指标</span><b>原油产量</b> <span class="tag brand">M-OIL-001</span></div>
+          <div class="mini"><span class="m-tag">粒度</span>采油厂 · 日</div>
+        </div>
+        <div class="rule-step">
+          <span class="rs-no">STEP 2</span>
+          <div class="rs-name"><span id="rsIco2" style="display:flex"></span>设置阈值条件</div>
+          <div class="mini"><span class="m-tag">条件</span><span class="m-val">&lt; 100 万吨</span></div>
+          <div class="mini"><span class="m-tag">持续</span>连续 2 个检测周期</div>
+          <div class="mini"><span class="m-tag">级别</span><span class="tag danger">严重</span> 同比偏离 &gt; 10% 升级</div>
+        </div>
+        <div class="rule-step">
+          <span class="rs-no">STEP 3</span>
+          <div class="rs-name"><span id="rsIco3" style="display:flex"></span>渠道与接收人</div>
+          <div class="mini"><span class="m-tag">渠道</span><span class="tag info">企业微信</span> <span class="tag">邮件</span></div>
+          <div class="mini"><span class="m-tag">接收</span>生产调度组 · 32 人</div>
+          <button class="btn primary sm" style="width:100%;justify-content:center" onclick="DG.toast('原型演示：规则创建成功并启用')">创建并启用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 订阅推送 -->
+  <div class="tab-pane" data-pane="subs">
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr>
+          <th>订阅内容</th><th>推送频率</th><th>Cron</th><th>渠道</th><th>接收人组</th><th>状态</th><th style="width:150px">操作</th>
+        </tr></thead>
+        <tbody id="subTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 调度任务 -->
+  <div class="tab-pane" data-pane="jobs">
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr>
+          <th>任务名称</th><th>类型</th><th>Cron 表达式</th><th>上次执行</th><th>下次执行</th><th>结果</th><th style="width:130px">操作</th>
+        </tr></thead>
+        <tbody id="jobTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 通知渠道 -->
+  <div class="tab-pane" data-pane="channels">
+    <div class="ch-grid" id="chGrid"></div>
+    <div class="card mt-3" style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--tx-2)">
+      <span style="width:15px;height:15px;display:inline-flex;color:var(--info)" id="extIco"></span>
+      <span>渠道为插件化扩展点：可按 SPI 接入 <b>飞书、APP 推送、短信网关、声光报警</b> 等自定义通道。</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+  document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
+  document.getElementById('extIco').innerHTML = DG.ICONS.spark;
+  ['rsIco1','rsIco2','rsIco3'].forEach((id, i) => {
+    document.getElementById(id).innerHTML = DG.ICONS[['metric','drill','share'][i]];
+  });
+
+  /* 告警规则 */
+  const RULES = [
+    { n: '日产油低于 100 万吨', m: '原油产量 M-OIL-001', c: '< 100 万吨', f: '每 5 分钟', ch: ['企业微信', '邮件'], on: true,  t: '今天 08:12', hot: true },
+    { n: '瓦斯浓度超限', m: '瓦斯浓度 M-COAL-007', c: '> 1.0%', f: '每 1 分钟', ch: ['企业微信', '短信'], on: true,  t: '今天 07:48', hot: true },
+    { n: '管网压力异常', m: '管输压力 M-GAS-012', c: '> 6.3 MPa', f: '每 5 分钟', ch: ['企业微信'], on: true, t: '昨天 21:33' },
+    { n: '甲醇装置非计划停车', m: '装置开工率 M-CHEM-003', c: '= 0%', f: '每 10 分钟', ch: ['企业微信', '钉钉', 'Webhook'], on: true, t: '08-28 14:05' },
+    { n: '含水率突升', m: '综合含水率 M-OIL-008', c: '环比 > 3%', f: '每小时', ch: ['邮件'], on: true, t: '08-30 09:00' },
+    { n: '原煤库存低于安全线', m: '库存量 M-COAL-011', c: '< 15 万吨', f: '每小时', ch: ['钉钉'], on: false, t: '—' },
+    { n: '数据调度失败', m: '调度成功率 M-SYS-002', c: '< 98%', f: '每 15 分钟', ch: ['企业微信', 'Webhook'], on: true, t: '今天 05:30' },
+    { n: '门站流量瞬时波动', m: '瞬时流量 M-GAS-021', c: '波动 > 20%', f: '每 5 分钟', ch: ['企业微信'], on: false, t: '—' },
+  ];
+  document.getElementById('ruleTbody').innerHTML = RULES.map(r => `
+    <tr>
+      <td><span class="cell-main">${r.n}</span>${r.hot ? ' <span class="tag danger" style="margin-left:4px">今日已触发</span>' : ''}</td>
+      <td class="sm">${r.m}</td>
+      <td><span class="num" style="color:var(--warn)">${r.c}</span></td>
+      <td class="sm">${r.f}</td>
+      <td>${r.ch.map(c => `<span class="tag ${c === '企业微信' ? 'info' : c === '短信' ? 'warn' : c === 'Webhook' ? 'brand' : ''}" style="margin-right:4px">${c}</span>`).join('')}</td>
+      <td><label class="switch"><input type="checkbox" ${r.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换规则启停')"/><i></i></label></td>
+      <td class="sm ${r.hot ? '' : 'tx-3'}" style="${r.hot ? 'color:var(--danger)' : ''}">${r.t}</td>
+      <td>
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：编辑规则')">编辑</span> ·
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：查看触发历史')">历史</span>
+      </td>
+    </tr>`).join('');
+
+  /* 订阅推送 */
+  const SUBS = [
+    { n: '经营日报看板', f: '每天 08:00', cron: '0 0 8 * * ?', ch: '企业微信', g: '经营分析组 · 58 人', on: true },
+    { n: '原油产量周报报表', f: '每周一 09:00', cron: '0 0 9 ? * MON', ch: '邮件', g: '生产管理部 · 24 人', on: true },
+    { n: '管输量日报（PDF）', f: '每天 07:30', cron: '0 30 7 * * ?', ch: '邮件', g: '管道分公司 · 41 人', on: true },
+    { n: '煤矿安全旬报', f: '每月 1/11/21 日', cron: '0 0 9 1,11,21 * ?', ch: '企业微信', g: '安监部 · 33 人', on: true },
+    { n: '化工品产销存月报', f: '每月 3 日 10:00', cron: '0 0 10 3 * ?', ch: '钉钉', g: '煤化工事业部 · 27 人', on: true },
+    { n: '集团经营驾驶舱截图', f: '工作日 08:30', cron: '0 30 8 ? * MON-FRI', ch: '企业微信', g: '集团领导 · 12 人', on: false },
+  ];
+  document.getElementById('subTbody').innerHTML = SUBS.map(s => `
+    <tr>
+      <td class="cell-main">${s.n}</td>
+      <td>${s.f}</td>
+      <td class="cron">${s.cron}</td>
+      <td><span class="tag info">${s.ch}</span></td>
+      <td class="sm">${s.g}</td>
+      <td><label class="switch"><input type="checkbox" ${s.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换订阅启停')"/><i></i></label></td>
+      <td>
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：编辑订阅')">编辑</span> ·
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('已立即推送一次至 ${s.ch}')">立即推送</span>
+      </td>
+    </tr>`).join('');
+
+  /* 调度任务 */
+  const JOBS = [
+    { n: '告警检测 · 高频指标', t: '告警检测', cron: '0 */5 * * * ?', last: '今天 08:15', next: '今天 08:20', r: 'ok' },
+    { n: '经营日报订阅推送', t: '订阅推送', cron: '0 0 8 * * ?', last: '今天 08:00', next: '明天 08:00', r: 'ok' },
+    { n: 'ODS 采油日报抽取', t: '数据抽取', cron: '0 30 2 * * ?', last: '今天 02:30', next: '明天 02:30', r: 'ok' },
+    { n: 'SCADA 实时流消费', t: '数据抽取', cron: '流式常驻', last: '持续运行', next: '—', r: 'ok' },
+    { n: '原油产量月报生成', t: '报表定时', cron: '0 0 6 1 * ?', last: '09-01 06:00', next: '10-01 06:00', r: 'ok' },
+    { n: '数据集缓存刷新', t: '数据抽取', cron: '0 */30 * * * ?', last: '今天 08:00', next: '今天 08:30', r: 'warn' },
+    { n: '元数据全量采集', t: '数据治理', cron: '0 0 2 * * ?', last: '今天 02:00', next: '明天 02:00', r: 'ok' },
+    { n: '历史井史归档同步', t: '数据抽取', cron: '0 0 23 ? * SUN', last: '08-31 23:00', next: '09-07 23:00', r: 'err' },
+  ];
+  const R_TAG = { ok: '<span class="tag ok">成功</span>', warn: '<span class="tag warn">部分成功</span>', err: '<span class="tag danger">失败 · 已重试</span>' };
+  document.getElementById('jobTbody').innerHTML = JOBS.map(j => `
+    <tr>
+      <td class="cell-main">${j.n}</td>
+      <td><span class="tag ${j.t === '告警检测' ? 'danger' : j.t === '订阅推送' ? 'info' : j.t === '报表定时' ? 'brand' : ''}">${j.t}</span></td>
+      <td class="cron">${j.cron}</td>
+      <td class="sm">${j.last}</td>
+      <td class="sm tx-3">${j.next}</td>
+      <td>${R_TAG[j.r]}</td>
+      <td>
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：查看执行日志')">日志</span> ·
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('已触发手动执行')">执行</span>
+      </td>
+    </tr>`).join('');
+
+  /* 通知渠道 */
+  const CHS = [
+    { n: '邮件', i: 'report', col: 'var(--info)', bg: 'var(--info-soft)', cfg: 'smtp.****oil.com:465 · SSL', sent: '1,204', on: true },
+    { n: '企业微信', i: 'chat', col: 'var(--ok)', bg: 'var(--ok-soft)', cfg: 'corp_id: ww8f3**** · 应用 12', sent: '2,862', on: true },
+    { n: '钉钉', i: 'mobile', col: 'var(--info)', bg: 'var(--info-soft)', cfg: 'oapi.dingtalk.com · robot ****', sent: '936', on: true },
+    { n: 'Webhook', i: 'api', col: 'var(--brand)', bg: 'var(--brand-soft)', cfg: 'https://bi.****.com/hooks/dg', sent: '5,410', on: true },
+    { n: '短信', i: 'bell', col: 'var(--warn)', bg: 'var(--warn-soft)', cfg: '阿里云短信 · sign ****', sent: '86', on: false },
+  ];
+  document.getElementById('chGrid').innerHTML = CHS.map(c => `
+    <div class="ch-card">
+      <div class="ch-head">
+        <span class="ch-ico" style="color:${c.col};background:${c.bg}">${DG.ICONS[c.i]}</span>
+        <div><div class="ch-name">${c.n}</div><div class="ch-cfg">${c.cfg}</div></div>
+        <label class="switch" style="margin-left:auto"><input type="checkbox" ${c.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换渠道启停')"/><i></i></label>
+      </div>
+      <div class="ch-foot">
+        <span class="ch-stat">近 30 日发送<br/><b>${c.sent}</b> 条</span>
+        <span class="ch-stat" style="text-align:right">送达率<br/><b style="color:var(--ok)">99.${Math.floor(Math.random()*5)+3}%</b></span>
+        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：测试发送')">测试发送</span>
+      </div>
+    </div>`).join('');
+
+  /* Tabs */
+  document.querySelectorAll('#alertTabs .tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('#alertTabs .tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show'));
+      tab.classList.add('active');
+      document.querySelector(`.tab-pane[data-pane="${tab.dataset.pane}"]`).classList.add('show');
+    });
+  });
+</script>
+</body>
+</html>

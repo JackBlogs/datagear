@@ -1,52 +1,90 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   executeSql,
+  sendCommand,
   pollMessages,
   selectData,
   sqlHistoryData,
   newSqlpadId,
+  type CommitMode,
+  type SqlCommand,
+  type ExceptionHandleMode,
   type SqlpadMessage,
-  type SqlSelectResult,
   type SqlHistory,
 } from '@/api/sqlpad'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import CodeEditor from '@/components/CodeEditor.vue'
 
-// 5b SQL 工作台「逐步重写」：Vue 编辑器直接调端点，按消息类型渲染进度/结果/错误 + SQL 历史 + 结果分页。
+// SQL 工作台，按原 dtbsSourceSqlpad.ftl 复刻核心工具栏 + 消息 + 结果。
 const route = useRoute()
 const dtbsSourceId = route.params.dtbsSourceId as string
+const dtbsSourceTitle = (route.query.title as string) || '数据源'
 
 const sql = ref('SELECT 1 AS demo;')
+const sqlDelimiter = ref(';')
 const sqlpadId = ref(newSqlpadId())
+const commitMode = ref<CommitMode>('AUTO')
+const exceptionHandleMode = ref<ExceptionHandleMode>('ABORT')
+const resultsetFetchSize = ref(100)
+const overTimeThreashold = ref(0)
 const messages = ref<SqlpadMessage[]>([])
 const executing = ref(false)
+const waitCommitOrRollback = ref(false)
 
-const lastResult = ref<SqlSelectResult | null>(null)
-const resultSql = ref('')
-const nextStartRow = ref<number | null>(null)
+interface ResultTab {
+  title: string
+  sql: string
+  updateCount: number | null
+  columns: string[]
+  rows: Record<string, unknown>[]
+  nextStartRow: number | null
+}
+
+const resultTabs = ref<ResultTab[]>([])
+const activeResultIndex = ref(0)
 
 const showHistory = ref(false)
 const history = ref<SqlHistory[]>([])
 const historyLoading = ref(false)
+const showSettings = ref(false)
 
-const { fail } = useOperationMessage()
+// 查看单元格完整值
+const fullValue = ref<{ field: string; value: string } | null>(null)
+
+function cellValue(row: Record<string, unknown>, field: string): string {
+  const v = row[field]
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
+function viewFullValue(row: Record<string, unknown>, field: string) {
+  fullValue.value = { field, value: cellValue(row, field) }
+}
+
+const pollTimer = ref<number | null>(null)
+const { t } = useI18n()
+const { success, fail } = useOperationMessage()
 
 const logs = computed(() => messages.value.filter((m) => m.type !== 'SqlSuccessMessage'))
-const resultColumns = computed(() => lastResult.value?.table?.columns?.map((c) => c.name) ?? [])
-const resultRows = computed(() => lastResult.value?.rows ?? [])
+const activeTab = computed(() => resultTabs.value[activeResultIndex.value])
+const hasResultTabs = computed(() => resultTabs.value.length > 0)
 
 function messageText(m: SqlpadMessage): string {
   switch (m.type) {
     case 'StartMessage':
-      return `开始执行 ${m.sqlCount ?? 0} 条 SQL`
+      return t('sqlpadStart', { count: m.sqlCount ?? 0 })
     case 'SqlSuccessMessage':
-      return m.updateCount != null && m.updateCount >= 0 ? `执行成功，影响 ${m.updateCount} 行` : '执行成功'
+      return m.updateCount != null && m.updateCount >= 0
+        ? t('sqlpadAffectRows', { count: m.updateCount })
+        : t('sqlpadSuccess')
     case 'ExceptionMessage':
-      return `错误：${m.message ?? '未知错误'}`
+      return t('sqlpadError', { message: m.message ?? t('unknownError') })
     case 'FinishMessage':
-      return '执行完成'
+      return t('sqlpadFinish')
     case 'TextMessage':
       return m.text ?? ''
     default:
@@ -60,50 +98,123 @@ function messageClass(m: SqlpadMessage): string {
   return 'msg-info'
 }
 
-function extractResult(list: SqlpadMessage[]): void {
-  lastResult.value = null
-  nextStartRow.value = null
-  for (let i = list.length - 1; i >= 0; i--) {
-    const m = list[i]
-    if (m.type === 'SqlSuccessMessage' && m.sqlSelectResult?.rows?.length) {
-      lastResult.value = m.sqlSelectResult
-      nextStartRow.value = m.sqlSelectResult.nextStartRow ?? null
-      return
+function extractResults(list: SqlpadMessage[]): void {
+  resultTabs.value = []
+  list.forEach((m) => {
+    if (m.type !== 'SqlSuccessMessage') return
+    const r = m.sqlSelectResult
+    const idx = resultTabs.value.length + 1
+    if (r?.rows?.length) {
+      resultTabs.value.push({
+        title: `#${m.sqlStatementIndex ?? idx}`,
+        sql: r.sql ?? '',
+        updateCount: m.updateCount ?? null,
+        columns: r.table?.columns?.map((c) => c.name) ?? [],
+        rows: r.rows,
+        nextStartRow: r.nextStartRow ?? null,
+      })
+    } else {
+      resultTabs.value.push({
+        title: `#${m.sqlStatementIndex ?? idx}`,
+        sql: '',
+        updateCount: m.updateCount ?? null,
+        columns: [],
+        rows: [],
+        nextStartRow: null,
+      })
     }
+  })
+  if (activeResultIndex.value >= resultTabs.value.length) activeResultIndex.value = 0
+}
+
+function stopPoll() {
+  if (pollTimer.value) {
+    window.clearInterval(pollTimer.value)
+    pollTimer.value = null
+  }
+}
+
+async function poll() {
+  try {
+    const list = await pollMessages(dtbsSourceId, sqlpadId.value, 100)
+    messages.value = list
+    extractResults(list)
+    if (list.some((m) => m.type === 'FinishMessage')) {
+      executing.value = false
+      stopPoll()
+      if (showHistory.value) loadHistory()
+    }
+    if (list.some((m) => m.type === 'TextMessage' && m.text === 'WAIT_COMMIT_OR_ROLLBACK')) {
+      waitCommitOrRollback.value = true
+    }
+  } catch (e) {
+    fail((e as Error).message || t('pollFail'))
+    executing.value = false
+    stopPoll()
   }
 }
 
 async function run() {
+  if (!sql.value) {
+    fail(t('pleaseInputSql'))
+    return
+  }
   executing.value = true
+  waitCommitOrRollback.value = false
   messages.value = []
-  resultSql.value = sql.value
+  resultTabs.value = []
+  activeResultIndex.value = 0
+  stopPoll()
   try {
-    await executeSql(dtbsSourceId, sqlpadId.value, sql.value)
-    // 轮询直至 FinishMessage 或超时
-    for (let i = 0; i < 20; i++) {
-      await new Promise((r) => setTimeout(r, 400))
-      messages.value = await pollMessages(dtbsSourceId, sqlpadId.value, 100)
-      if (messages.value.some((m) => m.type === 'FinishMessage')) break
-    }
-    extractResult(messages.value)
+    await executeSql(dtbsSourceId, sqlpadId.value, sql.value, {
+      commitMode: commitMode.value,
+      exceptionHandleMode: exceptionHandleMode.value,
+      resultsetFetchSize: resultsetFetchSize.value,
+      overTimeThreashold: overTimeThreashold.value || undefined,
+      sqlDelimiter: sqlDelimiter.value,
+    })
+    pollTimer.value = window.setInterval(poll, 400)
   } catch (e) {
-    fail((e as Error).message || '执行失败')
-  } finally {
     executing.value = false
+    fail((e as Error).message || t('executeFail'))
   }
 }
 
+async function sendCmd(command: SqlCommand) {
+  try {
+    await sendCommand(dtbsSourceId, sqlpadId.value, command)
+    success(`已发送 ${command}`)
+    if (command === 'COMMIT' || command === 'ROLLBACK') waitCommitOrRollback.value = false
+  } catch (e) {
+    fail((e as Error).message || t('commandFail'))
+  }
+}
+
+function insertDelimiter() {
+  sql.value += '\n' + sqlDelimiter.value + '\n'
+}
+
+function defineDelimiter() {
+  const d = window.prompt('请输入新的 SQL 分隔符', sqlDelimiter.value)
+  if (d !== null) sqlDelimiter.value = d
+}
+
+function clearSql() {
+  sql.value = ''
+}
+
 async function loadMore() {
-  if (nextStartRow.value == null || !resultSql.value) return
+  const tab = activeTab.value
+  if (!tab || tab.nextStartRow == null || !tab.sql) return
   try {
     const r = await selectData(dtbsSourceId, {
       sqlpadId: sqlpadId.value,
-      sql: resultSql.value,
-      startRow: nextStartRow.value,
-      fetchSize: 50,
+      sql: tab.sql,
+      startRow: tab.nextStartRow,
+      fetchSize: resultsetFetchSize.value,
     })
-    lastResult.value?.rows?.push(...(r.rows ?? []))
-    nextStartRow.value = r.nextStartRow ?? null
+    tab.rows.push(...(r.rows ?? []))
+    tab.nextStartRow = r.nextStartRow ?? null
   } catch (e) {
     fail((e as Error).message || '加载更多失败')
   }
@@ -125,41 +236,157 @@ function fillFromHistory(h: SqlHistory) {
   sql.value = h.sql
   showHistory.value = false
 }
+
+onMounted(() => {
+  if (route.query.sql) sql.value = String(route.query.sql)
+})
+
+onBeforeUnmount(stopPoll)
 </script>
 
 <template>
-  <div class="flex flex-column h-full">
-    <div class="toolbar flex align-items-center gap-2 p-2">
-      <span>SQL 工作台（Vue 重写）</span>
-      <Button label="执行" :loading="executing" @click="run" />
-      <Button label="历史" text @click="showHistory = !showHistory; showHistory && loadHistory()" />
+  <div class="page page-manager page-sqlpad h-full flex flex-column overflow-auto">
+    <div class="page-header grid grid-nogutter align-items-center p-1 flex-grow-0">
+      <div class="col-12 flex align-items-center mb-2">
+        <i class="pi pi-database text-color-secondary text-sm"></i>
+        <div class="text-color-secondary text-sm ml-1">{{ dtbsSourceTitle }}</div>
+        <i class="pi pi-angle-right text-color-secondary text-sm mx-1"></i>
+        <div class="text-color-secondary text-sm">{{ t('module.sqlpad') }}</div>
+      </div>
+      <div class="col-12 flex flex-wrap gap-1">
+        <Button :icon="executing ? 'pi pi-pause' : 'pi pi-play'" :label="t('execute')" :loading="executing" @click="run" />
+        <Button icon="pi pi-stop" :label="t('stop')" class="p-button-secondary" @click="sendCmd('STOP')" />
+        <Button
+          icon="pi pi-check"
+          :label="t('commit')"
+          :class="{ 'p-button-secondary': !waitCommitOrRollback }"
+          @click="sendCmd('COMMIT')"
+        />
+        <Button
+          icon="pi pi-undo"
+          :label="t('rollback')"
+          :class="{ 'p-button-secondary': !waitCommitOrRollback }"
+          @click="sendCmd('ROLLBACK')"
+        />
+        <span class="p-inputgroup inline-flex w-auto ml-2">
+          <InputText v-model="sqlDelimiter" style="width: 6rem" :title="t('sqlDelimiter')" />
+          <Button icon="pi pi-flag" class="p-button-secondary" :title="t('defineDelimiter')" @click="defineDelimiter" />
+          <Button icon="pi pi-flag-fill" class="p-button-secondary" :title="t('insertDelimiter')" @click="insertDelimiter" />
+        </span>
+        <Button icon="pi pi-trash" :label="t('clear')" class="p-button-secondary ml-2" @click="clearSql" />
+        <div class="flex-grow-1"></div>
+        <Button
+          icon="pi pi-history"
+          :label="t('history')"
+          class="p-button-secondary"
+          @click="showHistory = !showHistory; showHistory && loadHistory()"
+        />
+        <Button icon="pi pi-cog" :label="t('settings')" class="p-button-secondary" @click="showSettings = !showSettings" />
+      </div>
     </div>
 
-    <div v-if="showHistory" class="history p-2 overflow-auto">
-      <div v-if="historyLoading" class="text-color-secondary">加载中…</div>
-      <div v-else-if="history.length === 0" class="text-color-secondary">暂无历史</div>
+    <div v-if="showHistory" class="history p-2 overflow-auto flex-grow-0">
+      <div class="flex align-items-center justify-content-between mb-1">
+        <span class="text-sm">{{ t('sqlHistory') }}</span>
+        <Button icon="pi pi-refresh" size="small" text :label="t('refresh')" @click="loadHistory" />
+      </div>
+      <div v-if="historyLoading" class="text-color-secondary">{{ t('loading') }}</div>
+      <div v-else-if="history.length === 0" class="text-color-secondary">{{ t('noHistory') }}</div>
       <div v-for="(h, i) in history" :key="i" class="history-item" @click="fillFromHistory(h)">
         <div class="history-sql">{{ h.sql }}</div>
         <div class="history-time">{{ h.createTime }}</div>
       </div>
     </div>
 
-    <CodeEditor v-model="sql" class="sql-editor" />
-    <div class="messages p-2 overflow-auto">
-      <div v-for="(m, i) in logs" :key="i" class="message" :class="messageClass(m)">
-        <span class="msg-time">{{ m.timeText }}</span>
-        <span>{{ messageText(m) }}</span>
+    <div v-if="showSettings" class="settings p-2 flex-grow-0">
+      <div class="grid">
+        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
+          <label>{{ t('commitMode') }}</label>
+          <SelectButton
+            v-model="commitMode"
+            :options="[
+              { name: '自动', value: 'AUTO' },
+              { name: '手动', value: 'MANUAL' },
+            ]"
+            option-label="name"
+            option-value="value"
+          />
+        </div>
+        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
+          <label>{{ t('exceptionHandleMode') }}</label>
+          <SelectButton
+            v-model="exceptionHandleMode"
+            :options="[
+              { name: '中止', value: 'ABORT' },
+              { name: '忽略', value: 'IGNORE' },
+              { name: '回滚', value: 'ROLLBACK' },
+            ]"
+            option-label="name"
+            option-value="value"
+          />
+        </div>
+        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
+          <label>{{ t('resultFetchSize') }}</label>
+          <Dropdown v-model="resultsetFetchSize" :options="[10, 50, 100, 200, 500]" />
+        </div>
+        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
+          <label>{{ t('overTimeThreshold') }}</label>
+          <Dropdown
+            v-model="overTimeThreashold"
+            :options="[
+              { name: '不限', value: 0 },
+              { name: '5秒', value: 5 },
+              { name: '10秒', value: 10 },
+              { name: '30秒', value: 30 },
+              { name: '60秒', value: 60 },
+            ]"
+            option-label="name"
+            option-value="value"
+          />
+        </div>
       </div>
     </div>
-    <div v-if="resultColumns.length" class="result p-2">
-      <div class="flex align-items-center justify-content-between mb-2">
-        <span>查询结果</span>
-        <Button v-if="nextStartRow != null" label="加载更多" size="small" text @click="loadMore" />
+
+    <div class="page-content flex-grow-1 overflow-hidden flex flex-column">
+      <CodeEditor v-model="sql" class="sql-editor flex-1" />
+      <div class="messages p-2 overflow-auto flex-grow-0">
+        <div v-for="(m, i) in logs" :key="i" class="message" :class="messageClass(m)">
+          <span class="msg-time">{{ m.timeText }}</span>
+          <span>{{ messageText(m) }}</span>
+        </div>
       </div>
-      <DataTable :value="resultRows" class="p-datatable-sm" striped-rows>
-        <Column v-for="c in resultColumns" :key="c" :field="c" :header="c" />
-      </DataTable>
+      <div v-if="hasResultTabs" class="result p-2 flex-grow-0">
+        <div class="flex align-items-center justify-content-between mb-2">
+          <span>{{ t('queryResult') }}</span>
+          <Button v-if="activeTab?.nextStartRow != null" :label="t('loadMore')" size="small" text @click="loadMore" />
+        </div>
+        <TabView v-model:active-index="activeResultIndex" :scrollable="true">
+          <TabPanel v-for="(tab, i) in resultTabs" :key="i" :header="tab.title">
+            <div v-if="tab.updateCount != null && !tab.rows.length" class="text-color-secondary p-2">
+              {{ t('affectRows', { count: tab.updateCount }) }}
+            </div>
+            <DataTable v-else :value="tab.rows" class="p-datatable-sm" striped-rows scrollable scroll-height="220px" data-key="__rowid">
+              <Column v-for="c in tab.columns" :key="c" :field="c" :header="c">
+                <template #body="{ data }">
+                  <span class="cell-value" @click="viewFullValue(data, c)">{{ cellValue(data, c) }}</span>
+                </template>
+              </Column>
+            </DataTable>
+          </TabPanel>
+        </TabView>
+      </div>
     </div>
+
+    <Dialog
+      :visible="!!fullValue"
+      :header="fullValue?.field ?? ''"
+      modal
+      maximizable
+      class="full-value-dialog"
+      @update:visible="fullValue = null"
+    >
+      <pre class="full-value-content">{{ fullValue?.value }}</pre>
+    </Dialog>
   </div>
 </template>
 
@@ -167,14 +394,12 @@ function fillFromHistory(h: SqlHistory) {
 .sql-editor {
   font-family: monospace;
   font-size: 14px;
-  min-height: 120px;
-  padding: 8px;
-  border: 1px solid #e0e0e0;
-  resize: vertical;
+  border-top: 1px solid var(--surface-border);
+  border-bottom: 1px solid var(--surface-border);
 }
 .messages {
   max-height: 200px;
-  border-top: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--surface-border);
 }
 .message {
   padding: 3px 6px;
@@ -191,19 +416,19 @@ function fillFromHistory(h: SqlHistory) {
   color: #2e7d32;
 }
 .msg-info {
-  color: #333;
+  color: var(--text-color);
 }
 .history {
   max-height: 180px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--surface-border);
 }
 .history-item {
   padding: 4px 6px;
   cursor: pointer;
-  border-bottom: 1px dashed #e8e8e8;
+  border-bottom: 1px dashed var(--surface-border);
 }
 .history-item:hover {
-  background: #f5f5f5;
+  background: var(--surface-hover);
 }
 .history-sql {
   font-family: monospace;
@@ -214,5 +439,27 @@ function fillFromHistory(h: SqlHistory) {
 .history-time {
   color: #999;
   font-size: 12px;
+}
+.settings {
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--surface-section);
+}
+.cell-value {
+  cursor: pointer;
+  display: inline-block;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.cell-value:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+.full-value-content {
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
 }
 </style>

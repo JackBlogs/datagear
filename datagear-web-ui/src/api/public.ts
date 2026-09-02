@@ -4,7 +4,11 @@ import type { OperationMessage } from '@/types'
 /** 关于信息（/api/about） */
 export interface AboutInfo {
   name: string
+  fullName: string
   version: string
+  officialSite: string
+  sourceCode: string
+  license: string
 }
 
 /** 版本更新日志（/api/changelog） */

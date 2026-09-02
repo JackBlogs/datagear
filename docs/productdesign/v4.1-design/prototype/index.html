@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>综合首页 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  .welcome {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+    padding: 22px 24px; margin-bottom: 16px; flex-wrap: wrap;
+    background:
+      radial-gradient(500px 200px at 90% 0%, rgba(255,138,61,.16), transparent 65%),
+      radial-gradient(400px 200px at 70% 100%, rgba(34,211,238,.08), transparent 60%),
+      var(--bg-glass);
+    border: 1px solid var(--line-1); border-radius: var(--r-xl);
+  }
+  .welcome h1 { font-size: 22px; font-weight: 700; }
+  .welcome h1 em {
+    font-style: normal;
+    background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .welcome .w-sub { color: var(--tx-3); font-size: 13px; margin-top: 4px; }
+  .quick-ask {
+    display: flex; align-items: center; gap: 10px; min-width: 380px; flex: 1; max-width: 560px;
+    background: rgba(7,10,18,.55); border: 1px solid var(--brand-line);
+    border-radius: 26px; padding: 11px 18px; cursor: pointer;
+    transition: all var(--dur);
+  }
+  .quick-ask:hover { box-shadow: var(--shadow-glow-brand); border-color: var(--brand); }
+  .quick-ask .qa-icon { color: var(--brand); display: flex; }
+  .quick-ask .qa-icon svg { width: 18px; height: 18px; }
+  .quick-ask span { color: var(--tx-3); font-size: 13.5px; flex: 1; }
+  .quick-ask .qa-btn {
+    background: var(--brand-grad); color: #241105; font-size: 12.5px; font-weight: 600;
+    padding: 5px 14px; border-radius: 16px;
+  }
+  .portal-grid { display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start; }
+  .fav-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 12px; }
+  .fav-item {
+    display: flex; gap: 12px; align-items: center; padding: 12px 14px;
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l);
+    cursor: pointer; transition: all var(--dur);
+  }
+  .fav-item:hover { border-color: var(--brand-line); transform: translateY(-2px); }
+  .fav-item .f-icon {
+    width: 38px; height: 38px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fav-item .f-icon svg { width: 19px; height: 19px; }
+  .fav-item .f-name { font-size: 13px; font-weight: 600; }
+  .fav-item .f-sub { font-size: 11px; color: var(--tx-3); }
+  .todo-item { display: flex; gap: 10px; padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,.045); }
+  .todo-item:last-child { border-bottom: none; }
+  .todo-item .t-ico { width: 30px; height: 30px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .todo-item .t-ico svg { width: 15px; height: 15px; }
+  .todo-item .t-title { font-size: 13px; color: var(--tx-1); }
+  .todo-item .t-sub { font-size: 11.5px; color: var(--tx-3); }
+  .tpl-strip { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+  .tpl-card {
+    position: relative; border-radius: var(--r-l); overflow: hidden; cursor: pointer;
+    border: 1px solid var(--line-1); height: 118px; padding: 14px;
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+    transition: all var(--dur);
+  }
+  .tpl-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); }
+  .tpl-card .t-bg { position: absolute; inset: 0; opacity: .9; }
+  .tpl-card .t-name { position: relative; font-size: 14px; font-weight: 700; }
+  .tpl-card .t-sub { position: relative; font-size: 11px; color: var(--tx-2); }
+  @media (max-width: 1200px) { .portal-grid { grid-template-columns: 1fr; } .tpl-strip { grid-template-columns: repeat(2,1fr); } }
+</style>
+</head>
+<body data-page="home">
+<div id="page-content" style="display:none">
+
+  <!-- 欢迎横幅 + AI 问数入口（FR-HOME 数据门户/工作台） -->
+  <section class="welcome">
+    <div>
+      <h1>早上好，李明 —— <em>今日全集团生产运行平稳</em></h1>
+      <div class="w-sub">2026年9月3日 星期四 · 华北油田分公司 · 数据更新于 06:30（调度准时率 99.2%）</div>
+    </div>
+    <div class="quick-ask" onclick="location.href='chatbi.html'">
+      <span class="qa-icon" id="qa-icon"></span>
+      <span>试试问数：「上月各采油厂原油产量的同比变化？」</span>
+      <span class="qa-btn">问 AI</span>
+    </div>
+  </section>
+
+  <!-- 核心 KPI 指标卡（语义层指标消费：FR-SEM-07 个性化指标卡） -->
+  <section class="stat-grid mb-3">
+    <div class="stat-card" style="--sc-glow:rgba(255,138,61,.14)">
+      <div class="s-label"><span class="ind oil"><i></i>石油</span> 原油产量 · 昨日</div>
+      <div class="s-value"><span data-count="12.86">0</span><span class="unit">万吨</span></div>
+      <div class="s-foot">
+        <span class="trend up">▲ 2.4%</span><span>日环比</span>
+        <span class="trend up">▲ 5.1%</span><span>同比</span>
+      </div>
+    </div>
+    <div class="stat-card" style="--sc-glow:rgba(34,211,238,.13)">
+      <div class="s-label"><span class="ind gas"><i></i>天然气</span> 天然气产量 · 昨日</div>
+      <div class="s-value"><span data-count="4.32">0</span><span class="unit">亿方</span></div>
+      <div class="s-foot">
+        <span class="trend up">▲ 1.8%</span><span>日环比</span>
+        <span class="trend up">▲ 8.6%</span><span>同比</span>
+      </div>
+    </div>
+    <div class="stat-card" style="--sc-glow:rgba(167,139,250,.13)">
+      <div class="s-label"><span class="ind chem"><i></i>化工</span> 化工品产量 · 昨日</div>
+      <div class="s-value"><span data-count="3.15">0</span><span class="unit">万吨</span></div>
+      <div class="s-foot">
+        <span class="trend down">▼ 0.9%</span><span>日环比</span>
+        <span class="trend up">▲ 3.2%</span><span>同比</span>
+      </div>
+    </div>
+    <div class="stat-card" style="--sc-glow:rgba(232,179,60,.13)">
+      <div class="s-label"><span class="ind coal"><i></i>煤矿</span> 原煤产量 · 昨日</div>
+      <div class="s-value"><span data-count="28.4">0</span><span class="unit">万吨</span></div>
+      <div class="s-foot">
+        <span class="trend up">▲ 0.6%</span><span>日环比</span>
+        <span class="trend flat">— 0.1%</span><span>同比</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="portal-grid">
+    <div class="flex-col" style="gap:14px">
+      <!-- 生产运营趋势 -->
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>生产运营趋势
+          <span class="more" style="display:flex;gap:4px" id="trendSeg"></span>
+        </div>
+        <div class="chart" style="height:280px" data-chart="produceTrend"></div>
+      </div>
+
+      <!-- 行业看板模板库（FR-HOME-25：≥5套行业模板一键套用） -->
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>行业看板模板库 <span class="tag brand">一键套用</span>
+          <span class="more" onclick="location.href='dashboards.html'">全部模板 ›</span>
+        </div>
+        <div class="tpl-strip">
+          <div class="tpl-card" onclick="location.href='screen.html'">
+            <div class="t-bg" style="background:linear-gradient(160deg,rgba(255,138,61,.28),rgba(244,99,58,.05) 60%),radial-gradient(200px 90px at 80% 20%,rgba(255,178,94,.35),transparent)"></div>
+            <div class="t-name">油田生产驾驶舱</div><div class="t-sub">采油厂 · 井场 · 注采</div>
+          </div>
+          <div class="tpl-card" onclick="location.href='dashboards.html'">
+            <div class="t-bg" style="background:linear-gradient(160deg,rgba(34,211,238,.24),rgba(34,211,238,.04) 60%),radial-gradient(200px 90px at 80% 20%,rgba(34,211,238,.3),transparent)"></div>
+            <div class="t-name">天然气管网运行</div><div class="t-sub">管输 · 门站 · 储气库</div>
+          </div>
+          <div class="tpl-card" onclick="location.href='dashboards.html'">
+            <div class="t-bg" style="background:linear-gradient(160deg,rgba(167,139,250,.24),rgba(167,139,250,.04) 60%),radial-gradient(200px 90px at 80% 20%,rgba(167,139,250,.3),transparent)"></div>
+            <div class="t-name">煤化工经营分析</div><div class="t-sub">烯烃 · 甲醇 · 产销存</div>
+          </div>
+          <div class="tpl-card" onclick="location.href='dashboards.html'">
+            <div class="t-bg" style="background:linear-gradient(160deg,rgba(232,179,60,.24),rgba(232,179,60,.04) 60%),radial-gradient(200px 90px at 80% 20%,rgba(232,179,60,.3),transparent)"></div>
+            <div class="t-name">煤矿安全监控</div><div class="t-sub">瓦斯 · 顶板 · 人员定位</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 最近访问 -->
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>最近访问 <span class="more">更多 ›</span></div>
+        <div class="fav-grid" id="recentGrid"></div>
+      </div>
+    </div>
+
+    <!-- 右侧：待办 / 告警 / 收藏 -->
+    <div class="flex-col" style="gap:14px">
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>待办与消息
+          <span class="tag danger" style="margin-left:auto">3 条告警</span>
+        </div>
+        <div id="todoList"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>我的收藏 <span class="more">管理 ›</span></div>
+        <div id="favList"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>数据资产概览</div>
+        <div class="chart" style="height:170px" data-chart="assetDonut"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+document.getElementById('qa-icon').innerHTML = DG.ICONS.spark;
+
+/* 最近访问 */
+const recents = [
+  { n: '华北油田生产日报', s: '看板 · 2 小时前', c: 'var(--oil)', bg: 'var(--oil-soft)', i: 'board' },
+  { n: '西气东输管网监控', s: '大屏 · 昨天', c: 'var(--gas)', bg: 'var(--gas-soft)', i: 'screen' },
+  { n: '吨油完全成本', s: '指标 · 昨天', c: 'var(--coal)', bg: 'var(--coal-soft)', i: 'metric' },
+  { n: '甲醇装置产销存', s: '报表 · 3 天前', c: 'var(--chem)', bg: 'var(--chem-soft)', i: 'report' },
+];
+document.getElementById('recentGrid').innerHTML = recents.map(r => `
+  <div class="fav-item" onclick="location.href='dashboards.html'">
+    <div class="f-icon" style="color:${r.c};background:${r.bg}">${DG.ICONS[r.i]}</div>
+    <div><div class="f-name">${r.n}</div><div class="f-sub">${r.s}</div></div>
+  </div>`).join('');
+
+/* 待办与消息 */
+const todos = [
+  { c: 'var(--danger)', bg: 'var(--danger-soft)', i: 'alert', t: '【告警】长庆区块日产油量低于阈值 100 万吨', s: '阈值告警 · 08:12 · 点击查看归因' },
+  { c: 'var(--warn)', bg: 'var(--warn-soft)', i: 'clock', t: '【订阅】经营日报已推送至企业微信', s: '订阅推送 · 08:00' },
+  { c: 'var(--info)', bg: 'var(--info-soft)', i: 'safe', t: '【审批】王芳申请「井口含水率」指标查看权限', s: '权限审批 · 昨天 17:42' },
+  { c: 'var(--ok)', bg: 'var(--ok-soft)', i: 'govern', t: '【质量】ODS_采油日报表 质量校验通过 98.6%', s: '数据质量 · 昨天 22:00' },
+];
+document.getElementById('todoList').innerHTML = todos.map(t => `
+  <div class="todo-item">
+    <div class="t-ico" style="color:${t.c};background:${t.bg}">${DG.ICONS[t.i]}</div>
+    <div class="grow"><div class="t-title">${t.t}</div><div class="t-sub">${t.s}</div></div>
+  </div>`).join('');
+
+/* 收藏 */
+const favs = [
+  { n: '集团经营驾驶舱', s: '大屏', c: 'var(--brand)' },
+  { n: '单井产量排名', s: '看板', c: 'var(--gas)' },
+  { n: '问数：上月同比分析', s: '问数', c: 'var(--chem)' },
+  { n: '原煤入洗率', s: '指标', c: 'var(--coal)' },
+];
+document.getElementById('favList').innerHTML = favs.map(f => `
+  <div class="row-item">
+    <span style="color:${f.c};width:16px;display:flex">${DG.ICONS.star}</span>
+    <div class="grow"><div style="font-size:13px;font-weight:500">${f.n}</div><div class="sm tx-3">${f.s}</div></div>
+    <span style="color:var(--tx-4);width:14px;display:flex">${DG.ICONS.arrowR}</span>
+  </div>`).join('');
+
+/* 趋势分段选择 */
+const seg = document.getElementById('trendSeg');
+['近7日', '近30日', '近12月'].forEach((s, i) => {
+  const el = document.createElement('span');
+  el.className = 'seg-item' + (i === 0 ? ' active' : '');
+  el.style.cssText = 'padding:2px 10px;font-size:12px;border-radius:7px;cursor:pointer;color:var(--tx-3)';
+  if (i === 0) el.style.cssText += ';background:var(--brand-soft);color:var(--brand);font-weight:600';
+  el.textContent = s;
+  el.onclick = (e) => { e.stopPropagation(); seg.querySelectorAll('.seg-item').forEach(x => { x.classList.remove('active'); x.style.cssText = 'padding:2px 10px;font-size:12px;border-radius:7px;cursor:pointer;color:var(--tx-3)'; }); el.classList.add('active'); el.style.cssText += ';background:var(--brand-soft);color:var(--brand);font-weight:600'; DG.toast('原型演示：切换时间粒度'); };
+  seg.appendChild(el);
+});
+
+/* 图表 */
+DG.autoCharts({
+  produceTrend: () => ({
+    legend: { data: ['原油产量(万吨)', '天然气产量(亿方)', '原煤产量(万吨)'] },
+    tooltip: { trigger: 'axis' },
+    xAxis: { type: 'category', data: DG.WEEK },
+    yAxis: [{ type: 'value', name: '万吨', nameTextStyle: { color: '#7C88A0' } }, { type: 'value', name: '亿方', splitLine: { show: false }, nameTextStyle: { color: '#7C88A0' } }],
+    series: [
+      { name: '原油产量(万吨)', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2.5 }, data: DG.series(7, 12.8, 0.5, 1),
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.28)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } } },
+      { name: '天然气产量(亿方)', type: 'line', smooth: true, symbol: 'none', yAxisIndex: 1, lineStyle: { width: 2.5 }, data: DG.series(7, 4.3, 0.18, 3) },
+      { name: '原煤产量(万吨)', type: 'bar', barWidth: 14, itemStyle: { borderRadius: [4, 4, 0, 0], color: 'rgba(232,179,60,.75)' }, data: DG.series(7, 28.4, 1.2, 5) }
+    ]
+  }),
+  assetDonut: () => ({
+    tooltip: { trigger: 'item' },
+    legend: { orient: 'vertical', right: 4, top: 'center' },
+    series: [{
+      type: 'pie', radius: ['52%', '74%'], center: ['34%', '50%'],
+      label: { show: false }, itemStyle: { borderColor: '#0A0E17', borderWidth: 2 },
+      data: [
+        { name: '数据源 23', value: 23 }, { name: '数据集 148', value: 148 },
+        { name: '指标 86', value: 86 }, { name: '看板 64', value: 64 },
+        { name: '报表 41', value: 41 }
+      ]
+    }]
+  })
+});
+</script>
+</body>
+</html>

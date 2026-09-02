@@ -89,6 +89,11 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        // 驱动库文件的旧端点（上传/下载/删除/列表），迁移期直接复用后端控制器
+        '/driverEntity': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
     build: {

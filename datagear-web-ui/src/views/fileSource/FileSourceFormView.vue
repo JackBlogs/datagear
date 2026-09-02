@@ -1,33 +1,35 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { moduleGet, moduleSave } from '@/api/crud'
+import { getFileSource, saveFileSource, type FileSource } from '@/api/fileSource'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import { useI18n } from 'vue-i18n'
 
-// 文件源表单（新增/编辑共用）。
+// 文件源表单（新增/编辑/查看共用），按原 fileSource_form.ftl 复刻。
 const route = useRoute()
 const router = useRouter()
 const { success, fail } = useOperationMessage()
+const { t } = useI18n()
 
 const id = (route.params.id as string) ?? ''
+const mode = (route.query.mode as string) || 'edit'
 const isEdit = computed(() => !!id)
+const isReadonly = computed(() => mode === 'view')
 const loading = ref(false)
 const saving = ref(false)
 
-const form = ref<{ id: string; name: string; directory: string; description?: string }>({
-  id: '',
-  name: '',
-  directory: '',
-  description: '',
-})
+// 对应原模板 model 属性 isShowDirectory，默认 true。
+const isShowDirectory = ref(true)
+
+const form = ref<FileSource>({ id: '', name: '', directory: '', description: '' })
 
 async function load() {
   if (!isEdit.value) return
   loading.value = true
   try {
-    form.value = await moduleGet('fileSource', id)
+    form.value = await getFileSource(id)
   } catch (e) {
-    fail((e as Error).message || '加载失败')
+    fail((e as Error).message || t('loadFail'))
   } finally {
     loading.value = false
   }
@@ -35,16 +37,16 @@ async function load() {
 
 async function save() {
   if (!form.value.name) {
-    fail('请填写名称')
+    fail(t('pleaseFillName'))
     return
   }
   saving.value = true
   try {
-    await moduleSave('fileSource', form.value)
-    success('保存成功')
+    await saveFileSource(form.value)
+    success(t('saveSuccess'))
     router.push('/fileSource')
   } catch (e) {
-    fail((e as Error).message || '保存失败')
+    fail((e as Error).message || t('saveFail'))
   } finally {
     saving.value = false
   }
@@ -54,40 +56,65 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">{{ isEdit ? '编辑文件源' : '新建文件源' }}</h3>
-      <Button label="返回" text @click="router.push('/fileSource')" />
-    </div>
-    <div v-if="loading" class="text-color-secondary">加载中…</div>
-    <div v-else class="form flex flex-column gap-3">
-      <div class="flex align-items-center gap-2">
-        <label class="label">名称</label>
-        <input v-model="form.name" class="input flex-1" placeholder="文件源名称" />
+  <div class="page page-form h-full page-form-fileSource p-1">
+    <form class="flex flex-column h-full" :class="{ readonly: isReadonly }">
+      <div class="flex align-items-center gap-2 mb-2">
+        <h3 class="flex-1">
+          {{ (isReadonly ? t('view') : isEdit ? t('edit') : t('new')) + t('module.fileSource') }}
+        </h3>
+        <Button :label="t('back')" text size="small" @click="router.push('/fileSource')" />
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">目录</label>
-        <input v-model="form.directory" class="input flex-1" placeholder="文件源根目录" />
+      <div v-if="loading" class="text-color-secondary">{{ t('loading') }}</div>
+      <div v-else class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
+        <div class="field grid">
+          <label for="fs-name" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('name') }}</label>
+          <div class="field-input col-12 md:col-9">
+            <InputText
+              id="fs-name"
+              v-model="form.name"
+              type="text"
+              class="input w-full"
+              required
+              maxlength="100"
+              :readonly="isReadonly"
+              autofocus
+            />
+          </div>
+        </div>
+        <div v-if="isShowDirectory" class="field grid">
+          <label for="fs-directory" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('directory') }}</label>
+          <div class="field-input col-12 md:col-9">
+            <InputText
+              id="fs-directory"
+              v-model="form.directory"
+              type="text"
+              class="input w-full"
+              required
+              maxlength="300"
+              :readonly="isReadonly"
+            />
+            <div class="desc text-color-secondary">
+              <small>{{ t('fileSource.directory.desc') }}</small>
+            </div>
+          </div>
+        </div>
+        <div class="field grid">
+          <label for="fs-description" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('description') }}</label>
+          <div class="field-input col-12 md:col-9">
+            <Textarea
+              id="fs-description"
+              v-model="form.description"
+              rows="10"
+              class="input w-full"
+              maxlength="500"
+              :readonly="isReadonly"
+            />
+          </div>
+        </div>
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">描述</label>
-        <input v-model="form.description" class="input flex-1" placeholder="描述" />
+      <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
+        <Button v-if="!isReadonly" type="button" :label="t('save')" :loading="saving" @click="save" />
       </div>
-      <div class="flex gap-2">
-        <Button label="保存" :loading="saving" @click="save" />
-      </div>
-    </div>
+    </form>
   </div>
 </template>
-
-<style scoped>
-.label {
-  min-width: 56px;
-  font-weight: 600;
-}
-.input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
-</style>

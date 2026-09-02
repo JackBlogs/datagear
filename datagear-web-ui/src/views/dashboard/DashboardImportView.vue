@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { uploadDashboardImportFile, saveDashboardImport } from '@/api/dashboard'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 
 // 看板导入：上传 zip → 填名称 → 保存。
 const router = useRouter()
+const { t } = useI18n()
 const { success, fail } = useOperationMessage()
 
 const name = ref('')
@@ -25,7 +27,7 @@ async function onFileChange(e: Event) {
     templates.value = r.templates ?? []
     if (!name.value) name.value = r.dashboardName ?? ''
   } catch (err) {
-    fail((err as Error).message || '上传失败')
+    fail((err as Error).message || t('uploadFail'))
   } finally {
     uploading.value = false
     input.value = ''
@@ -34,11 +36,11 @@ async function onFileChange(e: Event) {
 
 async function save() {
   if (!dashboardFileName.value || !templates.value.length) {
-    fail('请先上传看板文件')
+    fail(t('pleaseUploadDashboard'))
     return
   }
   if (!name.value) {
-    fail('请填写名称')
+    fail(t('pleaseFillName'))
     return
   }
   saving.value = true
@@ -48,10 +50,10 @@ async function save() {
       template: templates.value.join(','),
       dashboardFileName: dashboardFileName.value,
     })
-    success('导入成功')
+    success(t('importSuccess'))
     router.push('/dashboard')
   } catch (e) {
-    fail((e as Error).message || '导入失败')
+    fail((e as Error).message || t('importFail'))
   } finally {
     saving.value = false
   }
@@ -61,26 +63,26 @@ async function save() {
 <template>
   <div class="p-4">
     <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">导入看板</h3>
-      <Button label="返回" text @click="router.push('/dashboard')" />
+      <h3 class="flex-1">{{ t('importDashboard') }}</h3>
+      <Button :label="t('back')" text @click="router.push('/dashboard')" />
     </div>
     <div class="form flex flex-column gap-3">
       <div class="flex align-items-center gap-2">
-        <label class="label">文件</label>
+        <label class="label">{{ t('file') }}</label>
         <label class="upload-btn">
-          {{ uploading ? '上传中…' : '选择 zip 文件' }}
+          {{ uploading ? t('uploading') : t('selectZipFile') }}
           <input type="file" accept=".zip" class="hidden" :disabled="uploading" @change="onFileChange" />
         </label>
       </div>
       <div v-if="templates.length" class="templates">
-        已解析模板：{{ templates.join(', ') }}
+        {{ t('parsedTemplates') }}：{{ templates.join(', ') }}
       </div>
       <div class="flex align-items-center gap-2">
-        <label class="label">名称</label>
-        <input v-model="name" class="input flex-1" placeholder="看板名称" />
+        <label class="label">{{ t('name') }}</label>
+        <InputText v-model="name" class="input flex-1" :placeholder="t('dashboardName')" maxlength="100" />
       </div>
       <div class="flex gap-2">
-        <Button label="导入" :loading="saving" @click="save" />
+        <Button :label="t('import')" :loading="saving" @click="save" />
       </div>
     </div>
   </div>

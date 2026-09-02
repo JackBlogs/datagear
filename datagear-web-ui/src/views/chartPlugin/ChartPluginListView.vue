@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   listChartPlugins,
   deleteChartPlugins,
@@ -10,6 +12,8 @@ import {
 import { useOperationMessage } from '@/composables/useOperationMessage'
 
 // 图表插件管理：列表 + 上传 + 删除。
+const router = useRouter()
+const { t } = useI18n()
 const items = ref<ChartPluginItem[]>([])
 const loading = ref(false)
 const uploading = ref(false)
@@ -20,20 +24,24 @@ async function load() {
   try {
     items.value = await listChartPlugins()
   } catch (e) {
-    fail((e as Error).message || '查询失败')
+    fail((e as Error).message || t('queryFail'))
   } finally {
     loading.value = false
   }
 }
 
+function onView(p: ChartPluginItem) {
+  router.push({ path: `/chartPlugin/${p.id}/view`, query: { mode: 'view' } })
+}
+
 async function removeRow(p: ChartPluginItem) {
-  if (!window.confirm(`确认删除插件「${p.name}」？`)) return
+  if (!window.confirm(t('confirmDeletePluginAsk', { name: p.name }))) return
   try {
     await deleteChartPlugins([p.id])
-    success('删除成功')
+    success(t('deleteSuccess'))
     load()
   } catch (e) {
-    fail((e as Error).message || '删除失败')
+    fail((e as Error).message || t('deleteFail'))
   }
 }
 
@@ -45,10 +53,10 @@ async function onFileChange(e: Event) {
   try {
     const { pluginFileName } = await uploadChartPluginFile(file)
     await saveChartPluginUpload(pluginFileName)
-    success('上传成功')
+    success(t('uploadSuccess'))
     load()
   } catch (err) {
-    fail((err as Error).message || '上传失败')
+    fail((err as Error).message || t('uploadFail'))
   } finally {
     uploading.value = false
     input.value = ''
@@ -63,16 +71,17 @@ onMounted(load)
     <div class="flex align-items-center gap-2 mb-2">
       <h3 class="flex-1">图表插件管理</h3>
       <label class="upload-btn">
-        {{ uploading ? '上传中…' : '上传插件' }}
+        {{ uploading ? t('uploading') : t('uploadPlugin') }}
         <input type="file" accept=".zip" class="hidden" :disabled="uploading" @change="onFileChange" />
       </label>
     </div>
     <DataTable :value="items" :loading="loading" data-key="id">
-      <Column field="id" header="ID" />
-      <Column field="name" header="名称" />
-      <Column header="操作">
+      <Column field="id" :header="t('id')" />
+      <Column field="name" :header="t('name')" />
+      <Column :header="t('operation')">
         <template #body="slotProps">
-          <Button label="删除" size="small" text severity="danger" @click="removeRow(slotProps.data)" />
+          <Button :label="t('view')" size="small" text @click="onView(slotProps.data)" />
+          <Button :label="t('delete')" size="small" text severity="danger" @click="removeRow(slotProps.data)" />
         </template>
       </Column>
     </DataTable>

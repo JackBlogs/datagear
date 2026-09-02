@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Sortable from 'sortablejs'
 import {
   getDashboard,
@@ -25,6 +26,7 @@ const charts = ref<EntityRecord[]>([])
 const selectedChartId = ref('')
 const loading = ref(false)
 const saving = ref(false)
+const { t } = useI18n()
 const { success, fail } = useOperationMessage()
 
 const previewKey = ref(0)
@@ -44,7 +46,7 @@ async function load() {
     await nextTick()
     initSortable()
   } catch (e) {
-    fail((e as Error).message || '加载看板失败')
+    fail((e as Error).message || t('loadFail'))
   } finally {
     loading.value = false
   }
@@ -75,7 +77,7 @@ function chartName(id: string): string {
 
 function insertChart() {
   if (!selectedChartId.value) {
-    fail('请先选择图表')
+    fail(t('pleaseSelectChart'))
     return
   }
   const empty = widgets.value.findIndex((w) => !w)
@@ -100,10 +102,10 @@ async function save() {
   try {
     const html = reorderChartWidgets(templateHtml.value, widgets.value)
     await saveDashboardResourceContent(dashboardId, 'index.html', html)
-    success('保存成功')
+    success(t('saveSuccess'))
     previewKey.value++
   } catch (e) {
-    fail((e as Error).message || '保存失败')
+    fail((e as Error).message || t('saveFail'))
   } finally {
     saving.value = false
   }
@@ -115,16 +117,23 @@ onMounted(load)
 <template>
   <div class="flex flex-column h-full">
     <div class="toolbar flex align-items-center gap-2 p-2">
-      <span class="flex-1">看板画布：{{ name }}</span>
-      <select v-model="selectedChartId" class="select">
-        <option value="">（选择图表插入）</option>
-        <option v-for="c in charts" :key="c.id" :value="c.id">{{ chartName(c.id) }}</option>
-      </select>
-      <Button label="插入图表" size="small" @click="insertChart" />
-      <Button label="保存" :loading="saving" @click="save" />
+      <span class="flex-1">{{ t('dashboardCanvas') }}：{{ name }}</span>
+      <Dropdown
+        v-model="selectedChartId"
+        :options="charts"
+        option-value="id"
+        :placeholder="t('selectChartPlaceholder')"
+        class="select"
+      >
+        <template #option="slotProps">
+          <span>{{ chartName(slotProps.option.id) }}</span>
+        </template>
+      </Dropdown>
+      <Button :label="t('insertChart')" size="small" @click="insertChart" />
+      <Button :label="t('save')" :loading="saving" @click="save" />
     </div>
 
-    <div v-if="loading" class="p-4 text-color-secondary">加载中…</div>
+    <div v-if="loading" class="p-4 text-color-secondary">{{ t('loading') }}</div>
     <div v-else ref="gridEl" class="canvas-grid p-2">
       <div v-for="(w, i) in widgets" :key="i" class="chart-card">
         <template v-if="w">
@@ -132,10 +141,10 @@ onMounted(load)
             <ChartPreview :key="previewKey + '-' + w" :chart-id="w" />
           </div>
         </template>
-        <div v-else class="empty-slot">空槽</div>
+        <div v-else class="empty-slot">{{ t('emptySlot') }}</div>
         <div class="card-footer flex align-items-center gap-1">
-          <span class="flex-1 text-overflow">{{ w ? chartName(w) : '未绑定' }}</span>
-          <Button v-if="w" label="移除" size="small" text @click="removeChart(i)" />
+          <span class="flex-1 text-overflow">{{ w ? chartName(w) : t('unbound') }}</span>
+          <Button v-if="w" :label="t('remove')" size="small" text @click="removeChart(i)" />
         </div>
       </div>
     </div>

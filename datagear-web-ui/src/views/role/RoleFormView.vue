@@ -3,18 +3,28 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getRole, saveRole, type Role } from '@/api/role'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import { useI18n } from 'vue-i18n'
 
-// 角色表单（范式 C 独立表单页）：新增/编辑共用，id 存在则为编辑。
+// 角色表单（新增/编辑/查看共用），按原 role_form.ftl 复刻。
 const route = useRoute()
 const router = useRouter()
 const { success, fail } = useOperationMessage()
+const { t } = useI18n()
 
 const id = (route.params.id as string) ?? ''
+const mode = (route.query.mode as string) || 'edit'
 const isEdit = computed(() => !!id)
+const isReadonly = computed(() => mode === 'view')
 const loading = ref(false)
 const saving = ref(false)
 
 const form = ref<Role>({ id: '', name: '', description: '', enabled: true })
+
+// 对应 page_boolean_options.ftl 的 booleanOptions。
+const booleanOptions = [
+  { name: t('yes'), value: true },
+  { name: t('no'), value: false },
+]
 
 async function load() {
   if (!isEdit.value) return
@@ -22,7 +32,7 @@ async function load() {
   try {
     form.value = await getRole(id)
   } catch (e) {
-    fail((e as Error).message || '加载角色失败')
+    fail((e as Error).message || t('loadFail'))
   } finally {
     loading.value = false
   }
@@ -30,16 +40,16 @@ async function load() {
 
 async function save() {
   if (!form.value.name) {
-    fail('请填写角色名称')
+    fail(t('pleaseFillRoleName'))
     return
   }
   saving.value = true
   try {
     await saveRole(form.value)
-    success('保存成功')
+    success(t('saveSuccess'))
     router.push('/role')
   } catch (e) {
-    fail((e as Error).message || '保存失败')
+    fail((e as Error).message || t('saveFail'))
   } finally {
     saving.value = false
   }
@@ -49,40 +59,61 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">{{ isEdit ? '编辑角色' : '新建角色' }}</h3>
-      <Button label="返回" text @click="router.push('/role')" />
-    </div>
-    <div v-if="loading" class="text-color-secondary">加载中…</div>
-    <div v-else class="form flex flex-column gap-3">
-      <div class="flex align-items-center gap-2">
-        <label class="label">名称</label>
-        <input v-model="form.name" class="input flex-1" placeholder="角色名称" />
+  <div class="page page-form h-full p-1">
+    <form class="flex flex-column h-full" :class="{ readonly: isReadonly }" @submit.prevent="save">
+      <div class="flex align-items-center gap-2 mb-2">
+        <h3 class="flex-1">
+          {{ (isReadonly ? t('view') : isEdit ? t('edit') : t('new')) + t('module.role') }}
+        </h3>
+        <Button :label="t('back')" text size="small" @click="router.push('/role')" />
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">描述</label>
-        <input v-model="form.description" class="input flex-1" placeholder="描述" />
+      <div v-if="loading" class="text-color-secondary">{{ t('loading') }}</div>
+      <div v-else class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
+        <div class="field grid">
+          <label for="role-name" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('name') }}</label>
+          <div class="field-input col-12 md:col-9">
+            <InputText
+              id="role-name"
+              v-model="form.name"
+              type="text"
+              class="input w-full"
+              required
+              maxlength="100"
+              autofocus
+              :readonly="isReadonly"
+            />
+          </div>
+        </div>
+        <div class="field grid">
+          <label for="role-description" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('description') }}</label>
+          <div class="field-input col-12 md:col-9">
+            <Textarea
+              id="role-description"
+              v-model="form.description"
+              rows="10"
+              class="input w-full"
+              maxlength="200"
+              :readonly="isReadonly"
+            />
+          </div>
+        </div>
+        <div class="field grid">
+          <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('enable') }}</label>
+          <div class="field-input col-12 md:col-9">
+            <SelectButton
+              v-model="form.enabled"
+              :options="booleanOptions"
+              option-label="name"
+              option-value="value"
+              class="input w-full"
+              :disabled="isReadonly"
+            />
+          </div>
+        </div>
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">启用</label>
-        <input v-model="form.enabled" type="checkbox" />
+      <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
+        <Button v-if="!isReadonly" type="submit" :label="t('save')" :loading="saving" />
       </div>
-      <div class="flex gap-2">
-        <Button label="保存" :loading="saving" @click="save" />
-      </div>
-    </div>
+    </form>
   </div>
 </template>
-
-<style scoped>
-.label {
-  min-width: 56px;
-  font-weight: 600;
-}
-.input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
-</style>

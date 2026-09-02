@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   listTables,
   getTable,
@@ -17,6 +18,7 @@ import { useOperationMessage } from '@/composables/useOperationMessage'
 // 数据管理：选表 → 浏览数据（分页）→ 新增/编辑/删除行。
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const { success, fail } = useOperationMessage()
 
 const dtbsSourceId = route.params.dtbsSourceId as string
@@ -25,6 +27,7 @@ const tables = ref<SimpleTable[]>([])
 const selectedTable = ref('')
 const table = ref<TableMeta | null>(null)
 const rows = ref<DataRow[]>([])
+const selectedRows = ref<DataRow[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -40,7 +43,7 @@ async function loadTables() {
   try {
     tables.value = await listTables(dtbsSourceId)
   } catch (e) {
-    fail((e as Error).message || '加载表失败')
+    fail((e as Error).message || t('loadFail'))
   }
 }
 
@@ -51,9 +54,10 @@ async function loadData() {
     table.value = await getTable(dtbsSourceId, selectedTable.value)
     const data = await pagingQueryData(dtbsSourceId, selectedTable.value, page.value, pageSize.value)
     rows.value = data.items ?? []
+    selectedRows.value = []
     total.value = data.total
   } catch (e) {
-    fail((e as Error).message || '加载数据失败')
+    fail((e as Error).message || t('loadFail'))
   } finally {
     loading.value = false
   }
@@ -95,11 +99,11 @@ async function submit() {
     } else {
       await saveRow(dtbsSourceId, selectedTable.value, form.value)
     }
-    success('保存成功')
+    success(t('saveSuccess'))
     showForm.value = false
     await loadData()
   } catch (e) {
-    fail((e as Error).message || '保存失败')
+    fail((e as Error).message || t('saveFail'))
   } finally {
     saving.value = false
   }
@@ -109,10 +113,26 @@ async function removeRow(row: DataRow) {
   if (!window.confirm('确认删除该行？')) return
   try {
     await deleteRows(dtbsSourceId, selectedTable.value, [row])
-    success('删除成功')
+    success(t('deleteSuccess'))
     await loadData()
   } catch (e) {
-    fail((e as Error).message || '删除失败')
+    fail((e as Error).message || t('deleteFail'))
+  }
+}
+
+async function removeSelected() {
+  if (!selectedRows.value.length) {
+    fail(t('pleaseSelectRows'))
+    return
+  }
+  if (!window.confirm(t('confirmDeleteSelectedAsk', { count: selectedRows.value.length }))) return
+  try {
+    await deleteRows(dtbsSourceId, selectedTable.value, selectedRows.value)
+    success(t('deleteSuccess'))
+    selectedRows.value = []
+    await loadData()
+  } catch (e) {
+    fail((e as Error).message || t('deleteFail'))
   }
 }
 
@@ -122,21 +142,30 @@ onMounted(loadTables)
 <template>
   <div class="p-4">
     <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">数据管理</h3>
-      <Button label="返回" text @click="router.push('/dtbsSource')" />
+      <h3 class="flex-1">{{ t('dataManagement') }}</h3>
+      <Button :label="t('back')" text @click="router.push('/dtbsSource')" />
     </div>
 
     <div class="toolbar flex align-items-center gap-2 mb-2">
-      <label class="label">数据表</label>
-      <select v-model="selectedTable" class="input flex-1" @change="onSelectTable">
-        <option value="">（选择数据表）</option>
-        <option v-for="t in tables" :key="t.name" :value="t.name">{{ t.name }}</option>
-      </select>
-      <Button label="新增行" size="small" :disabled="!selectedTable" @click="openAdd" />
+      <label class="label">{{ t('table') }}</label>
+      <Dropdown
+        v-model="selectedTable"
+        :options="tables"
+        option-label="name"
+        option-value="name"
+        :placeholder="t('selectTablePlaceholder')"
+        class="input flex-1"
+        filter
+        :filter-fields="['name', 'comment']"
+        @change="onSelectTable"
+      />
+      <Button :label="t('addRow')" size="small" :disabled="!selectedTable" @click="openAdd" />
+      <Button :label="t('deleteSelected')" size="small" severity="danger" :disabled="!selectedRows.length" @click="removeSelected" />
     </div>
 
     <DataTable
       v-if="selectedTable"
+      v-model:selection="selectedRows"
       :value="rows"
       :lazy="true"
       :total-records="total"
@@ -147,12 +176,13 @@ onMounted(loadTables)
       data-key="__rowid"
       @page="onPage"
     >
+      <Column selection-mode="multiple" header-style="width:3rem" />
       <Column v-for="c in table?.columns ?? []" :key="c.name" :field="c.name" :header="c.name" />
-      <Column header="操作">
+      <Column :header="t('operation')">
         <template #body="{ data }">
           <div class="flex gap-1">
-            <Button label="编辑" size="small" text @click="openEdit(data)" />
-            <Button label="删除" size="small" text severity="danger" @click="removeRow(data)" />
+            <Button :label="t('edit')" size="small" text @click="openEdit(data)" />
+            <Button :label="t('delete')" size="small" text severity="danger" @click="removeRow(data)" />
           </div>
         </template>
       </Column>
@@ -160,17 +190,22 @@ onMounted(loadTables)
 
     <div v-if="showForm" class="form-panel">
       <div class="flex align-items-center gap-2 mb-2">
-        <span class="flex-1">{{ editing ? '编辑行' : '新增行' }}</span>
-        <Button label="取消" size="small" text @click="showForm = false" />
+        <span class="flex-1">{{ editing ? t('editRow') : t('addRow') }}</span>
+        <Button :label="t('cancel')" size="small" text @click="showForm = false" />
       </div>
       <div class="form-grid">
         <div v-for="c in table?.columns ?? []" :key="c.name" class="flex align-items-center gap-2">
           <label class="col-label">{{ c.name }}</label>
-          <input v-model="form[c.name]" class="input flex-1" :placeholder="c.typeName ?? ''" />
+          <InputText
+            :model-value="String(form[c.name] ?? '')"
+            class="input flex-1"
+            :placeholder="c.typeName ?? ''"
+            @update:model-value="(v: string | undefined) => (form[c.name] = v)"
+          />
         </div>
       </div>
       <div class="flex gap-2 mt-2">
-        <Button label="保存" :loading="saving" @click="submit" />
+        <Button :label="t('save')" :loading="saving" @click="submit" />
       </div>
     </div>
   </div>

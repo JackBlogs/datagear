@@ -1,28 +1,35 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 // 新建数据集类型选择页。
 const router = useRouter()
+const { t } = useI18n()
 
 const types = [
-  { type: 'SQL', label: 'SQL 数据集', desc: '基于 SQL 查询' },
-  { type: 'JsonValue', label: 'JSON 值', desc: '直接输入 JSON 文本' },
-  { type: 'JsonFile', label: 'JSON 文件', desc: '从 JSON 文件读取' },
-  { type: 'Excel', label: 'Excel', desc: '从 Excel 文件读取' },
-  { type: 'CsvValue', label: 'CSV 值', desc: '直接输入 CSV 文本' },
-  { type: 'CsvFile', label: 'CSV 文件', desc: '从 CSV 文件读取' },
-  { type: 'Http', label: 'HTTP 接口', desc: '调用 HTTP 接口获取数据' },
+  { type: 'SQL', label: t('module.dataSet.SQL'), desc: '基于 SQL 查询' },
+  { type: 'JsonValue', label: t('module.dataSet.JsonValue'), desc: '直接输入 JSON 文本' },
+  { type: 'JsonFile', label: t('module.dataSet.JsonFile'), desc: '从 JSON 文件读取' },
+  { type: 'Excel', label: t('module.dataSet.Excel'), desc: '从 Excel 文件读取' },
+  { type: 'CsvValue', label: t('module.dataSet.CsvValue'), desc: '直接输入 CSV 文本' },
+  { type: 'CsvFile', label: t('module.dataSet.CsvFile'), desc: '从 CSV 文件读取' },
+  { type: 'Http', label: t('module.dataSet.Http'), desc: '调用 HTTP 接口获取数据' },
 ]
+
+function go(type: string) {
+  // SQL 数据集使用独立表单页（/dataSet/add/sql）
+  router.push(type === 'SQL' ? '/dataSet/add/sql' : `/dataSet/add/${type}`)
+}
 </script>
 
 <template>
   <div class="p-4">
     <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">新建数据集</h3>
-      <Button label="返回" text @click="router.push('/dataSet')" />
+      <h3 class="flex-1">{{ t('new') + t('module.dataSet') }}</h3>
+      <Button :label="t('back')" text @click="router.push('/dataSet')" />
     </div>
     <div class="grid">
-      <div v-for="t in types" :key="t.type" class="type-card" @click="router.push(`/dataSet/add/${t.type}`)">
+      <div v-for="t in types" :key="t.type" class="type-card" @click="go(t.type)">
         <div class="type-label">{{ t.label }}</div>
         <div class="type-desc">{{ t.desc }}</div>
       </div>

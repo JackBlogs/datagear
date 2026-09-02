@@ -1,78 +1,151 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { userPagingQueryData, type User } from '@/api/user'
+import { useI18n } from 'vue-i18n'
+import { userPagingQueryData, deleteUsers, type User } from '@/api/user'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import type { Order } from '@/types'
 
-// 用户管理列表（/api/user）+ 新建/编辑。
+// 用户管理列表，按原 user_table.ftl 复刻：搜索、增删改查、改密、多选、排序、分页。
 const router = useRouter()
+const { t } = useI18n()
+const { success, fail } = useOperationMessage()
+
 const items = ref<User[]>([])
 const total = ref(0)
 const loading = ref(false)
-const page = ref(1)
-const pageSize = ref(5)
-const { fail } = useOperationMessage()
+const page = ref(0)
+const pageSize = ref(10)
+const selected = ref<User[]>([])
+const keyword = ref('')
+const sortMeta = ref<any[]>([{ field: 'createTime', order: -1 }])
+
+function toOrders(meta: { field: string; order: number }[]): Order[] {
+  return meta.map((m) => ({
+    name: m.field,
+    type: m.order === 1 ? 'ASC' : 'DESC',
+  }))
+}
 
 async function load() {
   loading.value = true
   try {
-    const data = await userPagingQueryData({ page: page.value, pageSize: pageSize.value })
+    const data = await userPagingQueryData({
+      page: page.value,
+      pageSize: pageSize.value,
+      keyword: keyword.value || undefined,
+      orders: toOrders(sortMeta.value),
+    })
     items.value = data.items
     total.value = data.total
+    selected.value = []
   } catch (e) {
-    fail((e as Error).message || '查询失败')
+    fail((e as Error).message || t('queryFail'))
   } finally {
     loading.value = false
   }
 }
 
 function onPage(event: { page: number; rows: number }) {
-  page.value = event.page + 1
+  page.value = event.page
   pageSize.value = event.rows
   load()
 }
 
-function editRow(id: string) {
+function onSort(event: any) {
+  sortMeta.value = event.multiSortMeta
+  load()
+}
+
+function search() {
+  page.value = 0
+  load()
+}
+
+function onAdd() {
+  router.push('/user/add')
+}
+
+function onEdit() {
+  const id = selected.value[0]?.id
+  if (!id) return
   router.push(`/user/${id}/edit`)
 }
 
-function changePassword(id: string) {
+function onEditPassword() {
+  const id = selected.value[0]?.id
+  if (!id) return
   router.push(`/user/${id}/password`)
+}
+
+function onView() {
+  const id = selected.value[0]?.id
+  if (!id) return
+  router.push(`/user/${id}/view`)
+}
+
+async function onDelete() {
+  const ids = selected.value.map((i) => i.id)
+  if (!ids.length) return
+  const migrateToId = window.prompt('删除用户需指定数据迁移目标用户 ID（留空则直接删除）') ?? ''
+  try {
+    await deleteUsers(ids, migrateToId)
+    success(t('deleteSuccess'))
+    load()
+  } catch (e) {
+    fail((e as Error).message || t('deleteFail'))
+  }
 }
 
 onMounted(load)
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex align-items-center gap-2 mb-2">
-      <h3 class="flex-1">用户管理</h3>
-      <Button label="新建用户" size="small" @click="router.push('/user/add')" />
+  <div class="page page-manager page-table h-full flex flex-column overflow-auto p-1">
+    <div class="page-header grid grid-nogutter align-items-center p-1 flex-grow-0">
+      <div class="col-12 md:col-4">
+        <form class="flex gap-1" @submit.prevent="search">
+          <InputText v-model="keyword" :placeholder="t('searchByUsernameOrRealName')" class="flex-1" />
+          <Button type="submit" icon="pi pi-search" :label="t('query')" size="small" />
+        </form>
+      </div>
+      <div class="operations col-12 flex gap-1 flex-wrap md:justify-content-end md:col-8">
+        <Button :label="t('add')" size="small" @click="onAdd" />
+        <Button :label="t('edit')" size="small" :disabled="selected.length !== 1" @click="onEdit" />
+        <Button :label="t('editPassword')" size="small" :disabled="selected.length !== 1" @click="onEditPassword" />
+        <Button :label="t('view')" size="small" class="p-button-secondary" :disabled="selected.length !== 1" @click="onView" />
+        <Button :label="t('delete')" size="small" class="p-button-danger" :disabled="!selected.length" @click="onDelete" />
+      </div>
     </div>
-    <DataTable
-      :value="items"
-      :lazy="true"
-      :total-records="total"
-      :loading="loading"
-      paginator
-      :rows="pageSize"
-      :rows-per-page-options="[5, 10, 20]"
-      data-key="id"
-      @page="onPage"
-    >
-      <Column field="id" header="ID" />
-      <Column field="name" header="用户名" />
-      <Column field="realName" header="姓名" />
-      <Column field="email" header="邮箱" />
-      <Column field="admin" header="管理员" />
-      <Column header="操作">
-        <template #body="slotProps">
-          <div class="flex gap-1">
-            <Button label="编辑" size="small" text @click="editRow(slotProps.data.id)" />
-            <Button label="改密码" size="small" text @click="changePassword(slotProps.data.id)" />
-          </div>
-        </template>
-      </Column>
-    </DataTable>
+    <div class="page-content flex-grow-1 overflow-auto">
+      <DataTable
+        :value="items"
+        :scrollable="true"
+        scroll-height="flex"
+        :paginator="true"
+        :first="page * pageSize"
+        :rows="pageSize"
+        :rows-per-page-options="[10, 20, 50]"
+        :current-page-report-template="'{first} 到 {last} 条，共 {totalRecords} 条'"
+        paginator-template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+        :loading="loading"
+        :lazy="true"
+        :total-records="total"
+        sort-mode="multiple"
+        :multi-sort-meta="sortMeta"
+        data-key="id"
+        striped-rows
+        v-model:selection="selected"
+        selection-mode="multiple"
+        @page="onPage"
+        @sort="onSort"
+      >
+        <Column selection-mode="multiple" class="col-check" />
+        <Column field="id" :header="t('id')" hidden />
+        <Column field="name" :header="t('username')" sortable class="col-name" />
+        <Column field="realName" :header="t('realName')" sortable class="col-name" />
+        <Column field="createTime" :header="t('createTime')" sortable class="col-datetime col-last" />
+      </DataTable>
+    </div>
   </div>
 </template>

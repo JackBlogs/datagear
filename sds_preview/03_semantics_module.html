@@ -1,0 +1,267 @@
+<html><head><meta charset='utf-8'><style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 28.0px Times; color: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 20.0px Times; color: #000000}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; min-height: 14.0px}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.5px Times; color: #000000}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times}
+    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Times; color: #000000}
+    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Times; color: #000000}
+    table.t1 {border-collapse: collapse}
+    td.td1 {border-style: solid; border-width: 1.0px 1.0px 1.0px 1.0px; border-color: #bfbfbf #bfbfbf #bfbfbf #bfbfbf; padding: 0.0px 5.0px 0.0px 5.0px}
+  </style><style>
+body{font-family:'FangSong','仿宋',serif;font-size:12pt;margin:24px;}
+table{border-collapse:collapse;margin:8px 0;}
+td,th{border:1px solid #333;padding:3px 8px;font-size:10.5pt;}
+</style></head><body><b>语义层与指标中心【全新建设 · 最高优先级】★</b></p>
+<p class="p5"><b>功能概述：平台的「指标唯一事实源」，对应 FR-SEM-01~09。新增子模块 datagear-semantics（包 org.datagear.semantics），独立装配、可整体移除。</b></p>
+<p class="p5"><b>组件与类设计</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>组件</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>类/包建议</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>职责</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>维度/度量管理</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>semantics.dimension.DimensionManager / semantics.measure.MeasureManager</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>维度（类型/层级）与度量（六种聚合）CRUD</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标管理</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>semantics.metric.MetricManager / MetricController</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>原子/派生指标 CRUD、目录、检索、详情页数据</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标查询引擎★</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>semantics.engine.MetricQueryEngine / MetricSqlCompiler / MetricQuery</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>「指标+维度+筛选+时间窗」编译为参数化 SQL 并执行</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>认证与版本</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>semantics.metric.MetricCertifyService / MetricVersionManager</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>已认证标记、版本快照、变更记录</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>术语库</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>semantics.glossary.GlossaryManager</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>术语/同义词/业务规则/golden queries 维护与检索</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>血缘服务</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>semantics.lineage.MetricLineageService</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标正/反向血缘解析与可视化数据</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>开放 API</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>semantics.api.MetricOpenApiController</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标定义与取数 REST 供给（headless，FR-SEM-08）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b>指标 SQL 编译流程（核心链路）</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>步骤</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>处理</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>说明</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>1</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>接收 MetricQuery（指标+维度+筛选+排序+时间窗）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>来自图表/指标卡/告警/问数/开放 API 的统一查询对象</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>2</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>指标定义解析</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>原子指标取度量+聚合；派生指标递归展开公式引用的子指标</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>3</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>维度展开</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>层级维度按当前层级取字段；时间窗转为时间字段过滤</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>4</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SQL 编译</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>生成 SELECT 维度字段+聚合度量 … GROUP BY；复用数据集 Freemarker 参数化与 ${pc()} 预编译机制，防注入</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>5</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>行列权限改写</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>调用权限改写管道（见「系统管理」★），追加行过滤、裁剪列</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>6</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>动态脱敏</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>按角色应用脱敏规则</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>7</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>执行与缓存</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>检查数据集级缓存策略，命中直接返回；未命中执行并写缓存</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>8</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>返回结果+口径元信息</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>数据 + 指标口径说明 + 耗时 + 缓存命中标记（供透明化展示）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b>同环比计算：派生指标标记同环比属性时，编译为双时间窗子查询再 JOIN/UNION 计算，或下推 OLAP 引擎窗口函数（按方言能力适配）。</b></p>
+<p class="p5"><b>POC 验证方案要点（Phase 0 技术 Spike②，1–2 周）</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>验证项</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>通过标准</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>典型指标编译正确性</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>原子/派生/同环比各≥5 个典型指标编译结果与手写 SQL 结果一致</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>参数化兼容</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>与既有 Freemarker 数据集模板、${pc()} 预编译机制无冲突</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>性能基线</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>百万级数据经 OLAP 引擎 P95≤3s 可达（配合方言下推）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>结论产出</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>POC 报告归档；通过后才锁定指标中心内核工期（PRD 要求：估算基于 POC 结论，偏差风险高）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b>接口设计</b></p>
+<p class="p5"><b>内部接口：`MetricQueryEngine.execute(MetricQuery)` 供图表/告警/问数/API 复用；`MetricManager` 提供 CRUD 与认证操作。REST 接口见「接口设计」章。</b></p>
+<p class="p5"><b>异常与降级</b></p>
+<p class="p5"><b>指标查询超时→返回加载超时与「缩小时间范围」建议；派生公式引用不存在指标→保存时阻断；数据集变更导致字段缺失→指标标记「失效」并在目录提示；编译失败→记录错误日志并返回可读原因，不暴露堆栈。</b></p>
+<p class="p5"><b>依赖</b></p>
+<p class="p5"><b>依赖数据集（org.datagear.analysis）与权限体系；被展示层、告警、ChatBI、开放 API 依赖（是一切高级能力地基）。</b></p>
+<p class="p8"><b></body></html>

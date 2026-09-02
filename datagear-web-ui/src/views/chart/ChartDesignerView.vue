@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getChart, saveChart, type ChartEntity } from '@/api/chart'
+import { useI18n } from 'vue-i18n'
+import { getChart, saveChart, saveAddChart, type ChartEntity } from '@/api/chart'
 import ChartPropertyPanel from '@/components/dashboard/ChartPropertyPanel.vue'
 import ChartPreview from '@/components/chart/ChartPreview.vue'
 import { newChartModel, type ChartModel } from '@/types/dashboard'
@@ -10,9 +11,12 @@ import { useOperationMessage } from '@/composables/useOperationMessage'
 // 图表设计器（5c「脱离 iframe」第一步）：加载图表 → 属性面板（插件/数据绑定/样式/交互）→ 保存回写。
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const { success, fail } = useOperationMessage()
 
-const chartId = route.params.id as string
+const chartId = route.params.id as string | undefined
+// 新建模式：/chart/add 无 id（后端 /api/chart/saveAdd 已实现，设计器内保存新增）
+const isNew = !chartId || chartId === 'add'
 const model = ref<ChartModel>(newChartModel())
 const loading = ref(false)
 const saving = ref(false)
@@ -29,7 +33,7 @@ function entityToModel(e: ChartEntity): ChartModel {
 
 function modelToEntity(): ChartEntity {
   return {
-    id: chartId,
+    id: chartId ?? '',
     name: model.value.style.name ?? '',
     pluginVo: model.value.pluginId ? { id: model.value.pluginId } : undefined,
     dataSetBinds: model.value.dataSetBinds,
@@ -37,25 +41,36 @@ function modelToEntity(): ChartEntity {
 }
 
 async function load() {
+  if (isNew) return
   loading.value = true
   try {
     const e = await getChart(chartId)
     model.value = entityToModel(e)
   } catch (e) {
-    fail((e as Error).message || '加载图表失败')
+    fail((e as Error).message || t('loadFail'))
   } finally {
     loading.value = false
   }
 }
 
 async function save() {
+  if (!model.value.style.name) {
+    fail(t('pleaseFillChartName'))
+    return
+  }
   saving.value = true
   try {
-    await saveChart(modelToEntity())
-    success('保存成功')
-    previewKey.value++
+    if (isNew) {
+      const added = await saveAddChart(modelToEntity())
+      success(t('saveSuccess'))
+      router.replace(`/chart/${added.id}/design`)
+    } else {
+      await saveChart(modelToEntity())
+      success(t('saveSuccess'))
+      previewKey.value++
+    }
   } catch (e) {
-    fail((e as Error).message || '保存失败')
+    fail((e as Error).message || t('saveFail'))
   } finally {
     saving.value = false
   }
@@ -67,24 +82,24 @@ onMounted(load)
 <template>
   <div class="p-4">
     <div class="flex align-items-center gap-2 mb-2">
-      <h3 class="flex-1">图表设计器（Vue）</h3>
-      <Button label="保存" :loading="saving" @click="save" />
-      <Button label="返回" text @click="router.push('/chart')" />
+      <h3 class="flex-1">{{ t('chartDesigner') }}</h3>
+      <Button :label="t('save')" :loading="saving" @click="save" />
+      <Button :label="t('back')" text @click="router.push('/chart')" />
     </div>
-    <div v-if="loading" class="text-color-secondary">加载中…</div>
+    <div v-if="loading" class="text-color-secondary">{{ t('loading') }}</div>
     <template v-else>
       <div class="designer flex">
         <div class="panel flex-1">
           <div class="flex align-items-center gap-2 mb-2">
-            <label class="label">图表名称</label>
-            <input v-model="model.style.name" class="input" placeholder="图表名称" />
+            <label class="label">{{ t('chartName') }}</label>
+            <InputText v-model="model.style.name" class="input flex-1" :placeholder="t('chartName')" maxlength="100" />
           </div>
           <ChartPropertyPanel v-model="model" />
         </div>
         <div class="preview">
-          <div class="preview-title">预览（保存后刷新）</div>
+          <div class="preview-title">{{ t('previewAfterSave') }}</div>
           <div class="preview-frame">
-            <ChartPreview :key="previewKey" :chart-id="chartId" />
+            <ChartPreview :key="previewKey" :chart-id="chartId ?? ''" />
           </div>
         </div>
       </div>

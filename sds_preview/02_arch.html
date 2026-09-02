@@ -1,0 +1,476 @@
+<html><head><meta charset='utf-8'><style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 28.0px Times; color: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 20.0px Times; color: #000000}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; min-height: 14.0px}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 10.5px Times; color: #000000}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times}
+    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 16.0px Times; color: #000000}
+    p.p8 {margin: 0.0px 0.0px 0.0px 0.0px; font: 14.0px Times; color: #000000}
+    table.t1 {border-collapse: collapse}
+    td.td1 {border-style: solid; border-width: 1.0px 1.0px 1.0px 1.0px; border-color: #bfbfbf #bfbfbf #bfbfbf #bfbfbf; padding: 0.0px 5.0px 0.0px 5.0px}
+  </style><style>
+body{font-family:'FangSong','仿宋',serif;font-size:12pt;margin:24px;}
+table{border-collapse:collapse;margin:8px 0;}
+td,th{border:1px solid #333;padding:3px 8px;font-size:10.5pt;}
+</style></head><body><b>设计目标与约束</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>类别</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>内容</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>设计目标</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>以最小侵入方式在 6.0.0 内核之上扩展：新增子模块独立装配、可整体移除；核心零 LLM 依赖；「一处定义、多处消费」的语义层贯穿图表/报表/告警/问数/API</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>技术约束</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>核心保持 Java 8 + Spring Boot 2.7（AI 等可选模块可要求 Java 17+）；前端新模块一律 Vue3 组件化，旧 jQuery 页面渐进迁移不强推重构；存储保持「内置 Derby 开箱即用 + 外置 MySQL 生产推荐」</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>部署约束</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>单 war 内嵌 Tomcat / Docker 单容器底线不被新模块破坏；配置外置（application.properties + 环境变量）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>范围约束</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>四个不做：不做独立重型 ETL、不做 SaaS 多租户、不做自研 OLAP 引擎、不做裸 text-to-SQL</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>质量约束</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>性能 P95≤3s 口径；问数 ≥200 题盲测 ≥85% 验收门槛与 &lt;80% 降级退路；度量系统（埋点）先于被度量对象交付</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p8"><b>系统总体架构</b></p>
+<p class="p5"><b>逻辑上划分为四层：接入层 → 语义层 → OLAP 引擎层 → 展示层，与 PRD 功能架构的九层（接入/存储/语义/治理/建模/应用/智能/服务/管理）映射如下：</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>逻辑层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>包含模块（PRD 九层映射）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>核心职责</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>关键子模块/包</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>接入层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>接入层、存储层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>多源数据接入（数据库/文件/HTTP/实时流）、运行时 JDBC 驱动、SQL 工作台、系统库存储与缓存</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>org.datagear.connection、org.datagear.persistence、org.datagear.dataexchange</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>语义层★</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>语义层、治理层、建模层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>维度/度量/指标定义与目录、指标查询引擎（编译为参数化 SQL）、行列权限改写、数据治理</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>org.datagear.semantics（新增）、org.datagear.analysis、org.datagear.meta</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>OLAP 引擎层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>（外置）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>直连实时 OLAP（Doris/StarRocks/ClickHouse/Elasticsearch）+ 缓存加速双轨；跨源组合查询（DuckDB/Calcite，POC 选型）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>org.datagear.analysis 数据源方言适配</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>展示层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>应用层、智能层、服务层、管理层</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>图表/看板/报表/大屏/填报、ChatBI、告警订阅、开放 API/嵌入/MCP、综合首页与系统管理</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>org.datagear.web、org.datagear.ai（新增）、org.datagear.scheduler（新增）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b>架构原则：1. 各层通过统一的数据集抽象与权限体系衔接，指标定义由语义层唯一供给；2. 新增能力以独立子模块装配（datagear-semantics、datagear-ai、datagear-scheduler），遵循模块化分层约束，可整体移除；3. 查询链路统一走「数据集/指标 → 参数化 SQL → 行列权限改写 → 动态脱敏 → 执行/缓存」管道。</b></p>
+<p class="p8"><b>技术选型与依据</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>技术项</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>选型</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>依据</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>后端框架</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Java 8 + Spring Boot 2.7 + Spring Security + MyBatis</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>沿用 6.0.0 技术栈，避免重写内核；AI 可选模块可独立要求 Java 17+</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>模板引擎</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Freemarker（数据集参数化 ${param}/${pc(param)} 预编译防注入）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>已有机制，指标 SQL 编译直接复用</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>调度框架</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Quartz（持久化 JobStore 到系统库）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>告警/订阅/报表定时/数据抽取公共基建，成熟稳定</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>缓存</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Caffeine 本地缓存（默认），可选 Redis 分布式缓存</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>已有基础，HA 形态用 Redis</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>系统库</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>内置 Derby（开发/开箱即用）/外置 MySQL（生产推荐）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>保持部署极简底线</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>图表库</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>ECharts 5.6 + 图表插件机制（zip 包运行时加载）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>已有 70+ 图表与插件体系</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>前端</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>新模块 Vue3 + PrimeVue 组件化；旧页面 jQuery + Freemarker 渐进迁移</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>控制前端栈混杂风险（PRD 风险 R1）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>大模型接入</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>BYO-LLM：OpenAI 兼容接口（DeepSeek/Qwen/GLM/私有模型）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>模型解耦，核心零 LLM 依赖</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>嵌入认证</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>JWT（HS256 共享密钥签名，时效 Token + 白名单）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>对标 Metabase/Superset 签名嵌入</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>行列权限 SQL 改写</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SQL 解析器 POC 选型：Apache Calcite / JSqlParser（Phase 0 Spike①验证后锁定）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Freemarker 模板 SQL 需要解析器级改写能力，POC 通过后才锁工期</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>跨源组合查询</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>DuckDB / Calcite 嵌入（POC 后定，PRD 风险 R3）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>DuckDB 轻量但 JVM 集成经 JNI；Calcite 纯 Java 但更重</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p8"><b>部署架构</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>部署形态</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>拓扑</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>适用场景</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>设计要点</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>单机单容器</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Docker 单容器 + 内置 Derby（或外置 MySQL）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>开源用户、开发测试、中小企业</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>docker-compose 一条命令启动；配置全部环境变量化；数据卷持久化 DATAGEAR_HOME</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>高可用（HA）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>3 副本 + 负载均衡 + 外置 MySQL + Redis 分布式缓存</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>企业生产（对应可用性 ≥99.9%）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>会话外置/无状态化；Quartz JobStore 集群模式防重复触发；缓存与限流状态入 Redis</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>信创环境</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>国产 OS（麒麟/统信 UOS）+ 国产数据库（达梦/人大金仓优先）+ 国产浏览器（360/奇安信/红莲花）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>政企交付（支撑企业版转化）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Phase 2 并行专项完成双库适配+冒烟验证清单；其余国产库按需（项目驱动）；国密支持为可选项（FR-XC-03）</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p5"><b>三种形态共用同一 war 包与镜像，差异仅在外置配置；「单容器+Derby 开箱即用」底线在任何形态下不被破坏。</b></p>
+<p class="p8"><b>关键设计决策</b></p>
+<table cellspacing="0" cellpadding="0" class="t1">
+  <tbody>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>编号</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>决策</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>理由（源自 PRD 路径决策逻辑）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>影响</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-01</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>四个不做：不做重型 ETL / SaaS 多租户 / 自研 OLAP / 裸 text-to-SQL</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>边界克制，控制范围蔓延（PRD 风险 R5）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>重 ETL 交由上游；实时化走「直连 OLAP+缓存」双轨</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-02</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>语义层先于 AI</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>无语义层 grounding 的 ChatBI 错误率约 80%（AtScale 基准）；指标中心反哺告警、API、首页，一次投入四处受益</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>datagear-semantics 为最高优先级新模块</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-03</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>AI 可插拔而非重写内核</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>对标 SQLBot；BYO-LLM 自带模型</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>datagear-ai 独立装配，未配置模型时自动隐藏</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-04</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>核心零 LLM 依赖</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>规避 AI 技术快速迭代风险（PRD 风险 R10）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>核心包无 LLM SDK 依赖，可保持 Java 8</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-05</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>调度/Docker 先行，嵌入随 Phase 1</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>调度是所有定时类能力的基建；Docker 立即降低部署门槛；嵌入自 MVP 移至 Phase 1（V4.1 调整）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Phase 0 工作包编排</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-06</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>行列权限与指标编译视为内核工程，先行 Spike</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>估算偏差风险高（PRD 评审结论）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Phase 0 安排两个各 1–2 周 POC，通过后才锁工期</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-07</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>度量系统先于被度量对象交付</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>MVP 成功度量依赖使用分析</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>Phase 0 交付最小埋点子集（匿名、可关闭）</b></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>SD-08</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>报表/填报/大屏作为企业版增值包</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>工程量最大且是国内公认付费点（DataEase X-Pack 先例）</b></p>
+      </td>
+      <td valign="middle" class="td1">
+        <p class="p4"><b>P3 立项，开源核心不承担早期负担</b></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p class="p7"><b></body></html>

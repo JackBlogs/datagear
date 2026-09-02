@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>移动端 H5 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  .m-layout { display: grid; grid-template-columns: 6fr 4fr; gap: 20px; align-items: start; }
+  /* ---- 手机框 ---- */
+  .phone-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .phone-scale { height: 712px; }
+  .phone {
+    width: 375px; height: 812px; border-radius: 44px; overflow: hidden; position: relative;
+    border: 3px solid #2A3550; background: #070A12;
+    box-shadow: 0 0 0 6px rgba(255,255,255,.04), 0 30px 80px rgba(0,0,0,.6);
+    transform: scale(.86); transform-origin: top center;
+  }
+  .phone .notch {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 122px; height: 26px; background: #000; border-radius: 14px; z-index: 10;
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .phone .p-status {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px; z-index: 9;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 26px 0 30px; font-size: 11.5px; font-family: var(--font-num); color: var(--tx-1);
+  }
+  .phone .p-status .s-ico { display: flex; gap: 5px; align-items: center; }
+  .phone .p-status svg { width: 14px; height: 14px; }
+  .p-screen { position: absolute; inset: 44px 0 0 0; display: flex; flex-direction: column; }
+  .p-view { flex: 1; overflow-y: auto; padding: 10px 14px 8px; display: none; }
+  .p-view.show { display: block; }
+  .p-view::-webkit-scrollbar { display: none; }
+  /* 首页元素 */
+  .p-greet { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .p-greet .g-hi { font-size: 16px; font-weight: 700; }
+  .p-greet .g-sub { font-size: 10.5px; color: var(--tx-3); }
+  .p-greet .g-ava { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#22D3EE,#0E7490); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #04262C; }
+  .p-search {
+    display: flex; align-items: center; gap: 7px; padding: 8px 12px; margin-bottom: 12px;
+    background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 16px;
+    color: var(--tx-4); font-size: 11.5px;
+  }
+  .p-search svg { width: 13px; height: 13px; }
+  .p-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 12px; }
+  .p-kpi {
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: 14px; padding: 11px 12px;
+    position: relative; overflow: hidden;
+  }
+  .p-kpi::after { content: ""; position: absolute; right: -18px; top: -18px; width: 62px; height: 62px; border-radius: 50%; background: var(--k-glow, rgba(255,138,61,.14)); filter: blur(6px); }
+  .p-kpi .k-l { font-size: 10.5px; color: var(--tx-3); }
+  .p-kpi .k-v { font-family: var(--font-num); font-size: 21px; font-weight: 700; margin-top: 2px; }
+  .p-kpi .k-v small { font-size: 10px; color: var(--tx-3); font-weight: 400; }
+  .p-kpi .k-t { font-size: 10px; font-family: var(--font-num); margin-top: 2px; }
+  .p-card { background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+  .p-card .pc-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .p-card .pc-title .more { font-size: 10.5px; color: var(--tx-3); font-weight: 400; }
+  .p-db-item { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .p-db-item:last-child { border-bottom: none; }
+  .p-db-item .d-ico { width: 30px; height: 30px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .p-db-item .d-ico svg { width: 15px; height: 15px; }
+  .p-db-item .d-n { font-size: 12px; font-weight: 600; }
+  .p-db-item .d-s { font-size: 10px; color: var(--tx-3); }
+  /* 问数视图 */
+  .p-chat-q { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .p-chat-q .q-b { background: var(--brand-grad); color: #241105; font-size: 12px; font-weight: 600; padding: 8px 12px; border-radius: 14px 14px 4px 14px; max-width: 82%; }
+  .p-chat-a { display: flex; gap: 8px; margin-bottom: 12px; }
+  .p-chat-a .a-ava { width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; flex: none; }
+  .p-chat-a .a-ava svg { width: 14px; height: 14px; }
+  .p-chat-a .a-b { background: var(--bg-glass-2); border: 1px solid var(--line-1); font-size: 11.5px; color: var(--tx-2); padding: 9px 11px; border-radius: 4px 14px 14px 14px; max-width: 86%; line-height: 1.6; }
+  .p-input { display: flex; gap: 8px; margin-top: 4px; }
+  .p-input .in { flex: 1; background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 16px; padding: 8px 12px; font-size: 11.5px; color: var(--tx-4); }
+  .p-input .send { width: 34px; height: 34px; border-radius: 50%; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; color: #241105; flex: none; }
+  .p-input .send svg { width: 15px; height: 15px; }
+  /* 消息视图 */
+  .p-msg { display: flex; gap: 10px; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .p-msg .m-ico { width: 32px; height: 32px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .p-msg .m-ico svg { width: 16px; height: 16px; }
+  .p-msg .m-t { font-size: 12px; font-weight: 600; color: var(--tx-1); }
+  .p-msg .m-s { font-size: 10.5px; color: var(--tx-3); margin-top: 1px; }
+  /* 底部 Tab 栏 */
+  .p-tabbar {
+    flex: none; height: 62px; border-top: 1px solid var(--line-1);
+    background: rgba(13,20,32,.92); display: flex; padding-bottom: 8px;
+  }
+  .p-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 9.5px; color: var(--tx-4); cursor: pointer; position: relative; }
+  .p-tab svg { width: 20px; height: 20px; }
+  .p-tab.active { color: var(--brand); }
+  .p-tab .badge { position: absolute; top: 5px; right: calc(50% - 17px); background: var(--danger); color: #fff; font-size: 8px; border-radius: 7px; padding: 0 4px; font-family: var(--font-num); }
+  /* 特性清单 */
+  .feat-item { display: flex; gap: 12px; padding: 11px 2px; border-bottom: 1px solid rgba(255,255,255,.045); }
+  .feat-item:last-child { border-bottom: none; }
+  .feat-item .f-ico { width: 34px; height: 34px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .feat-item .f-ico svg { width: 17px; height: 17px; }
+  .feat-item .f-n { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .feat-item .f-d { font-size: 11.5px; color: var(--tx-3); margin-top: 2px; line-height: 1.6; }
+  .h5-bar {
+    display: flex; align-items: center; gap: 10px; padding: 11px 16px; margin-bottom: 14px;
+    background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: var(--r-m);
+    font-size: 12.5px; color: var(--tx-2);
+  }
+  .h5-bar svg { width: 15px; height: 15px; color: var(--brand); flex: none; }
+  .h5-bar b { color: var(--brand); }
+  @media (max-width: 1100px) { .m-layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-page="mobile">
+<div id="page-content" style="display:none">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">移动端 H5 原型预览</div>
+      <div class="page-desc">H5 深化策略 · 不做原生 App：一套 H5 嵌入微信 / 企微 / 钉钉轻应用（PRD 10.11）</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="DG.toast('原型演示：生成体验二维码')">体验二维码</button>
+      <button class="btn primary" onclick="DG.toast('原型演示：发布到企业微信工作台')">发布轻应用</button>
+    </div>
+  </div>
+
+  <div class="m-layout">
+    <!-- 左：手机框 -->
+    <div class="phone-stage">
+      <div class="seg" id="viewSeg">
+        <span class="seg-item active" data-view="home">首页</span>
+        <span class="seg-item" data-view="board">看板</span>
+        <span class="seg-item" data-view="chat">问数</span>
+        <span class="seg-item" data-view="msg">消息</span>
+      </div>
+
+      <div class="phone-scale">
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="p-status">
+            <span>08:41</span>
+            <span class="s-ico" id="statusIco"></span>
+          </div>
+          <div class="p-screen">
+            <!-- 首页视图 -->
+            <div class="p-view show" data-view="home">
+              <div class="p-greet">
+                <div>
+                  <div class="g-hi">早上好，李明</div>
+                  <div class="g-sub">华北油田 · 数据更新于 06:30</div>
+                </div>
+                <div class="g-ava">李</div>
+              </div>
+              <div class="p-search" id="pSearchIco">搜索看板 / 指标，或向 AI 提问…</div>
+              <div class="p-kpis">
+                <div class="p-kpi" style="--k-glow:rgba(255,138,61,.16)">
+                  <div class="k-l"><span class="ind oil" style="padding:0 5px;font-size:9.5px"><i></i>石油</span> 原油产量</div>
+                  <div class="k-v">12.86<small> 万吨</small></div>
+                  <div class="k-t" style="color:var(--ok)">▲ 2.4% 日环比</div>
+                </div>
+                <div class="p-kpi" style="--k-glow:rgba(34,211,238,.15)">
+                  <div class="k-l"><span class="ind gas" style="padding:0 5px;font-size:9.5px"><i></i>天然气</span> 天然气产量</div>
+                  <div class="k-v">4.32<small> 亿方</small></div>
+                  <div class="k-t" style="color:var(--ok)">▲ 1.8% 日环比</div>
+                </div>
+              </div>
+              <div class="p-card">
+                <div class="pc-title">近 7 日产量趋势 <span class="more">详情 ›</span></div>
+                <div class="chart" style="height:130px;min-height:130px" id="mTrend"></div>
+              </div>
+              <div class="p-card">
+                <div class="pc-title">我的看板 <span class="more">全部 ›</span></div>
+                <div id="pDbList"></div>
+              </div>
+            </div>
+
+            <!-- 看板视图 -->
+            <div class="p-view" data-view="board">
+              <div class="p-search" id="pSearch2">搜索看板…</div>
+              <div id="pBoardList"></div>
+            </div>
+
+            <!-- 问数视图 -->
+            <div class="p-view" data-view="chat">
+              <div class="p-chat-q"><div class="q-b">上月各采油厂原油产量排名？</div></div>
+              <div class="p-chat-a">
+                <span class="a-ava" id="aiAva"></span>
+                <div class="a-b">已按语义指标「原油产量 M-OIL-001」查询 2026-08 各采油厂产量，长庆油田以 <b style="color:var(--brand)">39.12 万吨</b> 居首，华北油田 28.94 万吨列第三。结果已按您的行级权限过滤。</div>
+              </div>
+              <div class="p-card">
+                <div class="pc-title">各采油厂产量（万吨）</div>
+                <div class="chart" style="height:150px;min-height:150px" id="mChatChart"></div>
+              </div>
+              <div class="p-input">
+                <div class="in">继续提问，如「同比去年如何？」</div>
+                <div class="send" id="sendIco" onclick="DG.toast('原型演示：发送问题')"></div>
+              </div>
+            </div>
+
+            <!-- 消息视图 -->
+            <div class="p-view" data-view="msg">
+              <div id="pMsgList"></div>
+            </div>
+
+            <!-- 底部 Tab 栏 -->
+            <div class="p-tabbar" id="pTabbar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：特性清单 -->
+    <div class="flex-col" style="gap:14px">
+      <div class="h5-bar">
+        <span id="h5Ico" style="display:flex"></span>
+        <span><b>H5 深化策略</b>：不开发原生 App，一套 H5 适配微信 / 企业微信 / 钉钉轻应用免登接入，降低维护成本。</span>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="bar"></span>移动端特性清单（PRD 6.5）</div>
+        <div id="featList"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+  /* 状态栏 / 搜索图标 */
+  document.getElementById('statusIco').innerHTML = DG.ICONS.dot + DG.ICONS.mobile;
+  document.getElementById('pSearchIco').insertAdjacentHTML('afterbegin', DG.ICONS.search);
+  document.getElementById('pSearch2').insertAdjacentHTML('afterbegin', DG.ICONS.search);
+  document.getElementById('aiAva').innerHTML = DG.ICONS.spark;
+  document.getElementById('sendIco').innerHTML = DG.ICONS.arrowR;
+  document.getElementById('h5Ico').innerHTML = DG.ICONS.mobile;
+
+  /* 手机内看板列表 */
+  const DBS = [
+    { n: '华北油田生产日报', s: '看板 · 12 图表', c: 'var(--oil)', bg: 'var(--oil-soft)' },
+    { n: '西气东输管网监控', s: '大屏 · 实时', c: 'var(--gas)', bg: 'var(--gas-soft)' },
+    { n: '煤矿安全监控', s: '看板 · 8 图表', c: 'var(--coal)', bg: 'var(--coal-soft)' },
+  ];
+  document.getElementById('pDbList').innerHTML = DBS.map(d => `
+    <div class="p-db-item">
+      <span class="d-ico" style="color:${d.c};background:${d.bg}">${DG.ICONS.board}</span>
+      <div style="flex:1;min-width:0"><div class="d-n">${d.n}</div><div class="d-s">${d.s}</div></div>
+      <span style="width:13px;height:13px;display:flex;color:var(--tx-4)">${DG.ICONS.arrowR}</span>
+    </div>`).join('');
+
+  /* 看板视图 */
+  const BOARDS = [
+    { n: '华北油田生产日报', s: '产量 / 含水 / 注采 · 更新 06:30', c: 'var(--oil)', bg: 'var(--oil-soft)', t: 'oil' },
+    { n: '集团经营驾驶舱', s: '四行业总览 · 决策层专享', c: 'var(--brand)', bg: 'var(--brand-soft)', t: 'brand' },
+    { n: '西气东输管网监控', s: '管输 / 门站 / 储气库 · 实时', c: 'var(--gas)', bg: 'var(--gas-soft)', t: 'gas' },
+    { n: '煤化工经营分析', s: '烯烃 / 甲醇产销存', c: 'var(--chem)', bg: 'var(--chem-soft)', t: 'chem' },
+    { n: '煤矿安全监控', s: '瓦斯 / 顶板 / 人员定位', c: 'var(--coal)', bg: 'var(--coal-soft)', t: 'coal' },
+  ];
+  document.getElementById('pBoardList').innerHTML = BOARDS.map(b => `
+    <div class="p-card" style="display:flex;align-items:center;gap:10px;margin-bottom:9px" onclick="DG.toast('原型演示：打开看板 ${b.n}')">
+      <span class="d-ico" style="width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:${b.c};background:${b.bg};flex:none">${DG.ICONS.board}</span>
+      <div style="flex:1;min-width:0"><div class="d-n" style="font-size:12.5px;font-weight:600">${b.n}</div><div class="d-s" style="font-size:10px;color:var(--tx-3)">${b.s}</div></div>
+      <span class="tag ${b.t}" style="font-size:9.5px">打开</span>
+    </div>`).join('');
+
+  /* 消息视图 */
+  const MSGS = [
+    { c: 'var(--danger)', bg: 'var(--danger-soft)', i: 'alert', t: '【告警】长庆区块日产油量低于 100 万吨阈值', s: '08:12 · 深链直达归因看板 ›' },
+    { c: 'var(--warn)', bg: 'var(--warn-soft)', i: 'clock', t: '【订阅】经营日报已推送，点击查看', s: '08:00 · 企业微信同步' },
+    { c: 'var(--info)', bg: 'var(--info-soft)', i: 'safe', t: '【审批】您的「井口含水率」指标权限已通过', s: '昨天 17:42' },
+    { c: 'var(--ok)', bg: 'var(--ok-soft)', i: 'govern', t: '【质量】ODS_采油日报表校验通过 98.6%', s: '昨天 22:00' },
+  ];
+  document.getElementById('pMsgList').innerHTML = MSGS.map(m => `
+    <div class="p-msg" onclick="DG.toast('原型演示：深链跳转对应页面')">
+      <span class="m-ico" style="color:${m.c};background:${m.bg}">${DG.ICONS[m.i]}</span>
+      <div style="flex:1;min-width:0"><div class="m-t">${m.t}</div><div class="m-s">${m.s}</div></div>
+    </div>`).join('');
+
+  /* 底部 Tab 栏 */
+  const TABS = [
+    { id: 'home', n: '首页', i: 'home' }, { id: 'board', n: '看板', i: 'board' },
+    { id: 'chat', n: '问数', i: 'chat' }, { id: 'msg', n: '消息', i: 'bell', b: 3 },
+    { id: 'mine', n: '我的', i: 'mobile' },
+  ];
+  document.getElementById('pTabbar').innerHTML = TABS.map((t, i) => `
+    <div class="p-tab ${i === 0 ? 'active' : ''}" data-view="${t.id}">${DG.ICONS[t.i]}<span>${t.n}</span>${t.b ? `<span class="badge">${t.b}</span>` : ''}</div>`).join('');
+
+  /* 视图切换（分段器 + 底部 Tab 联动） */
+  let chatChartInited = false;
+  function switchView(v) {
+    if (v === 'mine') { DG.toast('原型演示：我的 · 个人中心'); return; }
+    document.querySelectorAll('.p-view').forEach(x => x.classList.remove('show'));
+    document.querySelector(`.p-view[data-view="${v}"]`).classList.add('show');
+    document.querySelectorAll('#viewSeg .seg-item').forEach(x => x.classList.toggle('active', x.dataset.view === v));
+    document.querySelectorAll('.p-tab').forEach(x => x.classList.toggle('active', x.dataset.view === v));
+    if (v === 'chat' && !chatChartInited) { chatChartInited = true; initChatChart(); }
+    if (v === 'chat' && chatChartInited) setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
+  }
+  document.querySelectorAll('#viewSeg .seg-item').forEach(s => s.addEventListener('click', () => switchView(s.dataset.view)));
+  document.querySelectorAll('.p-tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+
+  /* 首页迷你趋势图 */
+  DG.makeChart(document.getElementById('mTrend'), {
+    grid: { left: 2, right: 6, top: 22, bottom: 2, containLabel: true },
+    legend: { data: ['原油', '天然气'], textStyle: { fontSize: 10 }, itemWidth: 10, itemHeight: 6 },
+    tooltip: { trigger: 'axis' },
+    xAxis: { type: 'category', data: DG.WEEK, axisLabel: { fontSize: 9 } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 9 } },
+    series: [
+      { name: '原油', type: 'line', smooth: true, symbol: 'none', data: DG.series(7, 12.8, .5, 1), lineStyle: { width: 2 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.3)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } } },
+      { name: '天然气', type: 'line', smooth: true, symbol: 'none', data: DG.series(7, 4.3, .2, 3), lineStyle: { width: 2 } }
+    ]
+  });
+
+  /* 问数结果图 */
+  function initChatChart() {
+    DG.makeChart(document.getElementById('mChatChart'), {
+      grid: { left: 2, right: 6, top: 8, bottom: 2, containLabel: true },
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'value', axisLabel: { fontSize: 9 } },
+      yAxis: { type: 'category', data: ['大庆', '华北', '塔里木', '长庆'].reverse(), axisLabel: { fontSize: 10 } },
+      series: [{
+        type: 'bar', barWidth: 12, data: [23.86, 28.94, 27.35, 39.12].reverse(),
+        itemStyle: { borderRadius: [0, 6, 6, 0], color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#F4633A' }, { offset: 1, color: '#FFB25E' }] } },
+        label: { show: true, position: 'right', color: '#B9C2D4', fontSize: 9.5, fontFamily: 'Barlow' }
+      }]
+    });
+  }
+
+  /* 特性清单 */
+  const FEATS = [
+    { i: 'mobile', c: 'var(--brand)', bg: 'var(--brand-soft)', n: '底部 Tab 五入口', d: '首页 / 看板 / 问数 / 消息 / 我的，消息角标实时提醒', tag: '信息架构' },
+    { i: 'drill', c: 'var(--gas)', bg: 'var(--gas-soft)', n: '手势交互', d: '点按钻取 · 双指缩放图表 · 滑动翻页 · 长按看明细 · 下拉刷新', tag: '交互' },
+    { i: 'share', c: 'var(--info)', bg: 'var(--info-soft)', n: '社交分享', d: '看板 / 指标一键分享至微信、企业微信、钉钉，支持二维码', tag: '协同' },
+    { i: 'bell', c: 'var(--danger)', bg: 'var(--danger-soft)', n: '推送通知', d: '告警与订阅推送深链直达对应页面，免二次查找', tag: '触达' },
+    { i: 'clock', c: 'var(--warn)', bg: 'var(--warn-soft)', n: '离线缓存', d: '弱网环境展示缓存数据，标注「数据更新于 06:30」', tag: '可用性' },
+    { i: 'report', c: 'var(--ok)', bg: 'var(--ok-soft)', n: '移动填报', d: '扫码录入 · 拍照上传 · 分步表单 · 草稿箱，适配井场巡检', tag: '采集' },
+    { i: 'safe', c: 'var(--chem)', bg: 'var(--chem-soft)', n: '安全防护', d: '动态水印（用户+时间）· 设备绑定 · 异常登录检测', tag: '安全' },
+    { i: 'spark', c: 'var(--info)', bg: 'var(--info-soft)', n: '轻应用接入', d: '微信 / 企微 / 钉钉工作台免登，租户级 SSO', tag: '生态' },
+  ];
+  document.getElementById('featList').innerHTML = FEATS.map(f => `
+    <div class="feat-item">
+      <span class="f-ico" style="color:${f.c};background:${f.bg}">${DG.ICONS[f.i]}</span>
+      <div class="grow">
+        <div class="f-n">${f.n}<span class="tag" style="font-size:10px">${f.tag}</span></div>
+        <div class="f-d">${f.d}</div>
+      </div>
+    </div>`).join('');
+</script>
+</body>
+</html>

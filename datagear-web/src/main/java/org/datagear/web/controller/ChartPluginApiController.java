@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.datagear.analysis.DataSignSpec;
 import org.datagear.analysis.support.html.HtmlChartPlugin;
+import org.datagear.management.domain.HtmlChartPluginVo;
 import org.datagear.web.util.OperationMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -105,6 +106,28 @@ public class ChartPluginApiController extends AbstractChartPluginAwareController
 				getMessage(request, "operationSuccess"), spec);
 
 		return new ResponseEntity<OperationMessage<DataSignSpec>>(om, HttpStatus.OK);
+	}
+
+	/**
+	 * 获取图表插件详情（供查看表单加载）。
+	 * 
+	 * @param request
+	 * @param id
+	 * @return
+	 * @throws Exception
+	 */
+	@RequestMapping(value = "/get/{id}", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage<HtmlChartPluginVo>> get(HttpServletRequest request,
+			@PathVariable("id") String id) throws Exception
+	{
+		HtmlChartPlugin plugin = getHtmlChartPlugin(id, true);
+		HtmlChartPluginVo vo = toHtmlChartPluginVo(request, plugin, true);
+
+		OperationMessage<HtmlChartPluginVo> om = OperationMessage.valueOfSuccess("operationSuccess",
+				getMessage(request, "operationSuccess"), vo);
+
+		return new ResponseEntity<OperationMessage<HtmlChartPluginVo>>(om, HttpStatus.OK);
 	}
 
 	/**

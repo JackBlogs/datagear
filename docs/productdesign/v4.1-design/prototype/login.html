@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>登录 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  body { overflow: hidden; }
+  .login-wrap { display: flex; height: 100vh; position: relative; z-index: 1; }
+
+  /* ---------- 左侧品牌区 ---------- */
+  .brand-pane {
+    width: 55%; height: 100%; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 52px 60px 30px;
+    background:
+      radial-gradient(760px 420px at 18% 12%, rgba(255,138,61,.16), transparent 62%),
+      radial-gradient(680px 460px at 88% 84%, rgba(34,211,238,.10), transparent 62%),
+      radial-gradient(520px 360px at 60% 55%, rgba(167,139,250,.07), transparent 65%),
+      linear-gradient(160deg, #0B1220 0%, #070A12 70%);
+    border-right: 1px solid var(--line-1);
+  }
+  /* 网格纹理 */
+  .brand-pane::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(70% 60% at 45% 42%, #000 30%, transparent 100%);
+  }
+  .brand-top { display: flex; align-items: center; gap: 12px; position: relative; }
+  .brand-mark {
+    width: 40px; height: 40px; border-radius: 11px; background: var(--brand-grad);
+    display: flex; align-items: center; justify-content: center;
+    color: #1A0E05; font-weight: 800; font-size: 17px; font-family: var(--font-num);
+    box-shadow: var(--shadow-glow-brand);
+  }
+  .brand-top .b-name { font-size: 17px; font-weight: 700; letter-spacing: .5px; }
+  .brand-top .b-name em { font-style: normal; color: var(--brand); }
+  .brand-top .b-ver {
+    font-size: 10.5px; color: var(--tx-3); letter-spacing: 1.5px;
+    border: 1px solid var(--line-2); border-radius: 10px; padding: 2px 9px; font-family: var(--font-num);
+  }
+  .brand-mid { position: relative; max-width: 560px; }
+  .brand-mid h1 {
+    font-size: 46px; font-weight: 800; line-height: 1.22; letter-spacing: 1px;
+    background: linear-gradient(120deg, #FFF3E6 0%, #FFB25E 38%, #FF8A3D 62%, #F4633A 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin-bottom: 16px;
+  }
+  .brand-mid .slogan { font-size: 16.5px; color: var(--tx-2); letter-spacing: .5px; }
+  .brand-mid .slogan b { color: var(--tx-1); font-weight: 600; }
+  .ind-chips { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+  .ind-chips .ind { font-size: 12.5px; padding: 5px 13px; border-radius: 14px; }
+  .brand-feats { display: flex; gap: 26px; margin-top: 34px; position: relative; flex-wrap: wrap; }
+  .brand-feats .feat { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tx-2); }
+  .brand-feats .feat svg { width: 16px; height: 16px; color: var(--ok); flex: none; }
+  .brand-kpis {
+    position: relative; display: flex; gap: 38px; padding: 18px 22px;
+    background: rgba(255,255,255,.03); border: 1px solid var(--line-1);
+    border-radius: var(--r-l); backdrop-filter: blur(8px); width: fit-content;
+  }
+  .brand-kpis .k .k-v { font-family: var(--font-num); font-size: 22px; font-weight: 700; color: var(--tx-1); }
+  .brand-kpis .k .k-v i { font-style: normal; color: var(--brand); }
+  .brand-kpis .k .k-l { font-size: 11.5px; color: var(--tx-3); margin-top: 1px; }
+
+  /* ---------- 右侧登录区 ---------- */
+  .form-pane {
+    flex: 1; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 40px 24px 0;
+    background: radial-gradient(560px 320px at 80% -6%, rgba(255,138,61,.07), transparent 60%);
+  }
+  .login-card {
+    width: 400px; max-width: 100%; background: var(--bg-glass);
+    border: 1px solid var(--line-2); border-radius: var(--r-xl);
+    padding: 34px 34px 28px; backdrop-filter: blur(12px); box-shadow: var(--shadow-2);
+  }
+  .login-card h2 { font-size: 21px; font-weight: 700; }
+  .login-card .lc-sub { font-size: 12.5px; color: var(--tx-3); margin: 4px 0 24px; }
+  .login-card .form-label { font-size: 12.5px; }
+  .login-card .input { padding: 11px 14px; font-size: 13.5px; }
+  .captcha-row { display: flex; gap: 10px; }
+  .captcha-row .input { flex: 1; }
+  .captcha-box {
+    width: 128px; height: 60px; flex: none; border-radius: var(--r-m); cursor: pointer;
+    border: 1px solid var(--line-2); position: relative; overflow: hidden;
+    background:
+      radial-gradient(60px 30px at 20% 30%, rgba(255,138,61,.35), transparent 70%),
+      radial-gradient(50px 26px at 78% 70%, rgba(34,211,238,.3), transparent 70%),
+      var(--bg-3);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .captcha-box span {
+    font-family: var(--font-mono); font-size: 21px; font-weight: 700;
+    letter-spacing: 5px; color: var(--tx-1);
+    text-shadow: 1px 0 0 rgba(34,211,238,.6), -1px 0 0 rgba(255,138,61,.6);
+    transform: rotate(-3deg);
+  }
+  .captcha-box i { position: absolute; left: -10%; right: -10%; height: 1px; background: rgba(255,255,255,.22); }
+  .login-opts { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 18px; }
+  .login-opts .remember { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tx-2); cursor: pointer; }
+  .login-btn { width: 100%; justify-content: center; padding: 12px; font-size: 15px; }
+  .login-links { display: flex; justify-content: space-between; margin-top: 16px; font-size: 12.5px; }
+  .sso-row { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+  .sso-row .line { flex: 1; height: 1px; background: var(--line-1); }
+  .sso-row span { font-size: 11px; color: var(--tx-4); }
+  .sso-btns { display: flex; gap: 10px; margin-top: 12px; }
+  .sso-btns .btn { flex: 1; justify-content: center; font-size: 12px; padding: 6px 0; }
+
+  /* ---------- 底部通栏 ---------- */
+  .login-foot {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px; font-size: 11.5px; color: var(--tx-4);
+    border-top: 1px solid var(--line-1);
+    background: rgba(7,10,18,.6); backdrop-filter: blur(10px);
+  }
+  .login-foot .xc { display: flex; gap: 6px; align-items: center; }
+  .login-foot .xc .tag { font-size: 10.5px; padding: 1px 7px; }
+  @media (max-width: 960px) { .brand-pane { display: none; } .form-pane { background: none; } }
+</style>
+</head>
+<body data-no-shell>
+<div class="login-wrap">
+  <!-- 左侧品牌区 -->
+  <div class="brand-pane">
+    <div class="brand-top">
+      <div class="brand-mark">DG</div>
+      <div class="b-name">DataGear <em>能源BI</em></div>
+      <span class="b-ver">V4.1</span>
+    </div>
+
+    <div class="brand-mid">
+      <h1>语义层驱动的<br/>一站式能源数据智能平台</h1>
+      <div class="slogan">从数据源到指标、看板、报表与 AI 问数 —— <b>开源 · 可私有化 · 信创全栈适配</b></div>
+      <div class="ind-chips">
+        <span class="ind oil"><i></i>石油</span>
+        <span class="ind gas"><i></i>天然气</span>
+        <span class="ind chem"><i></i>化工</span>
+        <span class="ind coal"><i></i>煤矿</span>
+      </div>
+      <div class="brand-feats">
+        <span class="feat" id="feat1"></span>
+        <span class="feat" id="feat2"></span>
+        <span class="feat" id="feat3"></span>
+      </div>
+    </div>
+
+    <div class="brand-kpis">
+      <div class="k"><div class="k-v"><i>86</i></div><div class="k-l">语义指标</div></div>
+      <div class="k"><div class="k-v">148</div><div class="k-l">数据集</div></div>
+      <div class="k"><div class="k-v">64</div><div class="k-l">行业看板</div></div>
+      <div class="k"><div class="k-v">4<i>+</i></div><div class="k-l">信创数据库</div></div>
+    </div>
+  </div>
+
+  <!-- 右侧登录卡 -->
+  <div class="form-pane">
+    <div class="login-card">
+      <h2>欢迎回来</h2>
+      <div class="lc-sub">登录 DataGear 能源BI 工作台（演示原型 · 任意账号可登录）</div>
+
+      <div class="form-item">
+        <label class="form-label">账号</label>
+        <input class="input" value="liming@huabei.oil" placeholder="请输入账号 / 手机号" />
+      </div>
+      <div class="form-item">
+        <label class="form-label">密码</label>
+        <input class="input" type="password" value="datagear2026" placeholder="请输入密码" />
+      </div>
+      <div class="form-item">
+        <label class="form-label">验证码</label>
+        <div class="captcha-row">
+          <input class="input" placeholder="输入右侧字符" />
+          <div class="captcha-box" onclick="DG.toast('原型演示：刷新验证码')">
+            <i style="top:30%;transform:rotate(8deg)"></i>
+            <i style="top:64%;transform:rotate(-6deg)"></i>
+            <span>7K4D</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="login-opts">
+        <label class="remember"><label class="switch"><input type="checkbox" checked /><i></i></label>记住我</label>
+        <a href="javascript:void(0)" onclick="DG.toast('原型演示：跳转忘记密码流程')">忘记密码？</a>
+      </div>
+
+      <button class="btn primary lg login-btn" onclick="location.href='index.html'">登 录</button>
+
+      <div class="sso-row"><span class="line"></span><span>其他登录方式</span><span class="line"></span></div>
+      <div class="sso-btns">
+        <button class="btn" onclick="DG.toast('原型演示：企业微信扫码登录')">企业微信</button>
+        <button class="btn" onclick="DG.toast('原型演示：钉钉扫码登录')">钉钉</button>
+        <button class="btn" onclick="DG.toast('原型演示：LDAP / OA 单点登录')">SSO</button>
+      </div>
+
+      <div class="login-links">
+        <a href="javascript:void(0)" onclick="DG.toast('原型演示：注册需企业管理员审核')">注册账号</a>
+        <a href="https://datagear.tech" target="_blank" rel="noopener">访问官网文档</a>
+      </div>
+    </div>
+    <div style="height:52px"></div>
+  </div>
+</div>
+
+<!-- 底部通栏 -->
+<div class="login-foot">
+  <span>开源协议 <span class="tag brand" style="margin-left:4px">LGPL-3.0</span></span>
+  <span class="xc">信创适配：
+    <span class="tag">达梦 DM8</span><span class="tag">金仓 KingbaseES</span><span class="tag">麒麟 OS</span><span class="tag">统信 UOS</span>
+  </span>
+  <span>© 2026 DataGear Open Source Community</span>
+</div>
+
+<script src="assets/js/shell.js"></script>
+<script>
+  const feats = [
+    ['safe', '开源免费 · LGPL 协议'],
+    ['db', '私有化部署 · 数据不出域'],
+    ['govern', '信创全适配 · 国产化生态'],
+  ];
+  feats.forEach((f, i) => {
+    document.getElementById('feat' + (i + 1)).innerHTML = DG.ICONS[f[0]] + f[1];
+  });
+</script>
+</body>
+</html>

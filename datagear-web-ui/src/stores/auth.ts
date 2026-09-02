@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getMe } from '@/api/auth'
+import { getMe, doLogout } from '@/api/auth'
 import type { AuthMe, UserInfo } from '@/types'
 import { usePermissionsStore } from './permissions'
 
@@ -39,6 +39,15 @@ export const useAuthStore = defineStore('auth', {
       this.anonymous = true
       this.readonlyAction = true
       usePermissionsStore().clear()
+    },
+    /** 退出登录：调用后端 /logout 清除会话，再清空本地状态 */
+    async logout() {
+      try {
+        await doLogout()
+      } catch {
+        // 即使后端退出失败也清空本地状态
+      }
+      this.clear()
     },
   },
 })

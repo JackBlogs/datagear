@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   getAuthorizationMeta,
   listAuthorizations,
@@ -22,6 +23,7 @@ import { useOperationMessage } from '@/composables/useOperationMessage'
 // 资源授权管理：授权列表 + 新增/编辑/删除。
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const { success, fail } = useOperationMessage()
 
 const resourceType = route.params.resourceType as string
@@ -46,15 +48,26 @@ const form = ref<Authorization>({
 
 const editingId = computed(() => form.value.id)
 
+const userOptions = computed(() =>
+  users.value.map((u) => ({ id: u.id, label: u.realName || u.name })),
+)
+
+const principalTypeOptions = computed(() => [
+  { name: t('user'), value: PRINCIPAL_TYPE_USER },
+  { name: t('role'), value: PRINCIPAL_TYPE_ROLE },
+  { name: t('allUsers'), value: PRINCIPAL_TYPE_ALL },
+  { name: t('anonymousUser'), value: PRINCIPAL_TYPE_ANONYMOUS },
+])
+
 function permissionLabel(p: number): string {
   return meta.value?.permissions.find((x) => x.permission === p)?.label ?? String(p)
 }
 
 function principalDisplay(a: Authorization): string {
-  if (a.principalType === PRINCIPAL_TYPE_ALL) return '所有用户'
-  if (a.principalType === PRINCIPAL_TYPE_ANONYMOUS) return '匿名用户'
+  if (a.principalType === PRINCIPAL_TYPE_ALL) return t('allUsers')
+  if (a.principalType === PRINCIPAL_TYPE_ANONYMOUS) return t('anonymousUser')
   const n = a.principalName ?? a.principal
-  return `${a.principalType === PRINCIPAL_TYPE_ROLE ? '角色' : '用户'}: ${n}`
+  return `${a.principalType === PRINCIPAL_TYPE_ROLE ? t('role') : t('user')}: ${n}`
 }
 
 async function load() {
@@ -95,30 +108,30 @@ async function save() {
   if (form.value.principalType === PRINCIPAL_TYPE_ALL) form.value.principal = PRINCIPAL_ALL
   if (form.value.principalType === PRINCIPAL_TYPE_ANONYMOUS) form.value.principal = PRINCIPAL_ANONYMOUS
   if (!form.value.principal) {
-    fail('请选择授权主体')
+    fail(t('pleaseSelectPrincipal'))
     return
   }
   saving.value = true
   try {
     await saveAuthorization(resourceType, resource, form.value)
-    success('保存成功')
+    success(t('saveSuccess'))
     resetForm()
     items.value = await listAuthorizations(resourceType, resource)
   } catch (e) {
-    fail((e as Error).message || '保存失败')
+    fail((e as Error).message || t('saveFail'))
   } finally {
     saving.value = false
   }
 }
 
 async function removeRow(a: Authorization) {
-  if (!window.confirm('确认删除该授权？')) return
+  if (!window.confirm(t('confirmDeleteAuthorizationAsk'))) return
   try {
     await deleteAuthorizations(resourceType, resource, [a.id])
-    success('删除成功')
+    success(t('deleteSuccess'))
     items.value = await listAuthorizations(resourceType, resource)
   } catch (e) {
-    fail((e as Error).message || '删除失败')
+    fail((e as Error).message || t('deleteFail'))
   }
 }
 
@@ -128,64 +141,81 @@ onMounted(load)
 <template>
   <div class="p-4">
     <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">资源授权</h3>
-      <Button label="返回" text @click="router.back()" />
+      <h3 class="flex-1">{{ t('resourceAuthorization') }}</h3>
+      <Button :label="t('back')" text @click="router.back()" />
     </div>
 
     <div class="form flex flex-column gap-2 mb-3 card">
-      <div class="flex align-items-center gap-2">
-        <label class="label">主体类型</label>
-        <select v-model="form.principalType" class="input">
-          <option :value="PRINCIPAL_TYPE_USER">用户</option>
-          <option :value="PRINCIPAL_TYPE_ROLE">角色</option>
-          <option :value="PRINCIPAL_TYPE_ALL">所有用户</option>
-          <option :value="PRINCIPAL_TYPE_ANONYMOUS">匿名用户</option>
-        </select>
+      <div class="field grid">
+        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('principalType') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <SelectButton v-model="form.principalType" :options="principalTypeOptions" option-label="name" option-value="value" class="input w-full" />
+        </div>
       </div>
-      <div v-if="form.principalType === PRINCIPAL_TYPE_USER" class="flex align-items-center gap-2">
-        <label class="label">用户</label>
-        <select v-model="form.principal" class="input flex-1">
-          <option value="">（选择用户）</option>
-          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.realName || u.name }}</option>
-        </select>
+      <div v-if="form.principalType === PRINCIPAL_TYPE_USER" class="field grid">
+        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('user') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <Dropdown
+            v-model="form.principal"
+            :options="userOptions"
+            option-label="label"
+            option-value="id"
+            placeholder="（选择用户）"
+            class="input w-full"
+          />
+        </div>
       </div>
-      <div v-else-if="form.principalType === PRINCIPAL_TYPE_ROLE" class="flex align-items-center gap-2">
-        <label class="label">角色</label>
-        <select v-model="form.principal" class="input flex-1">
-          <option value="">（选择角色）</option>
-          <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
-        </select>
+      <div v-else-if="form.principalType === PRINCIPAL_TYPE_ROLE" class="field grid">
+        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('role') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <Dropdown
+            v-model="form.principal"
+            :options="roles"
+            option-label="name"
+            option-value="id"
+            placeholder="（选择角色）"
+            class="input w-full"
+          />
+        </div>
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">权限</label>
-        <select v-model.number="form.permission" class="input">
-          <option v-for="p in meta?.permissions ?? []" :key="p.permission" :value="p.permission">{{ p.label }}</option>
-        </select>
+      <div v-else class="field grid">
+        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('principal') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <InputText :value="form.principalType === PRINCIPAL_TYPE_ALL ? t('allUsers') : t('anonymousUser')" class="input w-full" readonly />
+        </div>
       </div>
-      <div class="flex align-items-center gap-2">
-        <label class="label">启用</label>
-        <input v-model="form.enabled" type="checkbox" />
+      <div class="field grid">
+        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('permission') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <SelectButton v-model="form.permission" :options="meta?.permissions ?? []" option-label="label" option-value="permission" class="input w-full" />
+        </div>
       </div>
-      <div class="flex gap-2">
-        <Button :label="editingId ? '保存修改' : '新增授权'" :loading="saving" @click="save" />
-        <Button v-if="editingId" label="取消" text @click="resetForm" />
+      <div class="field grid">
+        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('enable') }}</label>
+        <div class="field-input col-12 md:col-9">
+          <SelectButton v-model="form.enabled" :options="[{name:t('yes'), value:true},{name:t('no'), value:false}]" option-label="name" option-value="value" class="input w-full" />
+        </div>
+      </div>
+      <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
+        <Button :label="editingId ? t('saveEdit') : t('addAuthorization')" :loading="saving" @click="save" />
+        <Button v-if="editingId" :label="t('cancel')" text @click="resetForm" />
       </div>
     </div>
 
-    <div v-if="loading" class="text-color-secondary">加载中…</div>
+    <div v-if="loading" class="text-color-secondary">{{ t('loading') }}</div>
     <DataTable v-else :value="items" data-key="id">
-      <Column header="主体">
+      <Column :header="t('principal')">
         <template #body="{ data }">{{ principalDisplay(data) }}</template>
       </Column>
-      <Column header="权限">
+      <Column :header="t('permission')">
         <template #body="{ data }">{{ permissionLabel(data.permission) }}</template>
       </Column>
-      <Column field="enabled" header="启用" />
-      <Column header="操作">
+      <Column field="enabled" :header="t('enable')" />
+      <Column :header="t('operation')">
         <template #body="{ data }">
           <div class="flex gap-1">
-            <Button label="编辑" size="small" text @click="editRow(data)" />
-            <Button label="删除" size="small" text severity="danger" @click="removeRow(data)" />
+            <Button :label="t('edit')" size="small" text @click="editRow(data)" />
+            <Button :label="t('delete')" size="small" text severity="danger" @click="removeRow(data)" />
           </div>
         </template>
       </Column>
@@ -195,17 +225,19 @@ onMounted(load)
 
 <style scoped>
 .card {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
   padding: 12px;
 }
-.label {
-  min-width: 64px;
+.field-label {
   font-weight: 600;
 }
 .input {
   border: 1px solid #ccc;
   border-radius: 4px;
   padding: 6px 8px;
+}
+select.input {
+  background: var(--surface-card);
 }
 </style>

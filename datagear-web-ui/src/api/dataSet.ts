@@ -6,7 +6,24 @@ import type { DataSetField } from '@/types/dashboard'
 export interface DataSetEntity {
   id: string
   name: string
+  dataSetType?: string
+  analysisProject?: { id?: string; name?: string }
+  createUser?: { id?: string; name?: string; realName?: string }
   createTime?: string
+}
+
+/** 数据集类型常量（对应后端 org.datagear.management.domain.DataSetEntity） */
+export const DATA_SET_TYPE_SQL = 'SQL'
+export const DATA_SET_TYPE_Excel = 'Excel'
+export const DATA_SET_TYPE_CsvValue = 'CsvValue'
+export const DATA_SET_TYPE_CsvFile = 'CsvFile'
+export const DATA_SET_TYPE_JsonValue = 'JsonValue'
+export const DATA_SET_TYPE_JsonFile = 'JsonFile'
+export const DATA_SET_TYPE_Http = 'Http'
+
+/** 删除数据集（/api/dataSet/delete，批量 ID） */
+export async function deleteDataSets(ids: string[]): Promise<void> {
+  await request.post<OperationMessage>('/api/dataSet/delete', ids)
 }
 
 /** 数据集概要（含字段，供数据绑定映射数据签名） */
@@ -35,21 +52,71 @@ export async function getProfileDataSetByIds(ids: string[]): Promise<ProfileData
   return unwrap(res) ?? []
 }
 
-/** SQL 数据集表单（对应后端 SqlDataSetEntity，仅必填字段） */
+/** 数据集参数（对应后端 org.datagear.analysis.DataSetParam） */
+export interface DataSetParam {
+  name: string
+  type: string
+  required: boolean
+  label?: string
+  desc?: string
+  inputType?: string
+  inputPayload?: string
+}
+
+/** SQL 数据集表单（对应后端 SqlDataSetEntity） */
 export interface SqlDataSetForm {
+  id?: string
   name: string
   sql: string
+  dataSetType?: string
+  mutableModel?: boolean
+  params?: DataSetParam[]
   dtbsCnFty: {
-    dtbsSource: { id: string }
+    dtbsSource: { id: string; title?: string }
     schemaName?: string | null
     properties?: unknown[]
   }
 }
 
-/** 保存 SQL 数据集（旧 /dataSet/saveAdd/SQL 端点，OperationMessage） */
+/** 保存 SQL 数据集（新增，/api/dataSet/saveAdd/SQL，OperationMessage） */
 export async function saveSqlDataSet(entity: SqlDataSetForm): Promise<unknown> {
   const res = await request.post<OperationMessage>('/api/dataSet/saveAdd/SQL', entity)
   return unwrap(res)
+}
+
+/** 保存 SQL 数据集（编辑，/api/dataSet/saveEdit/SQL，OperationMessage） */
+export async function saveSqlDataSetEdit(entity: SqlDataSetForm): Promise<unknown> {
+  const res = await request.post<OperationMessage>('/api/dataSet/saveEdit/SQL', entity)
+  return unwrap(res)
+}
+
+/** 获取 SQL 数据集（/api/dataSet/get/{id}，返回 SqlDataSetEntity JSON） */
+export async function getSqlDataSet(id: string): Promise<SqlDataSetForm> {
+  const res = await request.get<OperationMessage<SqlDataSetForm>>(`/api/dataSet/get/${id}`)
+  return unwrap(res)!
+}
+
+/** SQL 数据集预览结果（对应后端 TemplateResolvedDataSetResult，裸返回、非 OperationMessage 包装） */
+export interface SqlDataSetPreviewResult {
+  result?: { data?: unknown[]; additions?: Record<string, unknown> }
+  fields?: DataSetField[]
+  templateResult?: string
+}
+
+/**
+ * 预览 SQL 数据集（旧 /dataSet/preview/SQL 端点，裸返回 TemplateResolvedDataSetResult）。
+ * 注：该端点仍在旧 DataSetController（/dataSet 前缀，非 /api 前缀），故直接 request.post 而非 unwrap。
+ */
+export async function previewSqlDataSet(
+  entity: SqlDataSetForm,
+  options: { view?: boolean; query?: Record<string, unknown> } = {},
+): Promise<SqlDataSetPreviewResult> {
+  const res = await request.post<SqlDataSetPreviewResult>('/dataSet/preview/SQL', {
+    dataSet: entity,
+    query: options.query ?? { resultFetchSize: 100, paramValues: {} },
+    view: options.view ?? false,
+  })
+  return res.data
 }
 
 /** 解析 SQL 数据集模板（/api/dataSet/resolveSql，返回解析后的 SQL） */
@@ -72,7 +139,12 @@ export interface DataSetForm {
   requestMethod?: string
   requestContent?: string
   fileName?: string
+  encoding?: string
   nameRow?: number
+  resultJsonRule: {
+    dataJsonPath?: string
+    additionJsonPath?: string
+  }
   description?: string
   [key: string]: unknown
 }

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>集团能源生产运营驾驶舱 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  html, body { overflow: hidden; background: #05070D; }
+  body::before {
+    background:
+      radial-gradient(1000px 520px at 50% -12%, rgba(255,138,61,.14), transparent 62%),
+      radial-gradient(900px 560px at -8% 108%, rgba(34,211,238,.10), transparent 62%),
+      radial-gradient(900px 560px at 108% 108%, rgba(167,139,250,.08), transparent 62%) !important;
+  }
+  /* 1920×1080 舞台 + 自适应缩放 */
+  #viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #stage {
+    width: 1920px; height: 1080px; flex: none; position: relative;
+    transform-origin: center center; overflow: hidden;
+    background:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 100% 54px,
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 96px 100%,
+      radial-gradient(1200px 500px at 50% 42%, rgba(255,138,61,.05), transparent 65%);
+    display: flex; flex-direction: column;
+  }
+  /* 四角装饰线框 */
+  .corner { position: absolute; width: 42px; height: 42px; z-index: 5; pointer-events: none; opacity: .8; }
+  .corner.tl { left: 10px; top: 10px; border-left: 2px solid var(--brand); border-top: 2px solid var(--brand); }
+  .corner.tr { right: 10px; top: 10px; border-right: 2px solid var(--brand); border-top: 2px solid var(--brand); }
+  .corner.bl { left: 10px; bottom: 10px; border-left: 2px solid var(--brand); border-bottom: 2px solid var(--brand); }
+  .corner.br { right: 10px; bottom: 10px; border-right: 2px solid var(--brand); border-bottom: 2px solid var(--brand); }
+
+  /* 返回工作台 */
+  .back-btn {
+    position: fixed; left: 18px; bottom: 18px; z-index: 50;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--tx-2); padding: 6px 14px; border-radius: 16px;
+    background: rgba(13,20,32,.8); border: 1px solid var(--line-2); backdrop-filter: blur(8px);
+    transition: all var(--dur); cursor: pointer;
+  }
+  .back-btn:hover { color: var(--brand); border-color: var(--brand-line); box-shadow: var(--shadow-glow-brand); }
+  .back-btn svg { width: 13px; height: 13px; }
+
+  /* 顶部标题栏 */
+  .scr-head {
+    flex: none; height: 86px; display: flex; align-items: center; padding: 0 40px; position: relative;
+    background: linear-gradient(180deg, rgba(255,138,61,.06), transparent);
+  }
+  .scr-sys { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; width: 380px; }
+  .scr-sys .logo-mark { width: 34px; height: 34px; border-radius: 9px; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; font-family: var(--font-num); font-weight: 800; color: #1A0E05; box-shadow: var(--shadow-glow-brand); }
+  .scr-sys .sys-sub { font-size: 10px; color: var(--tx-3); letter-spacing: 2px; font-weight: 400; }
+  .scr-title { flex: 1; text-align: center; position: relative; }
+  .scr-title h1 {
+    font-size: 34px; font-weight: 800; letter-spacing: 6px; line-height: 1.2;
+    background: linear-gradient(180deg, #FFF2E4 20%, #FFB25E 55%, #F4633A 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(255,138,61,.25);
+  }
+  .scr-title .t-line {
+    position: absolute; top: 50%; height: 1px; width: 240px;
+    background: linear-gradient(90deg, transparent, var(--brand-line), transparent);
+  }
+  .scr-title .t-line.l { right: calc(50% + 340px); }
+  .scr-title .t-line.r { left: calc(50% + 340px); }
+  .scr-time { width: 380px; text-align: right; font-family: var(--font-num); }
+  .scr-time .t-now { font-size: 24px; font-weight: 700; letter-spacing: 2px; color: var(--tx-1); }
+  .scr-time .t-date { font-size: 12px; color: var(--tx-3); margin-top: 2px; }
+  .scr-time .t-upd { display: inline-block; font-size: 11px; color: var(--ok); border: 1px solid rgba(52,211,153,.3); background: var(--ok-soft); border-radius: 10px; padding: 1px 10px; margin-left: 8px; }
+
+  /* 主体布局 */
+  .scr-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 430px 1fr 430px; gap: 16px; padding: 6px 24px 14px; }
+  .scr-col { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+  .scr-panel {
+    position: relative; border: 1px solid var(--line-1); border-radius: var(--r-l);
+    background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+    backdrop-filter: blur(8px); padding: 14px 16px; display: flex; flex-direction: column; min-height: 0;
+    box-shadow: inset 0 0 40px rgba(255,255,255,.015);
+  }
+  .scr-panel::before, .scr-panel::after {
+    content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none;
+  }
+  .scr-panel::before { left: -1px; top: -1px; border-left: 2px solid var(--brand); border-top: 2px solid var(--brand); border-radius: var(--r-l) 0 0 0; opacity: .7; }
+  .scr-panel::after { right: -1px; bottom: -1px; border-right: 2px solid var(--brand); border-bottom: 2px solid var(--brand); border-radius: 0 0 var(--r-l) 0; opacity: .7; }
+  .sp-title {
+    flex: none; font-size: 15px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px;
+  }
+  .sp-title::before { content: ""; width: 4px; height: 15px; border-radius: 2px; background: var(--brand-grad); box-shadow: var(--shadow-glow-brand); }
+  .sp-title .sp-extra { margin-left: auto; font-size: 11px; color: var(--tx-3); font-weight: 400; }
+
+  /* 四大产业 KPI 行 */
+  .ind-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .ind-row:last-child { border-bottom: none; }
+  .ind-row .ir-ico { width: 36px; height: 36px; border-radius: 10px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .ind-row .ir-ico svg { width: 18px; height: 18px; }
+  .ind-row .ir-name { font-size: 13px; color: var(--tx-2); width: 64px; flex: none; }
+  .ind-row .ir-val { font-family: var(--font-num); font-size: 22px; font-weight: 700; flex: 1; }
+  .ind-row .ir-val .unit { font-size: 11px; color: var(--tx-3); font-weight: 400; }
+  .ind-row .ir-yoy { font-size: 11.5px; font-family: var(--font-num); width: 76px; text-align: right; }
+
+  /* 完成率 */
+  .rate-row { padding: 7px 0; }
+  .rate-row .rr-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--tx-2); margin-bottom: 5px; }
+  .rate-row .rr-top b { font-family: var(--font-num); color: var(--tx-1); }
+
+  /* 告警滚动 */
+  .alarm-list { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+  .alarm-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 6px;
+    border-radius: 8px; background: rgba(255,255,255,.03); border: 1px solid var(--line-1);
+    font-size: 12px; animation: slideIn .35s var(--ease);
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+  .alarm-item .a-time { font-family: var(--font-num); font-size: 11px; color: var(--tx-4); flex: none; }
+  .alarm-item .a-msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-1); }
+  .alarm-item:hover { border-color: var(--line-3); }
+
+  /* 状态点矩阵 */
+  .st-matrix { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px; }
+  .st-cell { text-align: center; }
+  .st-cell i { display: block; width: 100%; height: 30px; border-radius: 6px; }
+  .st-cell span { font-size: 10px; color: var(--tx-4); display: block; margin-top: 3px; }
+  .st-cell .run { background: rgba(52,211,153,.22); border: 1px solid rgba(52,211,153,.5); box-shadow: inset 0 0 12px rgba(52,211,153,.15); }
+  .st-cell .mnt { background: rgba(251,191,36,.18); border: 1px solid rgba(251,191,36,.5); }
+  .st-cell .stp { background: rgba(248,113,113,.18); border: 1px solid rgba(248,113,113,.5); }
+  .st-sum { display: flex; gap: 14px; font-size: 11.5px; color: var(--tx-3); margin-top: 10px; }
+  .st-sum b { font-family: var(--font-num); font-size: 15px; margin-right: 2px; }
+
+  /* 中央产区图 */
+  .scr-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+  .map-panel { flex: 1; position: relative; min-height: 0; }
+  .map-panel .chart { position: absolute; inset: 0; min-height: 0; }
+  .total-float {
+    position: absolute; left: 50%; top: 44%; transform: translate(-50%,-50%); text-align: center; z-index: 4;
+    pointer-events: none;
+  }
+  .total-float .tf-label { font-size: 13px; color: var(--tx-3); letter-spacing: 3px; }
+  .total-float .tf-val {
+    font-family: var(--font-num); font-size: 58px; font-weight: 800; line-height: 1.15;
+    background: linear-gradient(180deg,#FFF 30%,#FFB25E); -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 60px rgba(255,138,61,.3);
+  }
+  .total-float .tf-unit { font-size: 14px; color: var(--tx-2); }
+  .total-float .tf-sub { font-size: 12px; color: var(--tx-3); margin-top: 4px; }
+  .map-legend { position: absolute; left: 18px; bottom: 14px; display: flex; gap: 14px; font-size: 11.5px; color: var(--tx-3); z-index: 4; }
+  .map-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+
+  /* 底部横条 */
+  .scr-foot { flex: none; height: 236px; display: grid; grid-template-columns: 1.1fr 1.9fr; gap: 16px; padding: 0 24px 20px; }
+  .well-table { flex: 1; min-height: 0; overflow: hidden; }
+  .well-table table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .well-table th { text-align: left; color: var(--tx-4); font-weight: 500; font-size: 11px; padding: 6px 10px; border-bottom: 1px solid var(--line-1); }
+  .well-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--tx-2); }
+  .well-table .num { color: var(--tx-1); }
+</style>
+</head>
+<body data-no-shell>
+
+<a class="back-btn" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>返回工作台</a>
+
+<div id="viewport">
+  <div id="stage">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+    <!-- 顶部标题栏 -->
+    <header class="scr-head">
+      <div class="scr-sys">
+        <div class="logo-mark">DG</div>
+        <div>DataGear <span style="color:var(--brand)">能源BI</span><div class="sys-sub">ENERGY INTELLIGENCE V4.1</div></div>
+      </div>
+      <div class="scr-title">
+        <span class="t-line l"></span><span class="t-line r"></span>
+        <h1>集团能源生产运营驾驶舱</h1>
+      </div>
+      <div class="scr-time">
+        <div class="t-now" id="clock">--:--:--</div>
+        <div class="t-date"><span id="dateTxt"></span><span class="t-upd">数据更新 06:30</span></div>
+      </div>
+    </header>
+
+    <!-- 主体 -->
+    <div class="scr-body">
+      <!-- 左列 -->
+      <div class="scr-col">
+        <div class="scr-panel" style="flex:none">
+          <div class="sp-title">四大产业日产量 <span class="sp-extra">昨日 · 同比</span></div>
+          <div id="indRows"></div>
+        </div>
+        <div class="scr-panel" style="flex:1.2">
+          <div class="sp-title">近30日产量趋势 <span class="sp-extra">万吨 / 亿方</span></div>
+          <div class="chart" style="flex:1;min-height:0" data-chart="trend30"></div>
+        </div>
+        <div class="scr-panel" style="flex:none">
+          <div class="sp-title">月度生产完成率 <span class="sp-extra">截至昨日</span></div>
+          <div id="rateRows"></div>
+        </div>
+      </div>
+
+      <!-- 中央 -->
+      <div class="scr-center">
+        <div class="scr-panel map-panel">
+          <div class="sp-title" style="position:relative;z-index:4">主力产区分布与管网输送 <span class="sp-extra">气泡=日产量</span></div>
+          <div class="chart" data-chart="map"></div>
+          <div class="total-float">
+            <div class="tf-label">今日总产量 · 油气当量</div>
+            <div class="tf-val" data-count="21.73">0</div>
+            <div class="tf-unit">万吨油当量</div>
+            <div class="tf-sub"><span class="trend up">▲ 2.1%</span> 较昨日 · 计划完成率 <b style="color:var(--ok)" class="num">101.4%</b></div>
+          </div>
+          <div class="map-legend">
+            <span><i style="background:var(--oil)"></i>油田产区</span>
+            <span><i style="background:var(--gas)"></i>气田/管网</span>
+            <span><i style="background:var(--chem)"></i>炼化基地</span>
+            <span><i style="background:var(--coal)"></i>煤矿产区</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右列 -->
+      <div class="scr-col">
+        <div class="scr-panel" style="flex:1.15">
+          <div class="sp-title">实时告警 <span class="sp-extra"><span class="tag danger" style="font-size:10.5px">3 未处理</span></span></div>
+          <div class="alarm-list" id="alarmList"></div>
+        </div>
+        <div class="scr-panel" style="flex:none">
+          <div class="sp-title">场站 / 装置运行状态 <span class="sp-extra">共 24 座</span></div>
+          <div class="st-matrix" id="stMatrix"></div>
+          <div class="st-sum">
+            <span><b style="color:var(--ok)">19</b>运行</span>
+            <span><b style="color:var(--warn)">3</b>检修</span>
+            <span><b style="color:var(--danger)">2</b>停机</span>
+            <span style="margin-left:auto">综合完好率 <b style="color:var(--ok)" class="num">96.8%</b></span>
+          </div>
+        </div>
+        <div class="scr-panel" style="flex:1">
+          <div class="sp-title">能耗与排放 <span class="sp-extra">本月累计</span></div>
+          <div class="chart" style="flex:1;min-height:0" data-chart="energy"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部横条 -->
+    <div class="scr-foot">
+      <div class="scr-panel">
+        <div class="sp-title">采油厂产量 TOP5 <span class="sp-extra">今日 · 万吨</span></div>
+        <div class="chart" style="flex:1;min-height:0" data-chart="top5"></div>
+      </div>
+      <div class="scr-panel">
+        <div class="sp-title">重点井场 / 场站运行 <span class="sp-extra">实时</span></div>
+        <div class="well-table">
+          <table>
+            <thead><tr><th>井场 / 场站</th><th>所属</th><th>日产液(t)</th><th>压力(MPa)</th><th>含水率</th><th>状态</th><th>值班</th></tr></thead>
+            <tbody id="wellRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+/* ---------- 自适应缩放 ---------- */
+const stage = document.getElementById('stage');
+function fit() {
+  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  stage.style.transform = `scale(${s})`;
+}
+window.addEventListener('resize', fit); fit();
+
+/* ---------- 时钟 ---------- */
+function tick() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  document.getElementById('clock').textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  document.getElementById('dateTxt').textContent =
+    `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ` + ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+}
+setInterval(tick, 1000); tick();
+
+const C = DG.colors;
+
+/* ---------- 四大产业 KPI ---------- */
+const inds = [
+  { n: '原油',   v: '12.86', u: '万吨', yoy: '+5.1%',  up: true,  c: 'var(--oil)',  bg: 'var(--oil-soft)',  i: 'flame' },
+  { n: '天然气', v: '4.32',  u: '亿方', yoy: '+8.6%',  up: true,  c: 'var(--gas)',  bg: 'var(--gas-soft)',  i: 'drill' },
+  { n: '化工品', v: '3.15',  u: '万吨', yoy: '+3.2%',  up: true,  c: 'var(--chem)', bg: 'var(--chem-soft)', i: 'system' },
+  { n: '原煤',   v: '28.4',  u: '万吨', yoy: '-0.1%',  up: false, c: 'var(--coal)', bg: 'var(--coal-soft)', i: 'db' },
+];
+document.getElementById('indRows').innerHTML = inds.map(x => `
+  <div class="ind-row">
+    <div class="ir-ico" style="color:${x.c};background:${x.bg}">${DG.ICONS[x.i]}</div>
+    <span class="ir-name">${x.n}</span>
+    <span class="ir-val" style="color:${x.c}">${x.v}<span class="unit"> ${x.u}</span></span>
+    <span class="ir-yoy" style="color:${x.up ? 'var(--ok)' : 'var(--danger)'}">${x.up ? '▲' : '▼'} ${x.yoy.replace('-', '')}</span>
+  </div>`).join('');
+
+/* ---------- 生产完成率 ---------- */
+const rates = [
+  { n: '原油 · 月度计划', v: 96.4, c: 'linear-gradient(90deg,#FFB25E,#F4633A)' },
+  { n: '天然气 · 月度计划', v: 102.8, c: 'linear-gradient(90deg,#22D3EE,#0E7490)' },
+  { n: '化工品 · 月度计划', v: 91.2, c: 'linear-gradient(90deg,#A78BFA,#6D28D9)' },
+  { n: '原煤 · 月度计划', v: 98.7, c: 'linear-gradient(90deg,#E8B33C,#92610A)' },
+];
+document.getElementById('rateRows').innerHTML = rates.map(r => `
+  <div class="rate-row">
+    <div class="rr-top"><span>${r.n}</span><b style="color:${r.v >= 100 ? 'var(--ok)' : 'var(--tx-1)'}">${r.v}%</b></div>
+    <div class="progress" style="height:8px"><i style="width:${Math.min(r.v, 100)}%;background:${r.c}"></i></div>
+  </div>`).join('');
+
+/* ---------- 场站状态矩阵 ---------- */
+const stations = [
+  ['任11','run'],['霸二联','run'],['岔一转','mnt'],['留北','stp'],['深县','run'],['河间','run'],
+  ['安塞','run'],['靖安','run'],['轮南','run'],['哈得','run'],['孤岛','run'],['孤东','run'],
+  ['克一门站','run'],['轮南首站','run'],['靖边压气站','run'],['霍尔果斯','run'],['郑州分输','mnt'],['上海末站','run'],
+  ['甲醇一厂','run'],['烯烃装置','run'],['常减压','run'],['催化','mnt'],['洗煤一厂','stp'],['洗煤二厂','run'],
+];
+document.getElementById('stMatrix').innerHTML = stations.map(([n, s]) =>
+  `<div class="st-cell"><i class="${s}"></i><span>${n}</span></div>`).join('');
+
+/* ---------- 实时告警滚动 ---------- */
+const ALARM_POOL = [
+  ['danger', '留路北井场 外输压力异常 3.2MPa（阈值≥3.6）'],
+  ['warn',   '大同煤矿 1309 工作面 瓦斯浓度预警 0.82%'],
+  ['danger', '岔河集一转油站 2#外输泵 轴承温度 86℃ 超限'],
+  ['warn',   '西气东输郑州分输站 瞬时流量波动 +12%'],
+  ['warn',   '塔里木哈得区块 H₂S 检测点 HD-07 浓度 12ppm'],
+  ['info',   '安塞区块王窑作业区 新井 WY-14 投产见油'],
+  ['danger', '甲醇一厂 合成塔触媒层温差 +9℃ 偏离'],
+  ['warn',   '霸州二联合站 污水外排 COD 接近限值'],
+  ['info',   '胜利孤东区块 日注水量恢复至计划线'],
+  ['warn',   '洗煤一厂 精煤灰分 10.6% 逼近上限 11%'],
+];
+const alarmList = document.getElementById('alarmList');
+let alarmIdx = 0;
+function pushAlarm() {
+  const [lv, msg] = ALARM_POOL[alarmIdx % ALARM_POOL.length]; alarmIdx++;
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  const el = document.createElement('div');
+  el.className = 'alarm-item';
+  el.innerHTML = `<span class="a-time">${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}</span>
+    <span class="tag ${lv}" style="flex:none;font-size:10px">${lv === 'danger' ? '紧急' : lv === 'warn' ? '预警' : '提示'}</span>
+    <span class="a-msg" title="${msg}">${msg}</span>`;
+  alarmList.prepend(el);
+  while (alarmList.children.length > 7) alarmList.lastElementChild.remove();
+}
+for (let i = 0; i < 5; i++) pushAlarm();
+setInterval(pushAlarm, 3000);
+
+/* ---------- 重点井场表 ---------- */
+const wells = [
+  ['任11井场', '华北油田', 486.2, 2.84, '86.1%', ['ok', '运行'], '张立新'],
+  ['王窑 WY-14 新井', '长庆油田', 62.4, 4.12, '31.5%', ['ok', '运行'], '马晓峰'],
+  ['哈得 HD-4 井场', '塔里木油田', 218.6, 3.66, '58.2%', ['ok', '运行'], '艾尔肯'],
+  ['岔河集一转油站', '华北油田', 301.5, 3.21, '91.2%', ['warn', '检修'], '李志远'],
+  ['留路北井场', '华北油田', 268.9, 3.62, '84.7%', ['danger', '压力异常'], '王学兵'],
+];
+document.getElementById('wellRows').innerHTML = wells.map(w => `
+  <tr>
+    <td style="color:var(--tx-1)">${w[0]}</td><td>${w[1]}</td>
+    <td class="num">${w[2]}</td><td class="num">${w[3]}</td><td class="num">${w[4]}</td>
+    <td><span class="tag ${w[5][0]}" style="font-size:10.5px">${w[5][1]}</span></td><td>${w[6]}</td>
+  </tr>`).join('');
+
+/* ---------- 图表 ---------- */
+DG.autoCharts({
+  /* 近30日趋势 */
+  trend30: () => ({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['原油', '天然气', '化工品', '原煤'] },
+    grid: { left: 6, right: 10, top: 30, bottom: 4 },
+    xAxis: { type: 'category', boundaryGap: false, data: Array.from({ length: 30 }, (_, i) => `8/${i + 3 > 31 ? i - 28 : i + 3}`), axisLabel: { fontSize: 10, interval: 4 } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+    series: [
+      { name: '原油', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 12.8, 0.6, 1) },
+      { name: '天然气', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 4.3, 0.2, 3) },
+      { name: '化工品', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 3.1, 0.18, 5) },
+      { name: '原煤', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 28.4, 1.4, 7),
+        areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: 'rgba(232,179,60,.16)' }, { offset: 1, color: 'rgba(232,179,60,0)' }] } } },
+    ]
+  }),
+
+  /* 产区分布（模拟坐标 + 管线弧线） */
+  map: () => ({
+    grid: { left: 0, right: 0, top: 0, bottom: 0 },
+    xAxis: { show: false, min: 0, max: 100 },
+    yAxis: { show: false, min: 0, max: 62 },
+    series: [
+      /* 西气东输管线弧线 */
+      { type: 'lines', coordinateSystem: 'cartesian2d', polyline: false, silent: true,
+        lineStyle: { color: 'rgba(34,211,238,.55)', width: 2, curveness: 0.25, type: 'solid',
+          shadowBlur: 8, shadowColor: 'rgba(34,211,238,.5)' },
+        effect: { show: true, period: 5, trailLength: 0.4, symbol: 'arrow', symbolSize: 5, color: '#7DEFFC' },
+        data: [
+          { coords: [[18, 44], [34, 38], [52, 33], [72, 30], [88, 33]] },   // 轮南→上海
+          { coords: [[26, 40], [44, 44], [62, 42], [80, 45]] },             // 靖边→北京方向
+          { coords: [[30, 28], [48, 22], [66, 20], [84, 24]] },             // 川气东送
+        ] },
+      /* 产区气泡 */
+      { type: 'scatter', coordinateSystem: 'cartesian2d',
+        label: { show: true, position: 'bottom', color: '#C9D4E8', fontSize: 12, formatter: p => p.data[3], distance: 6 },
+        data: [
+          [20, 47, 46, '长庆油田', C.oil], [52, 52, 30, '大庆油田', C.oil], [14, 38, 26, '塔里木油田', C.oil],
+          [70, 42, 24, '胜利油田', C.oil], [64, 47, 20, '华北油田', C.oil],
+          [26, 40, 22, '靖边气田', C.gas], [44, 22, 18, '普光气田', C.gas],
+          [58, 30, 16, '独山子炼化', C.chem], [78, 26, 15, '镇海炼化', C.chem],
+          [56, 44, 20, '大同矿区', C.coal], [40, 46, 17, '鄂尔多斯矿区', C.coal],
+        ],
+        symbolSize: d => d[2],
+        itemStyle: {
+          color: p => p.data[4], opacity: .85,
+          shadowBlur: 16, shadowColor: p => p.data[4],
+          borderColor: 'rgba(255,255,255,.35)', borderWidth: 1
+        },
+        emphasis: { scale: 1.25 } },
+      /* 呼吸光圈 */
+      { type: 'effectScatter', coordinateSystem: 'cartesian2d', rippleEffect: { brushType: 'stroke', scale: 3.2 },
+        symbolSize: d => d[2] * 0.55, itemStyle: { color: p => p.data[4] },
+        label: { show: false },
+        data: [[20, 47, 46, '', C.oil], [26, 40, 22, '', C.gas], [70, 42, 24, '', C.oil]] },
+    ]
+  }),
+
+  /* 能耗与排放 */
+  energy: () => ({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['综合能耗(万吨标煤)', 'CO₂排放(万吨)'] },
+    grid: { left: 6, right: 26, top: 30, bottom: 4 },
+    xAxis: { type: 'category', data: ['油田板块', '气田板块', '炼化板块', '煤矿板块'], axisLabel: { fontSize: 10.5 } },
+    yAxis: [{ type: 'value', axisLabel: { fontSize: 10 } }, { type: 'value', splitLine: { show: false }, axisLabel: { fontSize: 10 } }],
+    series: [
+      { name: '综合能耗(万吨标煤)', type: 'bar', barWidth: 22, data: [42.6, 18.9, 56.3, 24.1],
+        itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: '#E8B33C' }, { offset: 1, color: 'rgba(146,97,10,.4)' }] } } },
+      { name: 'CO₂排放(万吨)', type: 'line', yAxisIndex: 1, smooth: true, symbolSize: 6,
+        lineStyle: { width: 2, color: C.chem }, itemStyle: { color: C.chem }, data: [98.4, 41.2, 132.7, 52.6] }
+    ]
+  }),
+
+  /* 采油厂 TOP5 横向条形 */
+  top5: () => ({
+    tooltip: { trigger: 'axis' },
+    grid: { left: 6, right: 40, top: 8, bottom: 4 },
+    xAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'category', inverse: true, data: ['长庆采油厂', '大庆采油厂', '塔里木采油厂', '胜利采油厂', '华北采油厂'], axisLabel: { fontSize: 11.5, color: '#C9D4E8' } },
+    series: [{
+      type: 'bar', barWidth: 14, data: [3.42, 3.31, 2.42, 2.31, 1.78].map((v, i) => ({
+        value: v,
+        itemStyle: { borderRadius: [0, 4, 4, 0], color: { type: 'linear', x:0, y:0, x2:1, y2:0, colorStops: [
+          { offset: 0, color: 'rgba(244,99,58,.35)' },
+          { offset: 1, color: ['#FF8A3D', '#FF9D5C', '#FAA96E', '#F4B57F', '#EEC190'][i] }] } }
+      })),
+      label: { show: true, position: 'right', color: '#FFB25E', fontFamily: 'Barlow, Bahnschrift, sans-serif', fontSize: 12, formatter: '{c} 万吨' }
+    }]
+  })
+});
+</script>
+</body>
+</html>

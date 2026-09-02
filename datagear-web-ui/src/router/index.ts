@@ -61,44 +61,44 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'dtbsSource',
         name: 'dtbsSource',
-        component: () => import('@/views/ModuleListView.vue'),
-        meta: { title: '数据源', module: 'dtbsSource', keepAlive: true },
+        component: () => import('@/views/dtbsSource/DtbsSourceListView.vue'),
+        meta: { title: '数据源', keepAlive: true },
       },
       {
         path: 'fileSource',
         name: 'fileSource',
-        component: () => import('@/views/ModuleListView.vue'),
-        meta: { title: '文件源', module: 'fileSource', keepAlive: true },
+        component: () => import('@/views/fileSource/FileSourceListView.vue'),
+        meta: { title: '文件源', keepAlive: true },
       },
       {
         path: 'analysisProject',
         name: 'analysisProject',
-        component: () => import('@/views/ModuleListView.vue'),
-        meta: { title: '分析项目', module: 'analysisProject', keepAlive: true },
+        component: () => import('@/views/analysisProject/AnalysisProjectListView.vue'),
+        meta: { title: '分析项目', keepAlive: true },
       },
       {
         path: 'dataSet',
         name: 'dataSet',
-        component: () => import('@/views/ModuleListView.vue'),
-        meta: { title: '数据集', module: 'dataSet', keepAlive: true },
+        component: () => import('@/views/dataSet/DataSetListView.vue'),
+        meta: { title: '数据集', keepAlive: true },
       },
       {
         path: 'chart',
         name: 'chart',
-        component: () => import('@/views/ModuleListView.vue'),
-        meta: { title: '图表', module: 'chart', keepAlive: true },
+        component: () => import('@/views/chart/ChartListView.vue'),
+        meta: { title: '图表', keepAlive: true },
       },
       {
         path: 'dashboard',
         name: 'dashboard',
-        component: () => import('@/views/ModuleListView.vue'),
-        meta: { title: '看板', module: 'dashboard', keepAlive: true },
+        component: () => import('@/views/dashboard/DashboardListView.vue'),
+        meta: { title: '看板', keepAlive: true },
       },
       {
         path: 'dtbsSourceGuard',
         name: 'dtbsSourceGuard',
-        component: () => import('@/views/ModuleListView.vue'),
-        meta: { title: '数据源防护', module: 'dtbsSourceGuard', keepAlive: true },
+        component: () => import('@/views/dtbsSourceGuard/DtbsSourceGuardListView.vue'),
+        meta: { title: '数据源防护', keepAlive: true },
       },
       {
         path: 'driverEntity',
@@ -127,6 +127,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑看板' },
   },
   {
+    path: '/dashboard/:id/view',
+    name: 'dashboardView',
+    component: () => import('@/views/dashboard/DashboardFormView.vue'),
+    meta: { title: '查看看板' },
+  },
+  {
     path: '/dashboard/:id/design',
     name: 'dashboardDesigner',
     component: () => import('@/views/dashboard/DashboardDesignerView.vue'),
@@ -143,6 +149,12 @@ const routes: RouteRecordRaw[] = [
     name: 'dashboardImport',
     component: () => import('@/views/dashboard/DashboardImportView.vue'),
     meta: { title: '导入看板' },
+  },
+  {
+    path: '/chart/add',
+    name: 'chartAdd',
+    component: () => import('@/views/chart/ChartDesignerView.vue'),
+    meta: { title: '新建图表' },
   },
   {
     path: '/chart/:id/design',
@@ -199,6 +211,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '新建 SQL 数据集' },
   },
   {
+    path: '/dataSet/:id/edit/sql',
+    name: 'dataSetSqlEdit',
+    component: () => import('@/views/dataSet/DataSetSqlForm.vue'),
+    meta: { title: '编辑 SQL 数据集' },
+  },
+  {
+    path: '/dataSet/:id/view/sql',
+    name: 'dataSetSqlView',
+    component: () => import('@/views/dataSet/DataSetSqlForm.vue'),
+    meta: { title: '查看 SQL 数据集' },
+  },
+  {
     path: '/dataSet/add',
     name: 'dataSetAdd',
     component: () => import('@/views/dataSet/DataSetAddView.vue'),
@@ -217,6 +241,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑数据集' },
   },
   {
+    path: '/dataSet/:id/view',
+    name: 'dataSetView',
+    component: () => import('@/views/dataSet/DataSetFormView.vue'),
+    meta: { title: '查看数据集' },
+  },
+  {
     path: '/role/add',
     name: 'roleAdd',
     component: () => import('@/views/role/RoleFormView.vue'),
@@ -229,6 +259,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑角色' },
   },
   {
+    path: '/role/:id/view',
+    name: 'roleView',
+    component: () => import('@/views/role/RoleFormView.vue'),
+    meta: { title: '查看角色' },
+  },
+  {
     path: '/user/add',
     name: 'userAdd',
     component: () => import('@/views/user/UserFormView.vue'),
@@ -239,6 +275,12 @@ const routes: RouteRecordRaw[] = [
     name: 'userEdit',
     component: () => import('@/views/user/UserFormView.vue'),
     meta: { title: '编辑用户' },
+  },
+  {
+    path: '/user/:id/view',
+    name: 'userView',
+    component: () => import('@/views/user/UserFormView.vue'),
+    meta: { title: '查看用户' },
   },
   {
     path: '/user/:id/password',
@@ -259,6 +301,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑分析项目' },
   },
   {
+    path: '/analysisProject/:id/view',
+    name: 'analysisProjectView',
+    component: () => import('@/views/analysisProject/AnalysisProjectFormView.vue'),
+    meta: { title: '查看分析项目' },
+  },
+  {
     path: '/fileSource/add',
     name: 'fileSourceAdd',
     component: () => import('@/views/fileSource/FileSourceFormView.vue'),
@@ -269,6 +317,12 @@ const routes: RouteRecordRaw[] = [
     name: 'fileSourceEdit',
     component: () => import('@/views/fileSource/FileSourceFormView.vue'),
     meta: { title: '编辑文件源' },
+  },
+  {
+    path: '/fileSource/:id/view',
+    name: 'fileSourceView',
+    component: () => import('@/views/fileSource/FileSourceFormView.vue'),
+    meta: { title: '查看文件源' },
   },
   {
     path: '/dtbsSourceGuard/add',
@@ -283,6 +337,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑防护规则' },
   },
   {
+    path: '/dtbsSourceGuard/:id/view',
+    name: 'dtbsSourceGuardView',
+    component: () => import('@/views/dtbsSourceGuard/DtbsSourceGuardFormView.vue'),
+    meta: { title: '查看防护规则' },
+  },
+  {
     path: '/dtbsSource/add',
     name: 'dtbsSourceAdd',
     component: () => import('@/views/dtbsSource/DtbsSourceFormView.vue'),
@@ -295,6 +355,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑数据源' },
   },
   {
+    path: '/dtbsSource/:id/view',
+    name: 'dtbsSourceView',
+    component: () => import('@/views/dtbsSource/DtbsSourceFormView.vue'),
+    meta: { title: '查看数据源' },
+  },
+  {
     path: '/driverEntity/add',
     name: 'driverEntityAdd',
     component: () => import('@/views/driverEntity/DriverEntityFormView.vue'),
@@ -305,6 +371,18 @@ const routes: RouteRecordRaw[] = [
     name: 'driverEntityEdit',
     component: () => import('@/views/driverEntity/DriverEntityFormView.vue'),
     meta: { title: '编辑驱动' },
+  },
+  {
+    path: '/driverEntity/:id/view',
+    name: 'driverEntityView',
+    component: () => import('@/views/driverEntity/DriverEntityFormView.vue'),
+    meta: { title: '查看驱动' },
+  },
+  {
+    path: '/chartPlugin/:id/view',
+    name: 'chartPluginView',
+    component: () => import('@/views/chartPlugin/ChartPluginFormView.vue'),
+    meta: { title: '查看图表插件' },
   },
   {
     path: '/:pathMatch(.*)*',

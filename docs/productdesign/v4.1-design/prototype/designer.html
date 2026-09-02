@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>看板设计器 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  /* 满高度三栏工作台 */
+  #content { overflow: hidden !important; padding: 14px 16px 16px !important; }
+  .designer { display: flex; flex-direction: column; height: calc(100vh - var(--topbar-h) - 30px); gap: 10px; }
+
+  /* 顶部工具栏 */
+  .d-toolbar {
+    flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l);
+    padding: 8px 14px;
+  }
+  .d-toolbar .d-name { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .d-toolbar .d-name .tag { font-weight: 400; }
+  .d-divider { width: 1px; height: 20px; background: var(--line-2); }
+  .t-icon-btn {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent;
+    background: transparent; color: var(--tx-3); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .t-icon-btn:hover { background: var(--bg-glass-2); color: var(--tx-1); }
+  .t-icon-btn.active { background: var(--brand-soft); color: var(--brand); border-color: var(--brand-line); }
+  .t-icon-btn svg { width: 16px; height: 16px; }
+  .t-icon-btn[disabled] { opacity: .35; cursor: not-allowed; }
+
+  /* 三栏 */
+  .d-bench { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px 1fr 280px; gap: 10px; }
+
+  /* 左：部件库 */
+  .d-lib { display: flex; flex-direction: column; min-height: 0; padding: 12px; }
+  .d-lib .tabs { margin-bottom: 10px; }
+  .d-lib .tab { padding: 6px 10px; font-size: 12.5px; }
+  .wt-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .wt-item {
+    display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 9px 4px 7px;
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-m);
+    cursor: grab; transition: all var(--dur); font-size: 10.5px; color: var(--tx-3);
+  }
+  .wt-item:hover { border-color: var(--brand-line); color: var(--tx-1); transform: translateY(-1px); }
+  .wt-item .wt-ico { color: var(--tx-2); display: flex; }
+  .wt-item .wt-ico svg { width: 24px; height: 17px; }
+  .lib-sec-t { font-size: 11px; color: var(--tx-4); letter-spacing: 1px; margin: 12px 0 6px; }
+  .m-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; margin-bottom: 5px;
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: 8px;
+    font-size: 12px; cursor: grab; transition: all var(--dur);
+  }
+  .m-item:hover { border-color: var(--brand-line); transform: translateX(2px); }
+  .m-item .m-code { margin-left: auto; font-size: 9.5px; font-family: var(--font-mono); color: var(--tx-4); }
+  .lib-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+
+  /* 中：画布 */
+  .d-canvas-wrap { display: flex; flex-direction: column; min-width: 0; gap: 8px; }
+  .d-modebar {
+    flex: none; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--tx-3);
+    background: var(--info-soft); border: 1px solid rgba(96,165,250,.25); border-radius: var(--r-m);
+    padding: 6px 14px;
+  }
+  .d-modebar .tag { font-size: 10.5px; }
+  .d-canvas {
+    flex: 1; min-height: 0; position: relative; overflow: auto; border-radius: var(--r-l);
+    border: 1px solid var(--line-1);
+    background:
+      radial-gradient(circle, rgba(255,255,255,.07) 1px, transparent 1px) 0 0 / 22px 22px,
+      linear-gradient(180deg,#0A0E17,#080B13);
+  }
+  .cv-widget {
+    position: absolute; background: rgba(17,26,42,.85); border: 1px solid var(--line-2);
+    border-radius: var(--r-m); display: flex; flex-direction: column; overflow: hidden;
+    backdrop-filter: blur(6px); cursor: move; transition: border-color var(--dur), box-shadow var(--dur);
+  }
+  .cv-widget:hover { border-color: var(--line-3); }
+  .cv-widget.selected { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand), var(--shadow-glow-brand); }
+  .cv-head {
+    flex: none; height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 8px;
+    font-size: 11px; color: var(--tx-2); border-bottom: 1px solid var(--line-1);
+    background: rgba(255,255,255,.02);
+  }
+  .cv-head .grip { color: var(--tx-4); letter-spacing: 1px; font-size: 10px; cursor: grab; }
+  .cv-head .cv-x { margin-left: auto; color: var(--tx-4); cursor: pointer; display: flex; }
+  .cv-head .cv-x:hover { color: var(--danger); }
+  .cv-head .cv-x svg { width: 12px; height: 12px; }
+  .cv-body { flex: 1; min-height: 0; padding: 6px 10px; }
+  /* 选中态 8 手柄 */
+  .hdl { position: absolute; width: 8px; height: 8px; border-radius: 2px; background: #fff; border: 1.5px solid var(--brand); display: none; z-index: 3; }
+  .cv-widget.selected .hdl { display: block; }
+  .h-nw { left: -4px; top: -4px; cursor: nwse-resize; } .h-n { left: calc(50% - 4px); top: -4px; cursor: ns-resize; }
+  .h-ne { right: -4px; top: -4px; cursor: nesw-resize; } .h-e { right: -4px; top: calc(50% - 4px); cursor: ew-resize; }
+  .h-se { right: -4px; bottom: -4px; cursor: nwse-resize; } .h-s { left: calc(50% - 4px); bottom: -4px; cursor: ns-resize; }
+  .h-sw { left: -4px; bottom: -4px; cursor: nesw-resize; } .h-w { left: -4px; top: calc(50% - 4px); cursor: ew-resize; }
+  /* KPI 部件 */
+  .cv-kpi { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 2px 6px; }
+  .cv-kpi .k-label { font-size: 11px; color: var(--tx-3); }
+  .cv-kpi .k-value { font-family: var(--font-num); font-size: 26px; font-weight: 700; line-height: 1.2; }
+  .cv-kpi .k-value .unit { font-size: 11px; color: var(--tx-3); font-weight: 400; }
+  .cv-kpi .k-foot { font-size: 10.5px; margin-top: 2px; }
+
+  /* 右：属性面板 */
+  .d-prop { display: flex; flex-direction: column; min-height: 0; padding: 12px 14px; }
+  .d-prop .tabs { margin-bottom: 12px; }
+  .d-prop .tab { padding: 6px 10px; font-size: 12.5px; }
+  .prop-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+  .chip-zone {
+    min-height: 34px; border: 1px dashed var(--line-2); border-radius: var(--r-m);
+    padding: 5px 8px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center;
+    font-size: 11px; color: var(--tx-4);
+  }
+  .chip-zone .z-chip {
+    font-size: 11px; padding: 2px 9px; border-radius: 7px;
+    background: var(--brand-soft); color: var(--brand); border: 1px solid var(--brand-line);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .chip-zone .z-chip.dim { background: var(--info-soft); color: var(--info); border-color: rgba(96,165,250,.3); }
+  .z-chip svg { width: 10px; height: 10px; cursor: pointer; }
+  .style-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.045); font-size: 12.5px; }
+  .style-row:last-child { border-bottom: none; }
+  .swatch { width: 18px; height: 18px; border-radius: 5px; border: 2px solid transparent; cursor: pointer; }
+  .swatch.on { border-color: #fff; }
+  input[type="range"] { accent-color: var(--brand); width: 110px; }
+  .link-cfg {
+    display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 10px;
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-m); margin-bottom: 8px;
+  }
+  .link-cfg .l-arrow { color: var(--tx-4); display: flex; }
+  .link-cfg .l-arrow svg { width: 13px; height: 13px; }
+
+  @media (max-width: 1100px) { .d-bench { grid-template-columns: 200px 1fr; } .d-prop { display: none; } }
+</style>
+</head>
+<body data-page="designer">
+<div id="page-content" style="display:none">
+<div class="designer">
+
+  <!-- 顶部工具栏 -->
+  <div class="d-toolbar">
+    <div class="d-name">华北油田生产日报 <span class="tag warn">编辑中</span><span class="sm tx-3">草稿已自动保存 09:21:07</span></div>
+    <div class="d-divider"></div>
+    <button class="t-icon-btn" title="撤销" onclick="DG.toast('原型演示：撤销上一步操作')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button class="t-icon-btn" title="重做" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <div class="d-divider"></div>
+    <!-- 断点切换（FR-DS 多端自适应） -->
+    <button class="t-icon-btn active" title="桌面端 1440" onclick="bpSwitch(this,'桌面端 1440px 画布')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+    <button class="t-icon-btn" title="平板端 768" onclick="bpSwitch(this,'平板端 768px 画布')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M11 18h2"/></svg></button>
+    <button class="t-icon-btn" title="手机端 375" onclick="bpSwitch(this,'手机端 375px 画布')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg></button>
+    <div class="d-divider"></div>
+    <button class="btn sm ghost" onclick="DG.toast('原型演示：切换至 HTML 源码编辑模式（原生模板）')">源码编辑</button>
+    <button class="btn sm ghost" onclick="DG.toast('原型演示：预览看板（模拟终端用户视角）')">预览</button>
+    <button class="btn sm" onclick="DG.toast('草稿已保存')">保存草稿</button>
+    <button class="btn sm primary" onclick="DG.toast('发布成功：已生成看板链接与嵌入代码')">发布</button>
+  </div>
+
+  <div class="d-bench">
+    <!-- 左：部件库 -->
+    <div class="card d-lib">
+      <div class="tabs" id="libTabs">
+        <div class="tab active" data-lib="chart">图表</div>
+        <div class="tab" data-lib="comp">组件</div>
+        <div class="tab" data-lib="text">文本</div>
+      </div>
+      <div class="lib-scroll">
+        <div class="wt-grid" id="wtGrid"></div>
+        <div class="lib-sec-t">可拖入指标（语义层）</div>
+        <div id="libMetrics">
+          <div class="m-item"><span class="ind oil" style="padding:0 5px"><i></i></span>原油产量<span class="m-code">M-OIL-001</span></div>
+          <div class="m-item"><span class="ind oil" style="padding:0 5px"><i></i></span>吨油完全成本<span class="m-code">M-OIL-014</span></div>
+          <div class="m-item"><span class="ind oil" style="padding:0 5px"><i></i></span>井口综合含水率<span class="m-code">M-OIL-027</span></div>
+          <div class="m-item"><span class="ind gas" style="padding:0 5px"><i></i></span>管输量<span class="m-code">M-GAS-002</span></div>
+          <div class="m-item"><span class="ind chem" style="padding:0 5px"><i></i></span>甲醇优级品率<span class="m-code">M-CHEM-011</span></div>
+          <div class="m-item"><span class="ind coal" style="padding:0 5px"><i></i></span>原煤产量<span class="m-code">M-COAL-001</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 中：画布 -->
+    <div class="d-canvas-wrap">
+      <div class="d-modebar">
+        <span style="width:14px;height:14px;display:flex;color:var(--info)" id="ic-info"></span>
+        支持 <b style="color:var(--tx-1)">原生 HTML 模板</b> + <b style="color:var(--tx-1)">可视化拖拽</b> 双模式（FR-DS）· 当前：<span class="tag info">可视化模式</span>
+        <span style="margin-left:auto" class="sm">栅格 12 列 · 吸附 8px</span>
+      </div>
+      <div class="d-canvas" id="canvas">
+        <!-- KPI 部件（选中态） -->
+        <div class="cv-widget selected" style="left:24px;top:22px;width:300px;height:120px" data-cv="kpi">
+          <div class="cv-head"><span class="grip">⋮⋮</span>指标卡 · 原油产量<span class="cv-x" onclick="cvDel(this)"></span></div>
+          <div class="cv-body"><div class="cv-kpi">
+            <div class="k-label">原油产量 · 昨日（万吨）</div>
+            <div class="k-value" style="color:var(--oil)">12.86<span class="unit"> 万吨</span></div>
+            <div class="k-foot"><span class="trend up">▲ 2.4%</span> <span class="tx-3">日环比</span></div>
+          </div></div>
+          <i class="hdl h-nw"></i><i class="hdl h-n"></i><i class="hdl h-ne"></i><i class="hdl h-e"></i>
+          <i class="hdl h-se"></i><i class="hdl h-s"></i><i class="hdl h-sw"></i><i class="hdl h-w"></i>
+        </div>
+        <!-- 折线图部件 -->
+        <div class="cv-widget" style="left:348px;top:22px;width:560px;height:300px" data-cv="line">
+          <div class="cv-head"><span class="grip">⋮⋮</span>折线图 · 近7日油气产量趋势<span class="cv-x" onclick="cvDel(this)"></span></div>
+          <div class="cv-body"><div class="chart" style="height:100%;min-height:0" data-chart="dLine"></div></div>
+        </div>
+        <!-- 柱状图部件 -->
+        <div class="cv-widget" style="left:24px;top:166px;width:300px;height:260px" data-cv="bar">
+          <div class="cv-head"><span class="grip">⋮⋮</span>柱状图 · 各采油厂日产<span class="cv-x" onclick="cvDel(this)"></span></div>
+          <div class="cv-body"><div class="chart" style="height:100%;min-height:0" data-chart="dBar"></div></div>
+        </div>
+        <!-- 表格部件 -->
+        <div class="cv-widget" style="left:348px;top:346px;width:560px;height:190px" data-cv="table">
+          <div class="cv-head"><span class="grip">⋮⋮</span>明细表 · 重点井场运行<span class="cv-x" onclick="cvDel(this)"></span></div>
+          <div class="cv-body" style="padding:0;overflow:auto">
+            <table class="tbl" style="font-size:11px">
+              <thead><tr><th style="padding:6px 10px">井场</th><th style="padding:6px 10px">日产液(t)</th><th style="padding:6px 10px">含水率</th><th style="padding:6px 10px">状态</th></tr></thead>
+              <tbody>
+                <tr><td style="padding:6px 10px" class="cell-main">任11井场</td><td style="padding:6px 10px" class="num">486.2</td><td style="padding:6px 10px" class="num">86.1%</td><td style="padding:6px 10px"><span class="tag ok" style="font-size:10px">运行</span></td></tr>
+                <tr><td style="padding:6px 10px" class="cell-main">霸州二联合站</td><td style="padding:6px 10px" class="num">352.7</td><td style="padding:6px 10px" class="num">89.4%</td><td style="padding:6px 10px"><span class="tag ok" style="font-size:10px">运行</span></td></tr>
+                <tr><td style="padding:6px 10px" class="cell-main">岔河集一转油站</td><td style="padding:6px 10px" class="num">301.5</td><td style="padding:6px 10px" class="num">91.2%</td><td style="padding:6px 10px"><span class="tag warn" style="font-size:10px">检修</span></td></tr>
+                <tr><td style="padding:6px 10px" class="cell-main">留路北井场</td><td style="padding:6px 10px" class="num">268.9</td><td style="padding:6px 10px" class="num">84.7%</td><td style="padding:6px 10px"><span class="tag danger" style="font-size:10px">压力异常</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：属性面板 -->
+    <div class="card d-prop">
+      <div class="tabs" id="propTabs">
+        <div class="tab active" data-prop="data">数据</div>
+        <div class="tab" data-prop="style">样式</div>
+        <div class="tab" data-prop="link">联动</div>
+      </div>
+      <div class="prop-scroll">
+        <!-- 数据 -->
+        <div id="prop-data">
+          <div class="sm tx-3 mb-2" style="font-size:11px">当前选中：<b style="color:var(--brand)">指标卡 · 原油产量</b></div>
+          <div class="form-item">
+            <label class="form-label">数据集</label>
+            <select class="select" onchange="DG.toast('原型演示：切换数据集')">
+              <option>DS_采油日报（StarRocks）</option>
+              <option>DS_注水开发月报</option>
+              <option>DS_管网运行实时库</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label class="form-label">维度（拖入此处）</label>
+            <div class="chip-zone">
+              <span class="z-chip dim">采油厂</span>
+              <span class="z-chip dim">日期</span>
+            </div>
+          </div>
+          <div class="form-item">
+            <label class="form-label">度量 / 指标</label>
+            <div class="chip-zone">
+              <span class="z-chip">原油产量（求和）</span>
+            </div>
+          </div>
+          <div class="form-item">
+            <label class="form-label">过滤器</label>
+            <div class="chip-zone"><span class="z-chip" style="background:var(--warn-soft);color:var(--warn);border-color:rgba(251,191,36,.3)">日期 = 近7日</span></div>
+          </div>
+          <div class="form-item">
+            <label class="form-label">数据刷新频率</label>
+            <select class="select"><option>每 5 分钟</option><option>每 15 分钟</option><option>每小时</option><option>手动刷新</option></select>
+          </div>
+          <div class="form-item">
+            <label class="flex-between" style="font-size:12.5px;color:var(--tx-2)"><span>启用行级权限继承</span><label class="switch"><input type="checkbox" checked><i></i></label></label>
+          </div>
+        </div>
+        <!-- 样式 -->
+        <div id="prop-style" class="hidden">
+          <div class="form-item">
+            <label class="form-label">部件标题</label>
+            <input class="input" value="原油产量 · 昨日" />
+          </div>
+          <div class="style-row"><span>主题配色</span>
+            <span class="flex" style="gap:6px">
+              <i class="swatch on" style="background:#FF8A3D" onclick="swOn(this)"></i>
+              <i class="swatch" style="background:#22D3EE" onclick="swOn(this)"></i>
+              <i class="swatch" style="background:#A78BFA" onclick="swOn(this)"></i>
+              <i class="swatch" style="background:#E8B33C" onclick="swOn(this)"></i>
+              <i class="swatch" style="background:#34D399" onclick="swOn(this)"></i>
+            </span>
+          </div>
+          <div class="style-row"><span>圆角</span><input type="range" min="0" max="20" value="10" oninput="DG.toast('圆角：'+this.value+'px')"></div>
+          <div class="style-row"><span>背景透明度</span><input type="range" min="0" max="100" value="85" oninput="DG.toast('透明度：'+this.value+'%')"></div>
+          <div class="style-row"><span>数值字号</span>
+            <div class="seg"><span class="seg-item">小</span><span class="seg-item active">中</span><span class="seg-item">大</span></div>
+          </div>
+          <div class="style-row"><span>显示同比/环比</span><label class="switch"><input type="checkbox" checked><i></i></label></div>
+          <div class="style-row"><span>显示迷你趋势</span><label class="switch"><input type="checkbox"><i></i></label></div>
+        </div>
+        <!-- 联动 -->
+        <div id="prop-link" class="hidden">
+          <div class="sm tx-3 mb-2" style="font-size:11px">当用户与当前部件交互时触发：</div>
+          <div class="link-cfg">
+            <span class="tag brand">点击此图表</span>
+            <span class="l-arrow" id="la-r1"></span>
+            <span class="grow">联动过滤 <b>明细表 · 重点井场运行</b></span>
+            <label class="switch"><input type="checkbox" checked><i></i></label>
+          </div>
+          <div class="link-cfg">
+            <span class="tag brand">点击此图表</span>
+            <span class="l-arrow" id="la-r2"></span>
+            <span class="grow">下钻到 <b>井场明细（采油厂 → 区块 → 单井）</b></span>
+            <label class="switch"><input type="checkbox" checked><i></i></label>
+          </div>
+          <div class="link-cfg">
+            <span class="tag info">悬停提示</span>
+            <span class="l-arrow" id="la-r3"></span>
+            <span class="grow">展示 <b>单井产量构成浮层</b></span>
+            <label class="switch"><input type="checkbox"><i></i></label>
+          </div>
+          <button class="btn sm" style="width:100%;justify-content:center;margin-top:4px" onclick="DG.toast('原型演示：新增联动规则')"><span style="width:13px;height:13px;display:flex" id="ic-plus2"></span>新增联动规则</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+document.getElementById('ic-info').innerHTML = DG.ICONS.spark;
+document.getElementById('ic-plus2').innerHTML = DG.ICONS.plus;
+['la-r1','la-r2','la-r3'].forEach(id => document.getElementById(id).innerHTML = DG.ICONS.arrowR);
+document.querySelectorAll('.cv-x').forEach(x => x.innerHTML = DG.ICONS.x);
+
+/* ---- 部件库 ---- */
+const WSVG = (p) => `<svg viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const WIDGETS = {
+  chart: [
+    ['折线图', WSVG('<path d="M2 15 8 7l4 5 5-8 5 4"/>')],
+    ['柱状图', WSVG('<path d="M4 16V9M10 16V4M16 16v-6M22 16V7"/>')],
+    ['饼环图', WSVG('<circle cx="12" cy="9" r="6"/><path d="M12 3v6l5 3"/>')],
+    ['雷达图', WSVG('<path d="M12 2l8 5-3 8H7L4 7l8-5Z"/><path d="M12 6l3 2-1 3h-4l-1-3 3-2Z"/>')],
+    ['指标卡', WSVG('<rect x="2" y="2" width="20" height="14" rx="2"/><path d="M6 12V9M10 12V6M14 12V8M18 12v-2"/>')],
+    ['表格', WSVG('<rect x="2" y="2" width="20" height="14" rx="2"/><path d="M2 7h20M2 12h20M9 2v14"/>')],
+    ['漏斗图', WSVG('<path d="M3 3h18l-5 5H8L3 3ZM8 10h8l-3 4h-2l-3-4Z"/>')],
+    ['地图GIS', WSVG('<path d="M9 3 3 5v11l6-2 6 2 6-2V3l-6 2-6-2ZM9 3v11M15 5v11"/>')],
+    ['进度环', WSVG('<circle cx="12" cy="9" r="6"/><path d="M12 3a6 6 0 0 1 6 6" stroke-width="2.6"/>')],
+  ],
+  comp: [
+    ['筛选器', WSVG('<path d="M3 4h18l-7 7v5l-4-2v-3L3 4Z"/>')],
+    ['Tab容器', WSVG('<rect x="2" y="3" width="20" height="13" rx="2"/><path d="M2 7h20M5 5h4"/>')],
+    ['图片', WSVG('<rect x="3" y="3" width="18" height="12" rx="2"/><circle cx="8" cy="7" r="1.4"/><path d="m3 13 5-4 4 3 4-3 5 4"/>')],
+    ['iframe', WSVG('<rect x="2" y="3" width="20" height="12" rx="2"/><path d="m9 7-3 2.5L9 12M15 7l3 2.5-3 2.5"/>')],
+    ['三维场景', WSVG('<path d="M12 2 3 7v8l9 5 9-5V7l-9-5ZM3 7l9 5 9-5M12 12v8"/>')],
+    ['视频', WSVG('<rect x="2" y="3" width="20" height="12" rx="2"/><path d="m10 6.5 5 2.5-5 2.5v-5Z"/>')],
+  ],
+  text: [
+    ['标题', WSVG('<path d="M4 4h16M4 4v3M20 4v3M12 4v11M9 15h6"/>')],
+    ['富文本', WSVG('<path d="M4 3h16M4 8h16M4 13h10"/>')],
+    ['跑马灯', WSVG('<path d="M3 5h13M3 9h18M3 13h8"/><path d="m18 11 3 2-3 2"/>')],
+    ['时间', WSVG('<circle cx="12" cy="9" r="6"/><path d="M12 6v3l2 1.5"/>')],
+    ['分隔线', WSVG('<path d="M3 9h18"/>')],
+  ]
+};
+const wtGrid = document.getElementById('wtGrid');
+function renderWidgets(kind) {
+  wtGrid.innerHTML = WIDGETS[kind].map(([n, ico]) =>
+    `<div class="wt-item" onclick="DG.toast('原型演示：拖拽「${n}」部件到画布')"><span class="wt-ico">${ico}</span>${n}</div>`).join('');
+}
+renderWidgets('chart');
+document.querySelectorAll('#libTabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#libTabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    renderWidgets(t.dataset.lib);
+  });
+});
+
+/* ---- 属性面板 Tab ---- */
+document.querySelectorAll('#propTabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#propTabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    ['data','style','link'].forEach(k => document.getElementById('prop-' + k).classList.toggle('hidden', k !== t.dataset.prop));
+  });
+});
+
+/* ---- 画布部件选中 ---- */
+document.querySelectorAll('.cv-widget').forEach(w => {
+  w.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.cv-widget').forEach(x => x.classList.remove('selected'));
+    w.classList.add('selected');
+  });
+});
+document.getElementById('canvas').addEventListener('click', () => {
+  document.querySelectorAll('.cv-widget').forEach(x => x.classList.remove('selected'));
+});
+function cvDel(el) { event.stopPropagation(); DG.toast('原型演示：删除部件（可撤销）'); }
+function bpSwitch(btn, name) {
+  document.querySelectorAll('.d-toolbar .t-icon-btn').forEach(b => { if (b.title.match(/桌面端|平板端|手机端/)) b.classList.remove('active'); });
+  btn.classList.add('active');
+  DG.toast('原型演示：画布切换至' + name);
+}
+function swOn(el) {
+  el.parentElement.querySelectorAll('.swatch').forEach(s => s.classList.remove('on'));
+  el.classList.add('on');
+}
+/* 样式 seg */
+document.querySelectorAll('#prop-style .seg-item').forEach(s => {
+  s.addEventListener('click', () => {
+    s.parentElement.querySelectorAll('.seg-item').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+  });
+});
+
+/* ---- 画布内图表真实渲染 ---- */
+const C = DG.colors;
+DG.autoCharts({
+  dLine: () => ({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['原油(万吨)', '天然气(亿方)'] },
+    grid: { left: 4, right: 8, top: 28, bottom: 2 },
+    xAxis: { type: 'category', data: DG.WEEK, axisLabel: { fontSize: 10 } },
+    yAxis: [
+      { type: 'value', axisLabel: { fontSize: 10 } },
+      { type: 'value', splitLine: { show: false }, axisLabel: { fontSize: 10 } }
+    ],
+    series: [
+      { name: '原油(万吨)', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2.2 },
+        areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.26)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } },
+        data: DG.series(7, 12.8, 0.5, 1) },
+      { name: '天然气(亿方)', type: 'line', smooth: true, symbol: 'none', yAxisIndex: 1,
+        lineStyle: { width: 2, color: C.gas }, itemStyle: { color: C.gas }, data: DG.series(7, 4.3, 0.16, 3) }
+    ]
+  }),
+  dBar: () => ({
+    tooltip: { trigger: 'axis' },
+    grid: { left: 4, right: 8, top: 14, bottom: 2 },
+    xAxis: { type: 'category', data: ['任丘','霸州','岔河集','留路','深县'], axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: 't', axisLabel: { fontSize: 10 } },
+    series: [{ type: 'bar', barWidth: 16, data: [486.2, 352.7, 301.5, 268.9, 233.4],
+      itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: '#FF8A3D' }, { offset: 1, color: 'rgba(244,99,58,.3)' }] } } }]
+  })
+});
+</script>
+</body>
+</html>

@@ -52,12 +52,52 @@ export interface SqlpadSelectForm {
   returnMeta?: boolean
 }
 
+export type CommitMode = 'AUTO' | 'MANUAL'
+export type SqlCommand = 'COMMIT' | 'ROLLBACK' | 'STOP'
+export type ExceptionHandleMode = 'ABORT' | 'IGNORE' | 'ROLLBACK'
+
+export interface SqlpadExecuteOptions {
+  commitMode?: CommitMode
+  exceptionHandleMode?: ExceptionHandleMode
+  resultsetFetchSize?: number
+  overTimeThreashold?: number
+  sqlDelimiter?: string
+  sqlStartRow?: number
+  sqlStartColumn?: number
+}
+
 /** 提交 SQL 执行（异步，返回 OperationMessage） */
-export async function executeSql(dtbsSourceId: string, sqlpadId: string, sql: string) {
+export async function executeSql(
+  dtbsSourceId: string,
+  sqlpadId: string,
+  sql: string,
+  options: SqlpadExecuteOptions = {},
+) {
+  const params: Record<string, string | number | undefined> = {
+    sqlpadId,
+    sql,
+    commitMode: options.commitMode ?? 'AUTO',
+    exceptionHandleMode: options.exceptionHandleMode ?? 'ABORT',
+    resultsetFetchSize: options.resultsetFetchSize ?? 100,
+  }
+  if (options.sqlDelimiter) params.sqlDelimiter = options.sqlDelimiter
+  if (options.sqlStartRow != null) params.sqlStartRow = options.sqlStartRow
+  if (options.sqlStartColumn != null) params.sqlStartColumn = options.sqlStartColumn
+  if (options.overTimeThreashold != null) params.overTimeThreashold = options.overTimeThreashold
   const res = await request.post<OperationMessage>(
     `/api/dtbsSourceSqlpad/${dtbsSourceId}/execute`,
     null,
-    { params: { sqlpadId, sql } },
+    { params },
+  )
+  return unwrap(res)
+}
+
+/** 发送命令：STOP / COMMIT / ROLLBACK */
+export async function sendCommand(dtbsSourceId: string, sqlpadId: string, command: SqlCommand) {
+  const res = await request.post<OperationMessage>(
+    `/api/dtbsSourceSqlpad/${dtbsSourceId}/command`,
+    null,
+    { params: { sqlpadId, command } },
   )
   return unwrap(res)
 }

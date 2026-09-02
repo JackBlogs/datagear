@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getChangelog, type VersionContent } from '@/api/public'
+
+const { t } = useI18n()
 
 const items = ref<VersionContent[]>([])
 const loading = ref(false)
@@ -21,38 +24,34 @@ function versionText(v: VersionContent): string {
 </script>
 
 <template>
-  <div class="changelog">
-    <h1>更新日志</h1>
-    <div v-if="loading" class="muted">加载中…</div>
-    <div v-for="(v, i) in items" :key="i" class="ver">
-      <h2 class="ver-title">版本 {{ versionText(v) }}</h2>
-      <ul>
-        <li v-for="(c, j) in v.contents ?? []" :key="j">{{ c }}</li>
-      </ul>
-    </div>
-    <div v-if="!loading && !items.length" class="muted">暂无更新日志</div>
+  <div class="changelog-page page page-form h-full p-card no-border h-screen m-0 p-1">
+    <form class="flex flex-column h-full">
+      <div class="page-form-content no-max-height flex-grow-1 pr-2 py-1 overflow-y-auto">
+        <div v-if="loading" class="text-color-secondary">{{ t('loading') }}</div>
+        <template v-for="(v, _idx) in items" :key="_idx">
+          <div class="field grid mb-0">
+            <label class="field-label col-12 mb-2 md:col-2 md:mb-0 justify-content-center">{{ t('version') }}</label>
+            <div class="field-input col-12 md:col-10">
+              <div class="text-xl font-bold">{{ versionText(v) }}</div>
+            </div>
+          </div>
+          <div class="field grid mb-0">
+            <label class="field-label col-12 mb-2 md:col-2 md:mb-0">&nbsp;</label>
+            <div class="field-input col-12 md:col-10">
+              <ul class="pl-4">
+                <li v-for="(c, j) in v.contents ?? []" :key="j" class="py-1">{{ c }}</li>
+              </ul>
+            </div>
+          </div>
+        </template>
+        <div v-if="!loading && !items.length" class="text-color-secondary">{{ t('noChangelog') }}</div>
+      </div>
+    </form>
   </div>
 </template>
 
 <style scoped>
-.changelog {
-  padding: 24px;
-  max-width: 720px;
-  margin: 0 auto;
-}
-.ver {
-  margin-bottom: 20px;
-}
-.ver-title {
-  font-size: 16px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 6px;
-}
-li {
-  margin: 4px 0;
-  color: #444;
-}
-.muted {
-  color: #999;
+.changelog-page {
+  padding: 1rem;
 }
 </style>
