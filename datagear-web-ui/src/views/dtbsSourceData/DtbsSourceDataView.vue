@@ -99,7 +99,7 @@ async function loadTitle() {
       dtbsSourceTitle.value = d.title ?? ''
     }
   } catch {
-    // 忽略标题加载失败
+    // 忽略标题加载失败；
   }
 }
 
