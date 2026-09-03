@@ -1,0 +1,6 @@
+{
+  "driverPage.title": "驱动程序",
+  "driverPage.desc": "管理数据库 JDBC 驱动库，供数据源连接使用",
+  "driverPage.total": "共 {n} 个驱动",
+  "driverPage.empty": "暂无驱动程序，点击右上角「新建驱动」添加"
+}

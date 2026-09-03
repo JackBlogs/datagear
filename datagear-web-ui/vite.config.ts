@@ -64,6 +64,21 @@ export default defineConfig(({ mode }) => {
         '/dashboard': {
           target: backendTarget,
           changeOrigin: true,
+          // SPA 路由 /dashboard* 与旧端点同前缀：整页导航回退 SPA（旧分享展示页 /dashboard/show 除外），
+          // XHR（axios 带 X-Requested-With）仍代理后端
+          bypass(req) {
+            const accept = String(req.headers.accept ?? '')
+            const url = String(req.url ?? '')
+            if (
+              req.method === 'GET' &&
+              accept.includes('text/html') &&
+              !req.headers['x-requested-with'] &&
+              !url.startsWith('/dashboard/show')
+            ) {
+              return '/index.html'
+            }
+            return undefined
+          },
         },
         '/dtbsSourceSqlpad': {
           target: backendTarget,
@@ -76,6 +91,15 @@ export default defineConfig(({ mode }) => {
         '/dtbsSourceData': {
           target: backendTarget,
           changeOrigin: true,
+          // SPA 路由 /dtbsSourceData/:id 与旧端点同前缀：浏览器整页导航回退到 SPA，
+          // 仅 XHR（axios 带 X-Requested-With / 非 text/html）才代理到后端（如 getQuerySql）
+          bypass(req) {
+            const accept = String(req.headers.accept ?? '')
+            if (req.method === 'GET' && accept.includes('text/html') && !req.headers['x-requested-with']) {
+              return '/index.html'
+            }
+            return undefined
+          },
         },
         '/dtbsSourceUrlBuilder': {
           target: backendTarget,
@@ -84,13 +108,65 @@ export default defineConfig(({ mode }) => {
         '/dataSet': {
           target: backendTarget,
           changeOrigin: true,
+          // SPA 路由 /dataSet* 与旧端点同前缀：整页导航回退 SPA，XHR 仍代理后端（如 /dataSet/preview/SQL）
+          bypass(req) {
+            const accept = String(req.headers.accept ?? '')
+            if (req.method === 'GET' && accept.includes('text/html') && !req.headers['x-requested-with']) {
+              return '/index.html'
+            }
+            return undefined
+          },
         },
         '/chart': {
           target: backendTarget,
           changeOrigin: true,
+          // SPA 路由 /chart* 与旧端点同前缀：整页导航回退 SPA（旧图表展示页 /chart/show 除外）
+          bypass(req) {
+            const accept = String(req.headers.accept ?? '')
+            const url = String(req.url ?? '')
+            if (
+              req.method === 'GET' &&
+              accept.includes('text/html') &&
+              !req.headers['x-requested-with'] &&
+              !url.startsWith('/chart/show')
+            ) {
+              return '/index.html'
+            }
+            return undefined
+          },
         },
         // 驱动库文件的旧端点（上传/下载/删除/列表），迁移期直接复用后端控制器
         '/driverEntity': {
+          target: backendTarget,
+          changeOrigin: true,
+          // SPA 路由 /driverEntity* 与旧端点同前缀：整页导航回退 SPA（驱动文件下载端点除外）
+          bypass(req) {
+            const accept = String(req.headers.accept ?? '')
+            const url = String(req.url ?? '')
+            if (
+              req.method === 'GET' &&
+              accept.includes('text/html') &&
+              !req.headers['x-requested-with'] &&
+              !url.startsWith('/driverEntity/downloadDriverFile')
+            ) {
+              return '/index.html'
+            }
+            return undefined
+          },
+        },
+        // 旧服务端渲染/非 /api 端点（无 /api 版，见《端点契约盘点表》核验）：
+        // 数据库信息页（HTML，前端解析内嵌 formModel JSON）
+        '/dtbsSource/dbinfo': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        // 数据源防护测试执行（JSON）
+        '/dtbsSourceGuard/testExecute': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        // 文件源文件浏览（JSON）
+        '/fileSource/file': {
           target: backendTarget,
           changeOrigin: true,
         },

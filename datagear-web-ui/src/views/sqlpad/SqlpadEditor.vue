@@ -19,6 +19,9 @@ import { useOperationMessage } from '@/composables/useOperationMessage'
 import CodeEditor from '@/components/CodeEditor.vue'
 
 // SQL 工作台，按原 dtbsSourceSqlpad.ftl 复刻核心工具栏 + 消息 + 结果。
+// 第三轮：按原型「能源暗域」风格重排版式（page-head/.btn/.tabs/.tbl/.sql-code + CodeMirror 深色），功能不变。
+import '@/styles/datasource-page.css'
+
 const route = useRoute()
 const dtbsSourceId = route.params.dtbsSourceId as string
 const dtbsSourceTitle = (route.query.title as string) || '数据源'
@@ -72,6 +75,16 @@ const { success, fail } = useOperationMessage()
 const logs = computed(() => messages.value.filter((m) => m.type !== 'SqlSuccessMessage'))
 const activeTab = computed(() => resultTabs.value[activeResultIndex.value])
 const hasResultTabs = computed(() => resultTabs.value.length > 0)
+
+const commitModeOptions = computed(() => [
+  { name: t('sqlpad.auto'), value: 'AUTO' as CommitMode },
+  { name: t('sqlpad.manual'), value: 'MANUAL' as CommitMode },
+])
+const exceptionModeOptions = computed(() => [
+  { name: t('sqlpad.abort'), value: 'ABORT' as ExceptionHandleMode },
+  { name: t('sqlpad.ignore'), value: 'IGNORE' as ExceptionHandleMode },
+  { name: t('sqlpad.rollback'), value: 'ROLLBACK' as ExceptionHandleMode },
+])
 
 function messageText(m: SqlpadMessage): string {
   switch (m.type) {
@@ -195,7 +208,7 @@ function insertDelimiter() {
 }
 
 function defineDelimiter() {
-  const d = window.prompt('请输入新的 SQL 分隔符', sqlDelimiter.value)
+  const d = window.prompt(t('sqlpad.defineDelimiterAsk'), sqlDelimiter.value)
   if (d !== null) sqlDelimiter.value = d
 }
 
@@ -216,7 +229,7 @@ async function loadMore() {
     tab.rows.push(...(r.rows ?? []))
     tab.nextStartRow = r.nextStartRow ?? null
   } catch (e) {
-    fail((e as Error).message || '加载更多失败')
+    fail((e as Error).message || t('sqlpad.loadMoreFail'))
   }
 }
 
@@ -226,7 +239,7 @@ async function loadHistory() {
     const data = await sqlHistoryData(dtbsSourceId, { page: 1, pageSize: 50 })
     history.value = data.items
   } catch (e) {
-    fail((e as Error).message || '加载历史失败')
+    fail((e as Error).message || t('sqlpad.loadHistoryFail'))
   } finally {
     historyLoading.value = false
   }
@@ -245,221 +258,156 @@ onBeforeUnmount(stopPoll)
 </script>
 
 <template>
-  <div class="page page-manager page-sqlpad h-full flex flex-column overflow-auto">
-    <div class="page-header grid grid-nogutter align-items-center p-1 flex-grow-0">
-      <div class="col-12 flex align-items-center mb-2">
-        <i class="pi pi-database text-color-secondary text-sm"></i>
-        <div class="text-color-secondary text-sm ml-1">{{ dtbsSourceTitle }}</div>
-        <i class="pi pi-angle-right text-color-secondary text-sm mx-1"></i>
-        <div class="text-color-secondary text-sm">{{ t('module.sqlpad') }}</div>
+  <div class="ds-page" style="display:flex;flex-direction:column;overflow:hidden">
+    <!-- 页头 -->
+    <div class="page-head" style="margin-bottom:12px">
+      <div>
+        <div class="page-title">{{ t('sqlpad.title') }}<span class="tx-3" style="font-size:15px;font-weight:400"> · {{ dtbsSourceTitle }}</span></div>
+        <div class="page-desc">{{ t('sqlpad.desc') }}</div>
       </div>
-      <div class="col-12 flex flex-wrap gap-1">
-        <Button :icon="executing ? 'pi pi-pause' : 'pi pi-play'" :label="t('execute')" :loading="executing" @click="run" />
-        <Button icon="pi pi-stop" :label="t('stop')" class="p-button-secondary" @click="sendCmd('STOP')" />
-        <Button
-          icon="pi pi-check"
-          :label="t('commit')"
-          :class="{ 'p-button-secondary': !waitCommitOrRollback }"
-          @click="sendCmd('COMMIT')"
-        />
-        <Button
-          icon="pi pi-undo"
-          :label="t('rollback')"
-          :class="{ 'p-button-secondary': !waitCommitOrRollback }"
-          @click="sendCmd('ROLLBACK')"
-        />
-        <span class="p-inputgroup inline-flex w-auto ml-2">
-          <InputText v-model="sqlDelimiter" style="width: 6rem" :title="t('sqlDelimiter')" />
-          <Button icon="pi pi-flag" class="p-button-secondary" :title="t('defineDelimiter')" @click="defineDelimiter" />
-          <Button icon="pi pi-flag-fill" class="p-button-secondary" :title="t('insertDelimiter')" @click="insertDelimiter" />
+      <div class="page-actions">
+        <button class="btn" type="button" @click="showHistory = !showHistory; showHistory && loadHistory()">{{ t('sqlpad.history') }}</button>
+        <button class="btn" type="button" @click="showSettings = !showSettings">{{ t('sqlpad.settings') }}</button>
+      </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="flex mb-2" style="gap:8px;flex-wrap:wrap;flex:none">
+      <button class="btn primary" type="button" :disabled="executing" @click="run">
+        {{ executing ? t('loading') : t('sqlpad.execute') }}
+      </button>
+      <button class="btn" type="button" @click="sendCmd('STOP')">{{ t('sqlpad.stop') }}</button>
+      <button class="btn" :class="{ primary: waitCommitOrRollback }" type="button" @click="sendCmd('COMMIT')">{{ t('sqlpad.commit') }}</button>
+      <button class="btn" :class="{ primary: waitCommitOrRollback }" type="button" @click="sendCmd('ROLLBACK')">{{ t('sqlpad.rollback') }}</button>
+      <span class="flex" style="gap:6px;margin-left:8px">
+        <input v-model="sqlDelimiter" class="input" style="width:70px;padding:6px 10px" :title="t('sqlpad.delimiter')" />
+        <button class="btn sm" type="button" :title="t('defineDelimiter')" @click="defineDelimiter">{{ t('sqlpad.define') }}</button>
+        <button class="btn sm" type="button" :title="t('insertDelimiter')" @click="insertDelimiter">{{ t('sqlpad.insert') }}</button>
+      </span>
+      <button class="btn danger sm" type="button" style="margin-left:auto" @click="clearSql">{{ t('clear') }}</button>
+    </div>
+
+    <!-- 历史面板 -->
+    <div v-if="showHistory" class="card mb-2" style="flex:none;max-height:200px;overflow-y:auto;padding:10px 14px">
+      <div class="card-title" style="margin-bottom:8px">
+        <span class="bar"></span>{{ t('sqlHistory') }}
+        <span class="more" @click="loadHistory">{{ t('refresh') }}</span>
+      </div>
+      <div v-if="historyLoading" class="tx-3 sm">{{ t('loading') }}…</div>
+      <div v-else-if="!history.length" class="tx-3 sm">{{ t('noHistory') }}</div>
+      <div v-for="(h, i) in history" v-else :key="i" class="row-item" style="padding:7px 10px" @click="fillFromHistory(h)">
+        <span class="ellipsis grow" style="font-family:var(--font-mono);font-size:12px">{{ h.sql }}</span>
+        <span class="tx-3 sm" style="flex:none">{{ h.createTime }}</span>
+      </div>
+    </div>
+
+    <!-- 设置面板 -->
+    <div v-if="showSettings" class="card mb-2" style="flex:none;padding:12px 14px">
+      <div class="flex" style="gap:22px;flex-wrap:wrap;align-items:center">
+        <span class="flex" style="gap:8px">
+          <label class="form-label" style="margin:0">{{ t('commitMode') }}</label>
+          <span class="seg">
+            <span v-for="o in commitModeOptions" :key="o.value" class="seg-item" :class="{ active: commitMode === o.value }" @click="commitMode = o.value">{{ o.name }}</span>
+          </span>
         </span>
-        <Button icon="pi pi-trash" :label="t('clear')" class="p-button-secondary ml-2" @click="clearSql" />
-        <div class="flex-grow-1"></div>
-        <Button
-          icon="pi pi-history"
-          :label="t('history')"
-          class="p-button-secondary"
-          @click="showHistory = !showHistory; showHistory && loadHistory()"
-        />
-        <Button icon="pi pi-cog" :label="t('settings')" class="p-button-secondary" @click="showSettings = !showSettings" />
+        <span class="flex" style="gap:8px">
+          <label class="form-label" style="margin:0">{{ t('exceptionHandleMode') }}</label>
+          <span class="seg">
+            <span v-for="o in exceptionModeOptions" :key="o.value" class="seg-item" :class="{ active: exceptionHandleMode === o.value }" @click="exceptionHandleMode = o.value">{{ o.name }}</span>
+          </span>
+        </span>
+        <span class="flex" style="gap:8px">
+          <label class="form-label" style="margin:0">{{ t('resultFetchSize') }}</label>
+          <select v-model="resultsetFetchSize" class="select" style="width:100px;padding:5px 10px">
+            <option v-for="n in [10, 50, 100, 200, 500]" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </span>
+        <span class="flex" style="gap:8px">
+          <label class="form-label" style="margin:0">{{ t('overTimeThreshold') }}</label>
+          <select v-model="overTimeThreashold" class="select" style="width:100px;padding:5px 10px">
+            <option :value="0">{{ t('sqlpad.noLimit') }}</option>
+            <option :value="5">5s</option>
+            <option :value="10">10s</option>
+            <option :value="30">30s</option>
+            <option :value="60">60s</option>
+          </select>
+        </span>
       </div>
     </div>
 
-    <div v-if="showHistory" class="history p-2 overflow-auto flex-grow-0">
-      <div class="flex align-items-center justify-content-between mb-1">
-        <span class="text-sm">{{ t('sqlHistory') }}</span>
-        <Button icon="pi pi-refresh" size="small" text :label="t('refresh')" @click="loadHistory" />
-      </div>
-      <div v-if="historyLoading" class="text-color-secondary">{{ t('loading') }}</div>
-      <div v-else-if="history.length === 0" class="text-color-secondary">{{ t('noHistory') }}</div>
-      <div v-for="(h, i) in history" :key="i" class="history-item" @click="fillFromHistory(h)">
-        <div class="history-sql">{{ h.sql }}</div>
-        <div class="history-time">{{ h.createTime }}</div>
+    <!-- 编辑器 -->
+    <div style="flex:1;min-height:180px;overflow:hidden" class="mb-1">
+      <CodeEditor v-model="sql" style="height:100%;display:block" />
+    </div>
+
+    <!-- 消息区（.sql-code 风格，保留分类着色） -->
+    <div v-if="logs.length" class="sql-code wrap mb-1" style="flex:none;max-height:150px;overflow-y:auto;padding:10px 14px">
+      <div v-for="(m, i) in logs" :key="i" class="msg-line" :class="messageClass(m)">
+        <span class="msg-time">{{ m.timeText }}</span><span>{{ messageText(m) }}</span>
       </div>
     </div>
 
-    <div v-if="showSettings" class="settings p-2 flex-grow-0">
-      <div class="grid">
-        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
-          <label>{{ t('commitMode') }}</label>
-          <SelectButton
-            v-model="commitMode"
-            :options="[
-              { name: '自动', value: 'AUTO' },
-              { name: '手动', value: 'MANUAL' },
-            ]"
-            option-label="name"
-            option-value="value"
-          />
-        </div>
-        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
-          <label>{{ t('exceptionHandleMode') }}</label>
-          <SelectButton
-            v-model="exceptionHandleMode"
-            :options="[
-              { name: '中止', value: 'ABORT' },
-              { name: '忽略', value: 'IGNORE' },
-              { name: '回滚', value: 'ROLLBACK' },
-            ]"
-            option-label="name"
-            option-value="value"
-          />
-        </div>
-        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
-          <label>{{ t('resultFetchSize') }}</label>
-          <Dropdown v-model="resultsetFetchSize" :options="[10, 50, 100, 200, 500]" />
-        </div>
-        <div class="col-12 md:col-6 lg:col-3 flex align-items-center gap-2">
-          <label>{{ t('overTimeThreshold') }}</label>
-          <Dropdown
-            v-model="overTimeThreashold"
-            :options="[
-              { name: '不限', value: 0 },
-              { name: '5秒', value: 5 },
-              { name: '10秒', value: 10 },
-              { name: '30秒', value: 30 },
-              { name: '60秒', value: 60 },
-            ]"
-            option-label="name"
-            option-value="value"
-          />
-        </div>
+    <!-- 结果区（.tabs + .tbl） -->
+    <div v-if="hasResultTabs" class="qb-pane" style="flex:none;min-height:0;display:flex;flex-direction:column;max-height:42vh">
+      <div class="tabs" style="margin-bottom:10px">
+        <span
+          v-for="(tab, i) in resultTabs"
+          :key="i"
+          class="tab"
+          :class="{ active: activeResultIndex === i }"
+          @click="activeResultIndex = i"
+        >{{ tab.title }}<span v-if="tab.rows.length" class="cnt">{{ tab.rows.length }}</span></span>
+        <span v-if="activeTab?.nextStartRow != null" class="link" style="margin-left:auto;align-self:center" @click="loadMore">{{ t('loadMore') }}</span>
+      </div>
+      <div v-if="activeTab && activeTab.updateCount != null && !activeTab.rows.length" class="tx-3 sm">
+        {{ t('affectRows', { count: activeTab.updateCount }) }}
+      </div>
+      <div v-else-if="activeTab" class="table-wrap" style="border-radius:var(--r-m);overflow:auto;min-height:0">
+        <table class="tbl" style="font-size:12px">
+          <thead>
+            <tr><th v-for="c in activeTab.columns" :key="c">{{ c }}</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, ri) in activeTab.rows" :key="ri">
+              <td v-for="c in activeTab.columns" :key="c">
+                <span class="cell-link" @click="viewFullValue(row, c)">{{ cellValue(row, c) }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <div class="page-content flex-grow-1 overflow-hidden flex flex-column">
-      <CodeEditor v-model="sql" class="sql-editor flex-1" />
-      <div class="messages p-2 overflow-auto flex-grow-0">
-        <div v-for="(m, i) in logs" :key="i" class="message" :class="messageClass(m)">
-          <span class="msg-time">{{ m.timeText }}</span>
-          <span>{{ messageText(m) }}</span>
+    <!-- 单元格完整值弹窗（.modal 风格） -->
+    <div v-if="fullValue" class="modal-mask" @click.self="fullValue = null">
+      <div class="modal" style="width:640px">
+        <div class="flex-between">
+          <div style="font-size:15px;font-weight:700;font-family:var(--font-mono)">{{ fullValue.field }}</div>
+          <button class="drawer-close" type="button" @click="fullValue = null">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
-      </div>
-      <div v-if="hasResultTabs" class="result p-2 flex-grow-0">
-        <div class="flex align-items-center justify-content-between mb-2">
-          <span>{{ t('queryResult') }}</span>
-          <Button v-if="activeTab?.nextStartRow != null" :label="t('loadMore')" size="small" text @click="loadMore" />
+        <div class="sql-code wrap mt-2" style="max-height:56vh;overflow:auto">{{ fullValue.value }}</div>
+        <div class="modal-foot">
+          <button class="btn" type="button" @click="fullValue = null">{{ t('close') }}</button>
         </div>
-        <TabView v-model:active-index="activeResultIndex" :scrollable="true">
-          <TabPanel v-for="(tab, i) in resultTabs" :key="i" :header="tab.title">
-            <div v-if="tab.updateCount != null && !tab.rows.length" class="text-color-secondary p-2">
-              {{ t('affectRows', { count: tab.updateCount }) }}
-            </div>
-            <DataTable v-else :value="tab.rows" class="p-datatable-sm" striped-rows scrollable scroll-height="220px" data-key="__rowid">
-              <Column v-for="c in tab.columns" :key="c" :field="c" :header="c">
-                <template #body="{ data }">
-                  <span class="cell-value" @click="viewFullValue(data, c)">{{ cellValue(data, c) }}</span>
-                </template>
-              </Column>
-            </DataTable>
-          </TabPanel>
-        </TabView>
       </div>
     </div>
-
-    <Dialog
-      :visible="!!fullValue"
-      :header="fullValue?.field ?? ''"
-      modal
-      maximizable
-      class="full-value-dialog"
-      @update:visible="fullValue = null"
-    >
-      <pre class="full-value-content">{{ fullValue?.value }}</pre>
-    </Dialog>
   </div>
 </template>
 
 <style scoped>
-.sql-editor {
-  font-family: monospace;
-  font-size: 14px;
-  border-top: 1px solid var(--surface-border);
-  border-bottom: 1px solid var(--surface-border);
-}
-.messages {
-  max-height: 200px;
-  border-bottom: 1px solid var(--surface-border);
-}
-.message {
-  padding: 3px 6px;
-  border-radius: 4px;
-}
-.msg-time {
-  margin-right: 8px;
-  color: #888;
-}
-.msg-error {
-  color: #b00020;
-}
-.msg-success {
-  color: #2e7d32;
-}
-.msg-info {
-  color: var(--text-color);
-}
-.history {
-  max-height: 180px;
-  border-bottom: 1px solid var(--surface-border);
-}
-.history-item {
-  padding: 4px 6px;
-  cursor: pointer;
-  border-bottom: 1px dashed var(--surface-border);
-}
-.history-item:hover {
-  background: var(--surface-hover);
-}
-.history-sql {
-  font-family: monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.history-time {
-  color: #999;
-  font-size: 12px;
-}
-.settings {
-  border-bottom: 1px solid var(--surface-border);
-  background: var(--surface-section);
-}
-.cell-value {
+.cell-link {
   cursor: pointer;
   display: inline-block;
-  max-width: 18ch;
+  max-width: 22ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
 }
-.cell-value:hover {
-  color: var(--primary-color);
+.cell-link:hover {
+  color: var(--brand);
   text-decoration: underline;
-}
-.full-value-content {
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin: 0;
 }
 </style>

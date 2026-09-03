@@ -1,0 +1,6 @@
+{
+  "pluginPage.title": "图表插件",
+  "pluginPage.desc": "上传 ECharts 插件 zip 包，扩展图表类型库",
+  "pluginPage.total": "共 {n} 个插件",
+  "pluginPage.empty": "暂无插件，点击右上角「上传插件」添加 zip 插件包"
+}

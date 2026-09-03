@@ -281,6 +281,17 @@ public class DtbsSourceController extends AbstractDtbsSourceConnTableController
 		if (!this.dtbsSourceGuardService.isPermitted(user, new GuardEntity(entity)))
 			throw new SaveDtbsSourcePermissionDeniedException();
 
+		// 未提交密码（null）且指定了数据源ID时（如列表页行内测试、编辑页未改动密码），
+		// 使用服务端存储的密码测试（getByIdForView内部已做查看权限校验，服务层取库时已解密）。
+		// 注意：仅在密码为null时回填，空串不回填——经核验DtbsSourceMapper.xml的update语句
+		// 无条件更新SCHEMA_PASSWORD（空串会覆盖密码），即"留空则保持原密码"语义不成立，
+		// 空串代表"显式清空密码"，不应误回填。
+		if (!isEmpty(entity.getId()) && entity.getPassword() == null)
+		{
+			DtbsSource persist = getByIdForView(getDtbsSourceService(), user, entity.getId());
+			entity.setPassword(persist.getPassword());
+		}
+
 		// 用户选定驱动程序时
 		if (!isEmpty(entity.getDriverEntity()) && !isEmpty(entity.getDriverEntity().getId()))
 		{

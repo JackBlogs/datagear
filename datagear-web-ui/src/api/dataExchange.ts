@@ -8,6 +8,46 @@ import type { OperationMessage } from '@/types'
 
 export type ExportType = 'csv' | 'excel' | 'sql' | 'json'
 
+/**
+ * 数据格式（对应后端 org.datagear.dataexchange.DataFormat）。
+ * dateFormat/timeFormat/timestampFormat/numberFormat 继承自 DateNumberFormat。
+ */
+export interface DataFormat {
+  dateFormat?: string
+  timeFormat?: string
+  timestampFormat?: string
+  numberFormat?: string
+  /** Hex / Base64 / NULL */
+  binaryFormat?: string
+}
+
+/**
+ * 导出选项。
+ * SQL 导出：org.datagear.dataexchange.support.SqlDataExportOption（exportCreationSql）；
+ * JSON 导出：JsonDataExportOption（jsonDataFormat + prettyPrint）；
+ * CSV/Excel：TextDataExportOption 无额外字段。
+ */
+export interface DataExportOption {
+  exportCreationSql?: boolean
+  /** TABLE_OBJECT / ROW_ARRAY */
+  jsonDataFormat?: string
+  prettyPrint?: boolean
+}
+
+/**
+ * 导入选项。
+ * 基类 DataImportOption（exceptionResolve：ABORT/IGNORE/ROLLBACK）；
+ * ValueDataImportOption（ignoreInexistentColumn/nullForIllegalColumnValue/nullForEmptyImportKey）；
+ * JSON 导入：JsonDataImportOption（jsonDataFormat）。
+ */
+export interface DataImportOption {
+  exceptionResolve?: string
+  ignoreInexistentColumn?: boolean
+  nullForIllegalColumnValue?: boolean
+  nullForEmptyImportKey?: boolean
+  jsonDataFormat?: string
+}
+
 export interface SubDataExportForm {
   id: string
   fileName: string
@@ -18,8 +58,8 @@ export interface DataExportForm {
   dataExchangeId: string
   fileEncoding: string
   subDataExchanges: SubDataExportForm[]
-  dataFormat?: Record<string, unknown>
-  exportOption?: Record<string, unknown>
+  dataFormat?: DataFormat
+  exportOption?: DataExportOption
 }
 
 export function newId(): string {
@@ -56,6 +96,38 @@ export function downloadAllUrl(dtbsSourceId: string, dataExchangeId: string, fil
   )}&fileName=${encodeURIComponent(fileName)}`
 }
 
+/** 单文件下载地址（export/download，按行下载） */
+export function downloadUrl(dtbsSourceId: string, dataExchangeId: string, fileName: string): string {
+  return `/api/dtbsSourceExchange/${dtbsSourceId}/export/download?dataExchangeId=${encodeURIComponent(
+    dataExchangeId,
+  )}&fileName=${encodeURIComponent(fileName)}`
+}
+
+/** 取消交换任务（POST /{dtbsSourceId}/cancel，CancelDataExchangeForm） */
+export async function cancelExchange(
+  dtbsSourceId: string,
+  dataExchangeId: string,
+  subDataExchangeIds: string[],
+): Promise<void> {
+  await request.post<OperationMessage>(`/api/dtbsSourceExchange/${dtbsSourceId}/cancel`, {
+    dataExchangeId,
+    subDataExchangeIds,
+  })
+}
+
+/** 查看子交换日志（GET /{dtbsSourceId}/getLogContent，返回 HTML 片段） */
+export async function getLogContent(
+  dtbsSourceId: string,
+  dataExchangeId: string,
+  subDataExchangeId: string,
+): Promise<string> {
+  const res = await request.get<string>(`/api/dtbsSourceExchange/${dtbsSourceId}/getLogContent`, {
+    params: { dataExchangeId, subDataExchangeId },
+    responseType: 'text',
+  })
+  return String(res.data ?? '')
+}
+
 export type ImportType = 'csv' | 'sql' | 'json' | 'excel'
 
 /** 导入文件信息（DataImportFileInfo） */
@@ -66,20 +138,26 @@ export interface DataImportFileInfo {
   size?: number
 }
 
-/** 导入子表单（TextValueFileSubDataImportForm 最小必填） */
+/** 导入子表单（TextValueFileSubDataImportForm / FileSubDataImportForm） */
 export interface SubDataImportForm {
   id: string
   fileName: string
-  tableName: string
+  tableName?: string
+  /** 导入条目编号（必填） */
+  number?: string
+  /** 导入条目依赖编号 */
+  dependentNumber?: string
 }
 
-/** 导入表单（DefaultTextValueFileBatchDataImportForm 最小必填） */
+/** 导入表单（DefaultTextValueFileBatchDataImportForm / SqlFileBatchDataImportForm） */
 export interface DataImportForm {
   dataExchangeId: string
   fileEncoding: string
   subDataExchanges: SubDataImportForm[]
-  dataFormat?: Record<string, unknown>
-  importOption?: Record<string, unknown>
+  dataFormat?: DataFormat
+  importOption?: DataImportOption
+  /** 自动处理导入条目依赖编号的字面值 */
+  dependentNumberAuto?: string
 }
 
 /** 上传导入文件（multipart，返回裸 List<DataImportFileInfo>） */

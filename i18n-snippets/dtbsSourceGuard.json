@@ -1,0 +1,14 @@
+{
+  "guardPage.title": "数据源防护",
+  "guardPage.desc": "按 URL 规则拦截危险数据库连接，保障平台数据源安全",
+  "guardPage.newRule": "新建防护规则",
+  "guardPage.ruleBarLabel": "匹配规则",
+  "guardPage.ruleBarText": "防护规则按 URL 正则匹配数据源连接地址，可配置为允许或禁止创建/连接；多条规则命中时按优先级匹配，高优先级规则优先。",
+  "guardPage.colName": "规则名",
+  "guardPage.colPattern": "URL 正则",
+  "guardPage.selectedInfo": "已选",
+  "guardPage.clearSel": "清除选择",
+  "guardPage.totalInfo": "共 {n} 条",
+  "guardPage.empty": "暂无防护规则",
+  "guardPage.confirmDelete": "确定删除防护规则「{name}」吗？"
+}

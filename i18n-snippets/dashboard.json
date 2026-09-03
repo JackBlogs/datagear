@@ -1,0 +1,12 @@
+{
+  "dashboardPage.title": "看板管理",
+  "dashboardPage.desc": "可视化看板的创建、设计、分享与嵌入",
+  "dashboardPage.newDashboard": "新建看板",
+  "dashboardPage.totalCount": "共 {n} 条",
+  "dashboardPage.selectedCount": "已选",
+  "dashboardPage.batchDelete": "批量删除",
+  "dashboardPage.clearSel": "清除",
+  "dashboardPage.confirmDelete": "确认删除看板「{name}」？",
+  "dashboardPage.empty": "暂无看板，点击右上角「新建看板」开始创建",
+  "dashboardPage.perPageSuffix": " 条/页"
+}

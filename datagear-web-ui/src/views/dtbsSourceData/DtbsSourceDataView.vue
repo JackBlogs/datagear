@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   listTables,
   getTable,
   pagingQueryData,
+  getQuerySql,
   saveRow,
   updateRow,
   deleteRows,
@@ -16,9 +17,13 @@ import {
 import { getDtbsSource } from '@/api/dtbsSource'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 
-// 数据源数据管理，按原 dtbsSource_tree.ftl 复刻「左侧表结构 / 右侧表数据」布局：
-// 左侧可搜索的表列表（表结构），右侧所选表的数据表格（可增/改/删）。
+// 数据源数据管理，按原 dtbsSource_tree.ftl 复刻「左侧表清单 / 右侧表数据」布局。
+// 搜索区按旧版 dtbsSourceData_search_form.ftl：not-like 开关 + SQL WHERE 条件面板（Ctrl+Enter 搜索）。
+// 第三轮：按原型「能源暗域」qb 双栏风格重排版式（qb-pane/field-chip/.tbl/.code-input/.pager），功能不变。
+import '@/styles/datasource-page.css'
+
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { success, fail } = useOperationMessage()
 
@@ -37,10 +42,17 @@ const pageSize = ref(20)
 const loading = ref(false)
 const saving = ref(false)
 
+// 搜索表单：关键字 / not-like 开关 / WHERE 条件（对应后端 PagingQuery.keyword/notLike/condition）
+const searchKeyword = ref('')
+const searchNotLike = ref(false)
+const searchCondition = ref('')
+const conditionPanelShow = ref(false)
+
 const showForm = ref(false)
 const editing = ref(false)
 const form = ref<DataRow>({})
 const originalRow = ref<DataRow>({})
+const showTableMeta = ref(false)
 
 // 表结构（列）信息用于表头 / 行表单
 const columns = computed(() => table.value?.columns ?? [])
@@ -52,6 +64,27 @@ const filteredTables = computed(() => {
     (tb) => (tb.name ?? '').toLowerCase().includes(k) || (tb.comment ?? '').toLowerCase().includes(k),
   )
 })
+
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+
+const pageNumbers = computed(() => {
+  const cur = page.value
+  const nums: number[] = []
+  for (let p = Math.max(1, cur - 2); p <= Math.min(pageCount.value, cur + 2); p++) nums.push(p)
+  return nums
+})
+
+function isRowSelected(row: DataRow): boolean {
+  return selectedRows.value.some((r) => rowDataKey(r) === rowDataKey(row))
+}
+
+function toggleRow(row: DataRow) {
+  if (isRowSelected(row)) {
+    selectedRows.value = selectedRows.value.filter((r) => rowDataKey(r) !== rowDataKey(row))
+  } else {
+    selectedRows.value = [...selectedRows.value, row]
+  }
+}
 
 // 行唯一键（优先 __rowid，否则用所有列值拼接）
 function rowDataKey(row: DataRow): string {
@@ -87,7 +120,13 @@ async function loadData() {
   loading.value = true
   try {
     table.value = await getTable(dtbsSourceId, selectedTable.value)
-    const data = await pagingQueryData(dtbsSourceId, selectedTable.value, page.value, pageSize.value)
+    const data = await pagingQueryData(dtbsSourceId, selectedTable.value, {
+      page: page.value,
+      pageSize: pageSize.value,
+      keyword: searchKeyword.value || undefined,
+      notLike: searchNotLike.value || undefined,
+      condition: searchCondition.value.trim() || undefined,
+    })
     rows.value = data.items ?? []
     selectedRows.value = []
     total.value = data.total
@@ -105,10 +144,42 @@ function selectTable(name: string) {
   void loadData()
 }
 
-function onPage(event: { page: number; rows: number }) {
-  page.value = event.page + 1
-  pageSize.value = event.rows
+function onSearch() {
+  page.value = 1
+  conditionPanelShow.value = false
   void loadData()
+}
+
+function onConditionKeydown(e: KeyboardEvent) {
+  // 旧版行为：Ctrl+Enter 触发搜索
+  if (e.ctrlKey && e.key === 'Enter') {
+    e.preventDefault()
+    onSearch()
+  }
+}
+
+function clearCondition() {
+  searchCondition.value = ''
+}
+
+function gotoPage(p: number) {
+  if (p < 1 || p > pageCount.value) return
+  page.value = p
+  void loadData()
+}
+
+/** 导出：取当前查询 SQL（含关键字/条件/not-like），跳导出向导并预填（来源旧版 onExport） */
+async function onExport() {
+  try {
+    const res = await getQuerySql(dtbsSourceId, selectedTable.value, {
+      keyword: searchKeyword.value || undefined,
+      notLike: searchNotLike.value || undefined,
+      condition: searchCondition.value.trim() || undefined,
+    })
+    router.push({ path: `/dataExchange-export/${dtbsSourceId}`, query: { query: res.sql } })
+  } catch (e) {
+    fail((e as Error).message || t('exportFail'))
+  }
 }
 
 function openAdd() {
@@ -177,158 +248,212 @@ function fieldLabel(c: { name: string; comment?: string }): string {
   return c.comment || c.name
 }
 
+function cellText(row: DataRow, name: string): string {
+  const v = row[name]
+  return v == null ? '' : String(v)
+}
+
 onMounted(async () => {
   await Promise.all([loadTitle(), loadTables()])
 })
 </script>
 
 <template>
-  <div class="page page-manager page-dtbsSourcedata h-full flex flex-column overflow-hidden">
-    <div class="page-header grid grid-nogutter align-items-center p-1 flex-grow-0">
-      <div class="col-12 flex align-items-center mb-1">
-        <i class="pi pi-database text-color-secondary text-sm"></i>
-        <div class="text-color-secondary text-sm ml-1">{{ dtbsSourceTitle || t('dataManagement') }}</div>
-        <i class="pi pi-angle-right text-color-secondary text-sm mx-1"></i>
-        <div class="text-color-secondary text-sm">{{ selectedTable || t('table') }}</div>
+  <div class="ds-page">
+    <!-- 页头 -->
+    <div class="page-head">
+      <div>
+        <div class="page-title">{{ t('data.title') }}</div>
+        <div class="page-desc">{{ t('data.desc') }}</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn" type="button" @click="router.push('/dtbsSource')">{{ t('back') }}</button>
       </div>
     </div>
 
-    <div class="grid grid-nogutter m-0 flex-nowrap h-full overflow-hidden">
-      <!-- 左侧：表结构（表列表） -->
-      <aside class="col-3 border-right-1 surface-hover">
-        <div class="flex flex-column h-full">
-          <div class="p-1">
-            <span class="p-input-icon-left w-full">
-              <i class="pi pi-search"></i>
-              <InputText v-model="keyword" class="input w-full" :placeholder="t('searchTable')" />
-            </span>
+    <div class="qb" style="grid-template-columns:280px 1fr;align-items:stretch">
+      <!-- 左：表清单（qb-pane + field-chip） -->
+      <div class="qb-pane" style="display:flex;flex-direction:column;max-height:calc(100vh - 210px)">
+        <div class="p-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+          {{ t('data.tables') }}
+          <span class="p-side">{{ tables.length }}</span>
+        </div>
+        <input v-model="keyword" class="input" style="margin-bottom:10px" :placeholder="t('searchTable')" />
+        <div style="flex:1;overflow-y:auto;min-height:0">
+          <div
+            v-for="tb in filteredTables"
+            :key="tb.name"
+            class="field-chip"
+            :class="{ active: selectedTable === tb.name }"
+            :title="tb.comment || tb.name"
+            @click="selectTable(tb.name)"
+          >
+            <span class="f-type">{{ (tb.type || 'TABLE').slice(0, 4) }}</span>
+            <span class="ellipsis">{{ tb.name }}</span>
+            <span v-if="tb.comment" class="f-sub">{{ tb.comment }}</span>
           </div>
-          <div class="table-list flex-1 overflow-auto">
-            <div
-              v-for="tb in filteredTables"
-              :key="tb.name"
-              class="table-item flex align-items-center gap-2 py-2 px-2 cursor-pointer"
-              :class="{ active: selectedTable === tb.name }"
-              @click="selectTable(tb.name)"
-              :title="tb.comment || tb.name"
-            >
-              <i class="pi pi-table text-sm"></i>
-              <span class="flex-1 text-overflow">{{ tb.name }}</span>
-              <span v-if="tb.comment" class="text-xs text-color-secondary text-overflow">{{ tb.comment }}</span>
-            </div>
-            <div v-if="filteredTables.length === 0" class="text-color-secondary text-sm p-2">{{ t('noTable') }}</div>
+          <div v-if="!filteredTables.length" class="tx-3 sm" style="padding:8px 2px">{{ t('noTable') }}</div>
+        </div>
+      </div>
+
+      <!-- 右：表数据 -->
+      <div class="flex-col" style="min-width:0;gap:12px">
+        <!-- 面包屑 + 工具栏 -->
+        <div class="flex-between" style="flex-wrap:wrap;gap:10px">
+          <div class="crumbs">
+            <span>{{ dtbsSourceTitle || t('dataManagement') }}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+            <b>{{ selectedTable || t('table') }}</b>
+          </div>
+          <div class="flex" style="gap:8px;flex-wrap:wrap">
+            <button class="btn sm primary" type="button" :disabled="!selectedTable" @click="openAdd">{{ t('add') }}</button>
+            <button class="btn sm" type="button" :disabled="selectedRows.length !== 1" @click="openEdit(selectedRows[0])">{{ t('edit') }}</button>
+            <button class="btn sm danger" type="button" :disabled="!selectedRows.length" @click="removeSelected">{{ t('deleteSelected') }}</button>
+            <button class="btn sm" type="button" :disabled="!selectedTable" @click="showTableMeta = true">{{ t('data.tableMeta') }}</button>
+            <button class="btn sm" type="button" :disabled="!selectedTable" @click="onExport">{{ t('data.exportCurrent') }}</button>
+            <button class="btn sm ghost" type="button" @click="loadData">{{ t('refresh') }}</button>
           </div>
         </div>
-      </aside>
 
-      <!-- 右侧：表数据 -->
-      <div class="col-9 flex flex-column h-full overflow-hidden">
-        <div class="operations flex flex-wrap gap-1 align-items-center p-1 flex-grow-0">
-          <Button :label="t('add')" size="small" :disabled="!selectedTable" @click="openAdd" />
-          <Button :label="t('edit')" size="small" :disabled="selectedRows.length !== 1" @click="openEdit(selectedRows[0])" />
-          <Button :label="t('deleteSelected')" size="small" severity="danger" :disabled="!selectedRows.length" @click="removeSelected" />
-          <Button :label="t('refresh')" size="small" text @click="loadData" />
-          <div class="flex-grow-1"></div>
-          <span class="text-color-secondary text-sm">{{ selectedTable }}</span>
+        <!-- 搜索区：关键字 + LIKE/NOT LIKE 分段 + WHERE 条件 -->
+        <div class="flex" style="gap:10px;flex-wrap:wrap">
+          <form class="flex grow" style="gap:8px;max-width:520px" @submit.prevent="onSearch">
+            <input v-model="searchKeyword" class="input" :placeholder="t('search')" />
+            <button class="btn" type="submit">{{ t('query') }}</button>
+          </form>
+          <div class="seg">
+            <span class="seg-item" :class="{ active: !searchNotLike }" @click="searchNotLike = false">{{ t('data.like') }}</span>
+            <span class="seg-item" :class="{ active: searchNotLike }" @click="searchNotLike = true">{{ t('data.notLike') }}</span>
+          </div>
+          <button class="btn sm" :class="{ primary: searchCondition || conditionPanelShow }" type="button" @click="conditionPanelShow = !conditionPanelShow">
+            {{ t('data.whereCond') }}
+          </button>
+        </div>
+        <div v-if="conditionPanelShow" class="qb-pane">
+          <div class="p-title">{{ t('data.whereCond') }}<span class="p-side">Ctrl+Enter</span></div>
+          <textarea
+            v-model="searchCondition"
+            class="code-input"
+            rows="3"
+            :placeholder="t('data.whereCondPlaceholder')"
+            @keydown="onConditionKeydown"
+          ></textarea>
+          <div class="flex-between mt-1">
+            <button class="btn sm ghost" type="button" @click="clearCondition">{{ t('clear') }}</button>
+            <button class="btn sm primary" type="button" @click="onSearch">{{ t('query') }}</button>
+          </div>
         </div>
 
-        <DataTable
-          v-if="selectedTable"
-          v-model:selection="selectedRows"
-          :value="rows"
-          :lazy="true"
-          :total-records="total"
-          :loading="loading"
-          paginator
-          :rows="pageSize"
-          :rows-per-page-options="[10, 20, 50]"
-          :data-key="rowDataKey"
-          :scrollable="true"
-          scroll-height="flex"
-          striped-rows
-          @page="onPage"
-        >
-          <Column selection-mode="multiple" header-style="width:3rem" />
-          <Column v-for="c in columns" :key="c.name" :field="c.name" :header="fieldLabel(c)">
-            <template #body="{ data }">
-              <span :title="String(data[c.name] ?? '')">{{ String(data[c.name] ?? '') }}</span>
-            </template>
-          </Column>
-          <Column :header="t('operation')">
-            <template #body="{ data }">
-              <div class="flex gap-1">
-                <Button :label="t('edit')" size="small" text @click="openEdit(data)" />
-                <Button :label="t('delete')" size="small" text severity="danger" @click="removeRow(data)" />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-        <div v-else class="flex flex-1 align-items-center justify-content-center text-color-secondary">
-          {{ t('pleaseSelectTableData') }}
+        <!-- 数据表格 -->
+        <div class="table-wrap" style="max-height:calc(100vh - 430px)">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:36px"></th>
+                <th v-for="c in columns" :key="c.name">{{ fieldLabel(c) }}</th>
+                <th style="width:110px">{{ t('operation') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="loading">
+                <td :colspan="columns.length + 2" class="tx-3" style="text-align:center">{{ t('loading') }}…</td>
+              </tr>
+              <tr v-else-if="!selectedTable">
+                <td :colspan="columns.length + 2"><div class="empty">{{ t('pleaseSelectTableData') }}</div></td>
+              </tr>
+              <tr v-else-if="!rows.length">
+                <td :colspan="columns.length + 2" class="tx-3" style="text-align:center">—</td>
+              </tr>
+              <template v-else>
+                <tr v-for="row in rows" :key="rowDataKey(row)">
+                  <td>
+                    <input type="checkbox" :checked="isRowSelected(row)" @change="toggleRow(row)" />
+                  </td>
+                  <td v-for="c in columns" :key="c.name">
+                    <span :title="cellText(row, c.name)" class="ellipsis" style="display:inline-block;max-width:24ch;vertical-align:bottom">{{ cellText(row, c.name) }}</span>
+                  </td>
+                  <td>
+                    <span class="link" @click="openEdit(row)">{{ t('edit') }}</span> ·
+                    <span class="link danger" @click="removeRow(row)">{{ t('delete') }}</span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 分页条 -->
+        <div class="pager" style="margin-top:0">
+          <span>{{ total }} · {{ page }}/{{ pageCount }}</span>
+          <button class="pg-btn" type="button" :disabled="page <= 1" @click="gotoPage(page - 1)">‹</button>
+          <button v-for="p in pageNumbers" :key="p" class="pg-btn" :class="{ cur: p === page }" type="button" @click="gotoPage(p)">{{ p }}</button>
+          <button class="pg-btn" type="button" :disabled="page >= pageCount" @click="gotoPage(page + 1)">›</button>
         </div>
       </div>
     </div>
 
-    <!-- 行编辑 Dialog -->
-    <Dialog
-      :visible="showForm"
-      :header="editing ? t('editRow') : t('addRow')"
-      modal
-      :style="{ width: '50rem' }"
-      @update:visible="showForm = $event"
-    >
-      <div class="form-grid">
-        <div v-for="c in columns" :key="c.name" class="field grid align-items-center">
-          <label class="col-label col-12 mb-1 md:col-3 md:mb-0" :title="c.comment || c.name">{{ fieldLabel(c) }}</label>
-          <div class="col-12 md:col-9">
-            <InputText
-              :model-value="String(form[c.name] ?? '')"
-              class="input w-full"
+    <!-- 行编辑弹窗（.modal 风格） -->
+    <div v-if="showForm" class="modal-mask" @click.self="showForm = false">
+      <div class="modal" style="width:640px">
+        <div class="flex-between">
+          <div style="font-size:15px;font-weight:700">{{ editing ? t('editRow') : t('addRow') }}<span class="tx-3 sm"> · {{ selectedTable }}</span></div>
+          <button class="drawer-close" type="button" @click="showForm = false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="mt-2" style="max-height:56vh;overflow-y:auto">
+          <div v-for="c in columns" :key="c.name" class="form-item">
+            <label class="form-label" :title="c.comment || c.name">{{ fieldLabel(c) }}<span class="tx-3" style="margin-left:6px">{{ c.typeName }}</span></label>
+            <input
+              :value="cellText(form, c.name)"
+              class="input"
+              type="text"
               :placeholder="c.typeName ?? ''"
-              @update:model-value="(v: string | undefined) => (form[c.name] = v)"
+              @input="form[c.name] = ($event.target as HTMLInputElement).value"
             />
           </div>
         </div>
+        <div class="modal-foot">
+          <button class="btn" type="button" @click="showForm = false">{{ t('cancel') }}</button>
+          <button class="btn primary" type="button" :disabled="saving" @click="submit">{{ saving ? t('loading') : t('save') }}</button>
+        </div>
       </div>
-      <template #footer>
-        <Button :label="t('cancel')" text @click="showForm = false" />
-        <Button :label="t('save')" :loading="saving" @click="submit" />
-      </template>
-    </Dialog>
+    </div>
+
+    <!-- 表结构弹窗（.modal 风格） -->
+    <div v-if="showTableMeta" class="modal-mask" @click.self="showTableMeta = false">
+      <div class="modal" style="width:720px">
+        <div class="flex-between">
+          <div style="font-size:15px;font-weight:700">{{ t('data.tableMeta') }}<span class="tx-3 sm"> · {{ selectedTable }}</span></div>
+          <button class="drawer-close" type="button" @click="showTableMeta = false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="table-wrap mt-2" style="border-radius:var(--r-m);max-height:56vh">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>{{ t('data.columnName') }}</th>
+                <th>{{ t('data.columnType') }}</th>
+                <th>{{ t('allowNull') }}</th>
+                <th>{{ t('data.comment') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in columns" :key="c.name">
+                <td class="cell-main">{{ c.name }}</td>
+                <td><span class="tag">{{ c.typeName ?? c.type }}</span></td>
+                <td>{{ c.nullable ? t('yes') : t('no') }}</td>
+                <td class="tx-3">{{ c.comment || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" type="button" @click="showTableMeta = false">{{ t('close') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
-.table-item {
-  border-bottom: 1px solid var(--surface-border);
-  transition: background 0.15s;
-}
-.table-item:hover {
-  background: var(--surface-hover);
-}
-.table-item.active {
-  background: var(--primary-color);
-  color: var(--primary-color-text);
-}
-.table-item.active .text-color-secondary {
-  color: var(--primary-color-text);
-}
-.text-overflow {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.col-label {
-  font-weight: 600;
-  font-size: 12px;
-}
-.form-grid {
-  display: grid;
-  gap: 8px;
-}
-</style>

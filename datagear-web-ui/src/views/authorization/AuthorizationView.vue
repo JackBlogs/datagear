@@ -16,11 +16,16 @@ import {
   type Authorization,
   type AuthorizationMeta,
 } from '@/api/authorization'
+import { getDtbsSource } from '@/api/dtbsSource'
 import { userPagingQueryData } from '@/api/user'
 import { rolePagingQueryData } from '@/api/role'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 
-// 资源授权管理：授权列表 + 新增/编辑/删除。
+// 资源授权管理：授权列表 + 新增/编辑/删除（功能不变）。
+// 第三轮：按原型「能源暗域」风格重排版式（page-head + card + .seg/.select/.tbl），
+// PrimeVue 组件换为原生控件以保证视觉统一。
+import '@/styles/datasource-page.css'
+
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
@@ -33,6 +38,7 @@ const meta = ref<AuthorizationMeta | null>(null)
 const items = ref<Authorization[]>([])
 const users = ref<{ id: string; name: string; realName?: string }[]>([])
 const roles = ref<{ id: string; name: string }[]>([])
+const resourceTitle = ref('')
 const loading = ref(false)
 const saving = ref(false)
 
@@ -48,15 +54,16 @@ const form = ref<Authorization>({
 
 const editingId = computed(() => form.value.id)
 
-const userOptions = computed(() =>
-  users.value.map((u) => ({ id: u.id, label: u.realName || u.name })),
-)
-
 const principalTypeOptions = computed(() => [
-  { name: t('user'), value: PRINCIPAL_TYPE_USER },
-  { name: t('role'), value: PRINCIPAL_TYPE_ROLE },
-  { name: t('allUsers'), value: PRINCIPAL_TYPE_ALL },
-  { name: t('anonymousUser'), value: PRINCIPAL_TYPE_ANONYMOUS },
+  { name: t('authz.principalUser'), value: PRINCIPAL_TYPE_USER },
+  { name: t('authz.principalRole'), value: PRINCIPAL_TYPE_ROLE },
+  { name: t('authz.principalAll'), value: PRINCIPAL_TYPE_ALL },
+  { name: t('authz.principalAnonymous'), value: PRINCIPAL_TYPE_ANONYMOUS },
+])
+
+const enabledOptions = computed(() => [
+  { name: t('yes'), value: true },
+  { name: t('no'), value: false },
 ])
 
 function permissionLabel(p: number): string {
@@ -81,8 +88,17 @@ async function load() {
     ])
     users.value = u.items
     roles.value = r.items
+    // 数据源授权时显示数据源名称（其它资源类型静默忽略）
+    if (resourceType === 'DATA_SOURCE') {
+      try {
+        resourceTitle.value = (await getDtbsSource(resource)).title ?? ''
+      } catch {
+        resourceTitle.value = ''
+      }
+    }
+    resetForm()
   } catch (e) {
-    fail((e as Error).message || '加载失败')
+    fail((e as Error).message || t('loadFail'))
   } finally {
     loading.value = false
   }
@@ -139,105 +155,112 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">{{ t('resourceAuthorization') }}</h3>
-      <Button :label="t('back')" text @click="router.back()" />
-    </div>
-
-    <div class="form flex flex-column gap-2 mb-3 card">
-      <div class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('principalType') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <SelectButton v-model="form.principalType" :options="principalTypeOptions" option-label="name" option-value="value" class="input w-full" />
-        </div>
+  <div class="ds-page">
+    <!-- 页头 -->
+    <div class="page-head">
+      <div>
+        <div class="page-title">{{ t('authz.title') }}<span v-if="resourceTitle" class="tx-3" style="font-size:15px;font-weight:400"> · {{ resourceTitle }}</span></div>
+        <div class="page-desc">{{ t('authz.desc') }}</div>
       </div>
-      <div v-if="form.principalType === PRINCIPAL_TYPE_USER" class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('user') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <Dropdown
-            v-model="form.principal"
-            :options="userOptions"
-            option-label="label"
-            option-value="id"
-            placeholder="（选择用户）"
-            class="input w-full"
-          />
-        </div>
-      </div>
-      <div v-else-if="form.principalType === PRINCIPAL_TYPE_ROLE" class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('role') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <Dropdown
-            v-model="form.principal"
-            :options="roles"
-            option-label="name"
-            option-value="id"
-            placeholder="（选择角色）"
-            class="input w-full"
-          />
-        </div>
-      </div>
-      <div v-else class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('principal') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <InputText :value="form.principalType === PRINCIPAL_TYPE_ALL ? t('allUsers') : t('anonymousUser')" class="input w-full" readonly />
-        </div>
-      </div>
-      <div class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('permission') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <SelectButton v-model="form.permission" :options="meta?.permissions ?? []" option-label="label" option-value="permission" class="input w-full" />
-        </div>
-      </div>
-      <div class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('enable') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <SelectButton v-model="form.enabled" :options="[{name:t('yes'), value:true},{name:t('no'), value:false}]" option-label="name" option-value="value" class="input w-full" />
-        </div>
-      </div>
-      <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
-        <Button :label="editingId ? t('saveEdit') : t('addAuthorization')" :loading="saving" @click="save" />
-        <Button v-if="editingId" :label="t('cancel')" text @click="resetForm" />
+      <div class="page-actions">
+        <button class="btn" type="button" @click="router.back()">{{ t('back') }}</button>
       </div>
     </div>
 
-    <div v-if="loading" class="text-color-secondary">{{ t('loading') }}</div>
-    <DataTable v-else :value="items" data-key="id">
-      <Column :header="t('principal')">
-        <template #body="{ data }">{{ principalDisplay(data) }}</template>
-      </Column>
-      <Column :header="t('permission')">
-        <template #body="{ data }">{{ permissionLabel(data.permission) }}</template>
-      </Column>
-      <Column field="enabled" :header="t('enable')" />
-      <Column :header="t('operation')">
-        <template #body="{ data }">
-          <div class="flex gap-1">
-            <Button :label="t('edit')" size="small" text @click="editRow(data)" />
-            <Button :label="t('delete')" size="small" text severity="danger" @click="removeRow(data)" />
-          </div>
-        </template>
-      </Column>
-    </DataTable>
+    <!-- 添加授权 -->
+    <div class="card mb-2">
+      <div class="card-title"><span class="bar"></span>{{ t('authz.addSec') }}</div>
+      <div class="form-item">
+        <label class="form-label">{{ t('principalType') }}</label>
+        <div class="seg">
+          <span
+            v-for="o in principalTypeOptions"
+            :key="o.value"
+            class="seg-item"
+            :class="{ active: form.principalType === o.value }"
+            @click="form.principalType = o.value; form.principal = ''"
+          >{{ o.name }}</span>
+        </div>
+      </div>
+      <div v-if="form.principalType === PRINCIPAL_TYPE_USER" class="form-item">
+        <label class="form-label">{{ t('user') }}</label>
+        <select v-model="form.principal" class="select">
+          <option value="" disabled>（{{ t('select') }}）</option>
+          <option v-for="u in users" :key="u.id" :value="u.id">{{ u.realName || u.name }}</option>
+        </select>
+      </div>
+      <div v-else-if="form.principalType === PRINCIPAL_TYPE_ROLE" class="form-item">
+        <label class="form-label">{{ t('role') }}</label>
+        <select v-model="form.principal" class="select">
+          <option value="" disabled>（{{ t('select') }}）</option>
+          <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
+        </select>
+      </div>
+      <div class="form-item">
+        <label class="form-label">{{ t('permission') }}</label>
+        <div class="seg">
+          <span
+            v-for="p in meta?.permissions ?? []"
+            :key="p.permission"
+            class="seg-item"
+            :class="{ active: form.permission === p.permission }"
+            @click="form.permission = p.permission"
+          >{{ p.label }}</span>
+        </div>
+      </div>
+      <div class="form-item">
+        <label class="form-label">{{ t('enable') }}</label>
+        <div class="seg">
+          <span
+            v-for="o in enabledOptions"
+            :key="String(o.value)"
+            class="seg-item"
+            :class="{ active: form.enabled === o.value }"
+            @click="form.enabled = o.value"
+          >{{ o.name }}</span>
+        </div>
+      </div>
+      <div class="flex" style="justify-content:flex-end;gap:10px">
+        <button v-if="editingId" class="btn" type="button" @click="resetForm">{{ t('cancel') }}</button>
+        <button class="btn primary" type="button" :disabled="saving" @click="save">
+          {{ saving ? t('loading') : editingId ? t('saveEdit') : t('addAuthorization') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 授权记录 -->
+    <div class="card">
+      <div class="card-title">
+        <span class="bar"></span>{{ t('authz.listSec') }}
+        <span class="more">{{ items.length }}</span>
+      </div>
+      <div v-if="loading" class="tx-3">{{ t('loading') }}…</div>
+      <div v-else-if="!items.length" class="empty" style="padding:28px 12px">{{ t('authz.empty') }}</div>
+      <div v-else class="table-wrap" style="border-radius:var(--r-m)">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>{{ t('principal') }}</th>
+              <th>{{ t('permission') }}</th>
+              <th>{{ t('enable') }}</th>
+              <th style="width:120px">{{ t('operation') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="a in items" :key="a.id">
+              <td class="cell-main">{{ principalDisplay(a) }}</td>
+              <td><span class="tag info">{{ permissionLabel(a.permission) }}</span></td>
+              <td>
+                <span class="tag" :class="a.enabled ? 'ok' : ''">{{ a.enabled ? t('yes') : t('no') }}</span>
+              </td>
+              <td>
+                <span class="link" @click="editRow(a)">{{ t('edit') }}</span> ·
+                <span class="link danger" @click="removeRow(a)">{{ t('delete') }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.card {
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  padding: 12px;
-}
-.field-label {
-  font-weight: 600;
-}
-.input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
-select.input {
-  background: var(--surface-card);
-}
-</style>

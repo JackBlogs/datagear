@@ -149,3 +149,53 @@ export function reorderChartWidgets(html: string, widgets: string[]): string {
   }
   return result
 }
+
+/* ------------------------------------------------------------------ */
+/* 可视化设计器设计产物（DashboardDesign）→ 看板 index.html 资源的编解码  */
+/* ------------------------------------------------------------------ */
+
+import type { DashboardDesign } from '@/types/dashboardDesign'
+
+/** 设计 JSON 所在的 script 块标记 */
+const DESIGN_SCRIPT_ID = 'dg-design'
+
+/** 将可视化设计产物序列化为看板 index.html 资源内容 */
+export function serializeDesignToResource(design: DashboardDesign, dashboardName: string): string {
+  const json = JSON.stringify(design)
+  const title = (dashboardName || '看板').replace(/</g, '&lt;')
+  return [
+    '<!DOCTYPE html>',
+    '<html lang="zh-CN">',
+    '<head>',
+    '<meta charset="utf-8" />',
+    `<title>${title}</title>`,
+    '<style>html,body{height:100%;margin:0}#dg-root{height:100%;border:0}</style>',
+    '</head>',
+    '<body style="margin:0">',
+    `<script id="${DESIGN_SCRIPT_ID}" type="application/json">${json}</script>`,
+    '<div id="dg-root"></div>',
+    '</body>',
+    '</html>',
+  ].join('\n')
+}
+
+/** 从看板 index.html 资源内容解析可视化设计产物；若无法解析则返回 null */
+export function parseDesignFromResource(content: string): DashboardDesign | null {
+  if (!content) return null
+  const rx = new RegExp(`<script\\s+id="${DESIGN_SCRIPT_ID}"\\s+type="application/json">([\\s\\S]*?)</script>`, 'i')
+  const m = rx.exec(content)
+  if (!m) return null
+  try {
+    const obj = JSON.parse(m[1])
+    if (!obj || obj.version !== '1.0' || !Array.isArray(obj.widgets)) return null
+    return obj as DashboardDesign
+  } catch {
+    return null
+  }
+}
+
+/** 列出看板资源名（/api/dashboard/listResources） */
+export async function listDashboardResources(id: string): Promise<string[]> {
+  const res = await request.get<string[]>('/api/dashboard/listResources', { params: { id } })
+  return res.data ?? []
+}

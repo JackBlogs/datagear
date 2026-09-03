@@ -1,0 +1,14 @@
+{
+  "chartPage.title": "图表管理",
+  "chartPage.desc": "可视化图表的创建与管理，可被看板与大屏引用",
+  "chartPage.newChart": "新建图表",
+  "chartPage.empty": "暂无图表，点击右上角「新建图表」开始创建",
+  "chartPage.confirmDelete": "确定删除图表「{name}」吗？",
+  "chartPage.selInfo": "已选 {n} 项",
+  "chartPage.batchDelete": "批量删除",
+  "chartPage.clearSel": "清除选择",
+  "chartPage.total": "共 {n} 条",
+  "chartPage.unitMinute": "分钟",
+  "chartPage.unitHour": "小时",
+  "chartPage.rowsPerPage": "条/页"
+}

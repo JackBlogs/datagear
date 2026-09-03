@@ -74,6 +74,7 @@ import org.datagear.management.service.FileSourceService;
 import org.datagear.management.service.HtmlChartWidgetEntityService;
 import org.datagear.management.service.HtmlTplDashboardWidgetEntityService;
 import org.datagear.management.service.RoleService;
+import org.datagear.management.service.BigScreenService;
 import org.datagear.management.service.SqlHistoryService;
 import org.datagear.management.service.UserService;
 import org.datagear.management.service.impl.AbstractMybatisDataPermissionEntityService;
@@ -92,6 +93,7 @@ import org.datagear.management.service.impl.FileSourceServiceImpl;
 import org.datagear.management.service.impl.HtmlChartWidgetEntityServiceImpl;
 import org.datagear.management.service.impl.HtmlTplDashboardWidgetEntityServiceImpl;
 import org.datagear.management.service.impl.RoleServiceImpl;
+import org.datagear.management.service.impl.BigScreenServiceImpl;
 import org.datagear.management.service.impl.SqlHistoryServiceImpl;
 import org.datagear.management.service.impl.UserServiceImpl;
 import org.datagear.management.util.DataPermissionSpec;
@@ -766,6 +768,14 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	{
 		RoleServiceImpl bean = new RoleServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
 		bean.setRoleSpec(this.roleSpec());
+
+		return bean;
+	}
+
+	@Bean
+	public BigScreenService bigScreenService()
+	{
+		BigScreenServiceImpl bean = new BigScreenServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
 
 		return bean;
 	}

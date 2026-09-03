@@ -44,16 +44,43 @@ export async function getTable(dtbsSourceId: string, tableName: string): Promise
   return res.data
 }
 
+/** 表数据分页查询参数（对应后端 org.datagear.persistence.PagingQuery） */
+export interface TableDataPagingQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  /** SQL 条件（WHERE 之后的片段） */
+  condition?: string
+  /** 关键字取反（NOT LIKE） */
+  notLike?: boolean
+  orders?: { name: string; type: 'ASC' | 'DESC' }[]
+}
+
 /** 表数据分页（POST /dtbsSourceData/{id}/{table}/pagingQueryData，裸 PagingData<Row>） */
 export async function pagingQueryData(
   dtbsSourceId: string,
   tableName: string,
-  page: number,
-  pageSize: number,
+  query: TableDataPagingQuery,
 ): Promise<PagingData<DataRow>> {
   const res = await request.post<PagingData<DataRow>>(
     `/api/dtbsSourceData/${dtbsSourceId}/${tableName}/pagingQueryData`,
-    { page, pageSize },
+    query,
+  )
+  return res.data
+}
+
+/**
+ * 获取当前查询对应的 SQL（旧端点 /dtbsSourceData/{id}/{table}/getQuerySql，裸返回 {query, sql}）。
+ * 核验：/api 版 DtbsSourceDataApiController 未提供该端点，故沿用旧端点（vite proxy 已配 /dtbsSourceData）。
+ */
+export async function getQuerySql(
+  dtbsSourceId: string,
+  tableName: string,
+  query: { keyword?: string; condition?: string; notLike?: boolean },
+): Promise<{ query: unknown; sql: string }> {
+  const res = await request.post<{ query: unknown; sql: string }>(
+    `/dtbsSourceData/${dtbsSourceId}/${tableName}/getQuerySql`,
+    query,
   )
   return res.data
 }

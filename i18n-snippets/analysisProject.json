@@ -1,0 +1,18 @@
+{
+  "analysisProjectPage.title": "分析项目",
+  "analysisProjectPage.desc": "按项目归组管理看板 / 图表 / 数据集，支持项目级授权",
+  "analysisProjectPage.newProject": "新建项目",
+  "analysisProjectPage.statTotal": "项目总数",
+  "analysisProjectPage.statTotalFoot": "当前查询条件下的全部项目",
+  "analysisProjectPage.statPage": "本页项目",
+  "analysisProjectPage.statPageFoot": "第 {cur} 页 / 共 {count} 页",
+  "analysisProjectPage.totalInfo": "共 {n} 条",
+  "analysisProjectPage.selInfo": "已选",
+  "analysisProjectPage.selUnit": "项",
+  "analysisProjectPage.cancelSel": "取消选择",
+  "analysisProjectPage.batchDelete": "批量删除",
+  "analysisProjectPage.confirmDelete": "确定删除项目「{name}」吗？",
+  "analysisProjectPage.empty": "暂无分析项目，点击右上角「新建项目」开始",
+  "analysisProjectPage.perPage": "条/页",
+  "analysisProjectPage.pagerInfo": "第 {from}-{to} 条 / 共 {total} 条"
+}

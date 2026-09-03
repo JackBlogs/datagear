@@ -67,8 +67,20 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'screen',
         name: 'screen',
-        component: () => import('@/views/ScreenView.vue'),
+        component: () => import('@/views/bigScreen/BigScreenListView.vue'),
         meta: { title: '数据大屏', keepAlive: false },
+      },
+      {
+        path: 'screen/add',
+        name: 'bigScreenAdd',
+        component: () => import('@/views/bigScreen/BigScreenFormView.vue'),
+        meta: { title: '新建数据大屏' },
+      },
+      {
+        path: 'screen/:id/edit',
+        name: 'bigScreenEdit',
+        component: () => import('@/views/bigScreen/BigScreenFormView.vue'),
+        meta: { title: '编辑数据大屏' },
       },
       {
         path: 'report',
@@ -163,6 +175,18 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/screen/:id/design',
+    name: 'bigScreenDesigner',
+    component: () => import('@/views/bigScreen/BigScreenDesignerView.vue'),
+    meta: { title: '大屏设计器' },
+  },
+  {
+    path: '/screen/:id/viewer',
+    name: 'bigScreenViewer',
+    component: () => import('@/views/bigScreen/BigScreenViewerView.vue'),
+    meta: { title: '大屏展示' },
+  },
+  {
     path: '/dashboard/add',
     name: 'dashboardAdd',
     component: () => import('@/views/dashboard/DashboardFormView.vue'),
@@ -185,6 +209,12 @@ const routes: RouteRecordRaw[] = [
     name: 'dashboardDesigner',
     component: () => import('@/views/dashboard/DashboardDesignerView.vue'),
     meta: { title: '看板设计器' },
+  },
+  {
+    path: '/dashboard/:id/viewer',
+    name: 'dashboardViewer',
+    component: () => import('@/views/dashboard/DashboardViewerView.vue'),
+    meta: { title: '看板展示' },
   },
   {
     path: '/dashboard/:id/share',
@@ -389,6 +419,12 @@ const routes: RouteRecordRaw[] = [
     name: 'dtbsSourceGuardView',
     component: () => import('@/views/dtbsSourceGuard/DtbsSourceGuardFormView.vue'),
     meta: { title: '查看防护规则' },
+  },
+  {
+    path: '/dtbsSourceGuard/:id/test',
+    name: 'dtbsSourceGuardTest',
+    component: () => import('@/views/dtbsSourceGuard/DtbsSourceGuardTestView.vue'),
+    meta: { title: '数据源防护测试' },
   },
   {
     path: '/dtbsSource/add',

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>数据源 · DataGear 能源BI</title>
+<link rel="stylesheet" href="assets/css/theme.css" />
+<style>
+  /* ---- 来源分类卡 ---- */
+  .src-cats { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  .src-cat {
+    display: flex; gap: 14px; align-items: center; padding: 16px 18px; cursor: pointer;
+    background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l);
+    transition: all var(--dur); position: relative; overflow: hidden;
+  }
+  .src-cat:hover { border-color: var(--line-3); transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  .src-cat::after { content:""; position:absolute; right:-26px; top:-26px; width:90px; height:90px; border-radius:50%; background:var(--cat-glow,rgba(255,138,61,.1)); filter:blur(10px); }
+  .src-cat .c-icon { width: 44px; height: 44px; border-radius: 12px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .src-cat .c-icon svg { width: 22px; height: 22px; }
+  .src-cat .c-name { font-size: 14px; font-weight: 600; }
+  .src-cat .c-name b { font-family: var(--font-num); font-size: 20px; margin-left: 6px; }
+  .src-cat .c-sub { font-size: 11.5px; color: var(--tx-3); }
+  /* ---- 规则提示条 ---- */
+  .rule-bar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    background: var(--info-soft); border: 1px solid rgba(96,165,250,.3);
+    border-radius: var(--r-m); font-size: 12.5px; color: var(--tx-2);
+  }
+  .rule-bar svg { width: 15px; height: 15px; color: var(--info); flex: none; }
+  .rule-bar b { color: var(--tx-1); font-weight: 600; }
+  /* ---- 抽屉 ---- */
+  .drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 22px 16px; border-bottom: 1px solid var(--line-1); }
+  .drawer-head .d-icon { width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .drawer-head .d-icon svg { width: 21px; height: 21px; }
+  .drawer-close { margin-left: auto; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-2); background: none; color: var(--tx-3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .drawer-close svg { width: 15px; height: 15px; }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 18px 22px 30px; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px dashed rgba(255,255,255,.06); font-size: 13px; }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--tx-3); flex: none; }
+  .kv .v { color: var(--tx-1); text-align: right; word-break: break-all; }
+  .kv .v.mono { font-family: var(--font-mono); font-size: 12px; }
+  .sec-label { font-size: 12px; color: var(--tx-3); letter-spacing: 1px; margin: 18px 0 10px; display: flex; align-items: center; gap: 6px; }
+  .sec-label svg { width: 13px; height: 13px; }
+  .sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line-1); }
+  /* ---- 向导 modal ---- */
+  .wizard { width: 720px; }
+  .steps { display: flex; align-items: center; gap: 8px; margin: 18px 0 22px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tx-3); }
+  .step .s-dot {
+    width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11.5px; font-family: var(--font-num); color: var(--tx-3); background: var(--bg-glass);
+  }
+  .step.active { color: var(--brand); font-weight: 600; }
+  .step.active .s-dot { background: var(--brand-grad); color: #241105; border: none; box-shadow: var(--shadow-glow-brand); }
+  .step-line { flex: 1; height: 1px; background: var(--line-2); min-width: 24px; }
+  .type-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  .type-cell {
+    display: flex; align-items: center; gap: 10px; padding: 12px;
+    border: 1px solid var(--line-1); border-radius: var(--r-m); cursor: pointer;
+    background: var(--bg-glass); transition: all var(--dur);
+  }
+  .type-cell:hover { border-color: var(--brand-line); background: var(--bg-glass-2); }
+  .type-cell.sel { border-color: var(--brand); background: var(--brand-soft); }
+  .type-cell .t-logo {
+    width: 32px; height: 32px; border-radius: 8px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; font-family: var(--font-num); color: #0A0E17;
+  }
+  .type-cell .t-name { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+  .type-cell .t-sub { font-size: 10.5px; color: var(--tx-3); }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+  .link { color: var(--brand); cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+  .link:hover { color: #FFB25E; }
+  .link.danger { color: var(--danger); }
+  @media (max-width: 1100px) { .src-cats { grid-template-columns: repeat(2,1fr); } .type-grid { grid-template-columns: repeat(3,1fr); } }
+</style>
+</head>
+<body data-page="datasource">
+<div id="page-content" style="display:none">
+
+  <div class="page-head">
+    <div>
+      <div class="page-title">数据源管理</div>
+      <div class="page-desc">统一管理数据库、文件、HTTP 接口与实时流，密码 AES 加密存储，支持信创数据库接入（PRD 10.1）</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn" onclick="DG.toast('原型演示：导出数据源清单')">导出清单</button>
+      <button class="btn primary" id="btnNewDs"><span id="plusIco" style="display:flex"></span>新建数据源</button>
+    </div>
+  </div>
+
+  <!-- 业务规则提示条 -->
+  <div class="rule-bar mb-3">
+    <span id="ruleIco" style="display:flex"></span>
+    <span><b>业务规则</b>：数据源默认仅创建者可见，需通过「授权」共享给其他用户或角色；连接密码支持加密存储（AES-256），元数据采集可单独开关。</span>
+  </div>
+
+  <!-- 来源分类统计 -->
+  <section class="src-cats mb-3">
+    <div class="src-cat" style="--cat-glow:rgba(255,138,61,.12)" onclick="DG.toast('原型演示：筛选数据库类数据源')">
+      <div class="c-icon" style="color:var(--oil);background:var(--oil-soft)" data-ico="db"></div>
+      <div><div class="c-name">数据库<b>18</b></div><div class="c-sub">MySQL · Oracle · 达梦 · 金仓…</div></div>
+    </div>
+    <div class="src-cat" style="--cat-glow:rgba(232,179,60,.12)" onclick="DG.toast('原型演示：筛选文件类数据源')">
+      <div class="c-icon" style="color:var(--coal);background:var(--coal-soft)" data-ico="report"></div>
+      <div><div class="c-name">文件<b>3</b></div><div class="c-sub">CSV · Excel · 目录文件</div></div>
+    </div>
+    <div class="src-cat" style="--cat-glow:rgba(96,165,250,.12)" onclick="DG.toast('原型演示：筛选 HTTP 接口类')">
+      <div class="c-icon" style="color:var(--info);background:var(--info-soft)" data-ico="api"></div>
+      <div><div class="c-name">HTTP 接口<b>1</b></div><div class="c-sub">REST API · JSON 报文</div></div>
+    </div>
+    <div class="src-cat" style="--cat-glow:rgba(34,211,238,.12)" onclick="DG.toast('原型演示：筛选实时流类数据源')">
+      <div class="c-icon" style="color:var(--gas);background:var(--gas-soft)" data-ico="flame"></div>
+      <div><div class="c-name">实时流<b>1</b></div><div class="c-sub">Kafka · 消息队列</div></div>
+    </div>
+  </section>
+
+  <!-- 数据源表格 -->
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>数据源名称</th><th>类型</th><th>状态</th><th>表数量</th><th>创建人</th><th>可见性</th><th>最近检测</th><th style="width:230px">操作</th>
+        </tr>
+      </thead>
+      <tbody id="dsTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- 数据源详情抽屉 -->
+  <div class="drawer" id="dsDrawer">
+    <div class="drawer-head">
+      <div class="d-icon" id="dIcon" style="color:var(--oil);background:var(--oil-soft)"></div>
+      <div>
+        <div style="font-size:15px;font-weight:700" id="dName">华北油田生产库</div>
+        <div class="sm tx-3" id="dSub">MySQL 8.0 · 创建于 2025-11-08</div>
+      </div>
+      <button class="drawer-close" onclick="document.getElementById('dsDrawer').classList.remove('show')"><span id="closeIco" style="display:flex"></span></button>
+    </div>
+    <div class="drawer-body">
+      <div class="sec-label"><span id="icoConn" style="display:flex"></span>连接信息</div>
+      <div class="card" style="padding:6px 14px">
+        <div class="kv"><span class="k">连接地址</span><span class="v mono">jdbc:mysql://10.***.***.12:3306/oil_prod</span></div>
+        <div class="kv"><span class="k">数据库类型</span><span class="v">MySQL 8.0.32</span></div>
+        <div class="kv"><span class="k">驱动版本</span><span class="v mono">mysql-connector-j 8.0.33</span></div>
+        <div class="kv"><span class="k">账号</span><span class="v mono">dg_readonly</span></div>
+        <div class="kv"><span class="k">密码</span>
+          <span class="v flex" style="justify-content:flex-end;gap:6px">
+            <span style="width:14px;height:14px;display:inline-flex;color:var(--ok)" id="safeIco"></span>
+            <span class="tag ok">AES-256 加密存储</span>
+          </span>
+        </div>
+        <div class="kv"><span class="k">字符集 / 时区</span><span class="v mono">utf8mb4 · GMT+8</span></div>
+      </div>
+
+      <div class="sec-label"><span id="icoMeta" style="display:flex"></span>元数据采集</div>
+      <div class="card" style="padding:12px 14px">
+        <div class="flex-between">
+          <div>
+            <div style="font-size:13px;font-weight:600">自动采集表 / 字段元数据</div>
+            <div class="sm tx-3">每天 02:00 全量采集，变更自动同步至数据治理目录</div>
+          </div>
+          <label class="switch"><input type="checkbox" checked onchange="DG.toast('原型演示：切换元数据采集开关')"/><i></i></label>
+        </div>
+      </div>
+
+      <div class="sec-label"><span id="icoHealth" style="display:flex"></span>近 7 日连接健康度</div>
+      <div class="card" style="padding:12px 14px 4px">
+        <div class="chart" style="height:150px;min-height:150px" id="healthChart"></div>
+        <div class="flex-between sm tx-3" style="padding:8px 0 10px">
+          <span>可用率 <b class="num" style="color:var(--ok)">99.4%</b></span>
+          <span>平均响应 <b class="num" style="color:var(--tx-1)">18ms</b></span>
+          <span>失败 <b class="num" style="color:var(--danger)">2 次</b></span>
+        </div>
+      </div>
+
+      <div class="flex mt-3" style="gap:10px">
+        <button class="btn primary grow" style="justify-content:center" onclick="DG.toast('连接测试通过：延迟 16ms')">测试连接</button>
+        <button class="btn grow" style="justify-content:center" onclick="DG.toast('原型演示：打开授权共享面板')">授权共享</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新建数据源向导 -->
+  <div class="modal-mask" id="dsModal">
+    <div class="modal wizard">
+      <div class="flex-between">
+        <div style="font-size:16px;font-weight:700">新建数据源</div>
+        <button class="drawer-close" onclick="document.getElementById('dsModal').classList.remove('show')"><span id="closeIco2" style="display:flex"></span></button>
+      </div>
+
+      <div class="steps">
+        <div class="step active"><span class="s-dot">1</span>选择类型</div><span class="step-line"></span>
+        <div class="step"><span class="s-dot">2</span>填写连接</div><span class="step-line"></span>
+        <div class="step"><span class="s-dot">3</span>连接测试</div><span class="step-line"></span>
+        <div class="step"><span class="s-dot">4</span>完成</div>
+      </div>
+
+      <div class="form-label" style="margin-bottom:10px">数据库类（含信创）</div>
+      <div class="type-grid" id="typeGridDb"></div>
+      <div class="form-label" style="margin:16px 0 10px">文件 / 接口 / 流</div>
+      <div class="type-grid" id="typeGridOther"></div>
+
+      <div class="modal-foot">
+        <button class="btn" onclick="document.getElementById('dsModal').classList.remove('show')">取消</button>
+        <button class="btn primary" onclick="DG.toast('原型演示：进入第 2 步 · 填写连接参数')">下一步</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="assets/js/vendor/echarts.min.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+  /* 图标注入 */
+  document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
+  document.getElementById('ruleIco').innerHTML = DG.ICONS.spark;
+  document.getElementById('closeIco').innerHTML = DG.ICONS.x;
+  document.getElementById('closeIco2').innerHTML = DG.ICONS.x;
+  document.getElementById('safeIco').innerHTML = DG.ICONS.safe;
+  document.getElementById('icoConn').innerHTML = DG.ICONS.db;
+  document.getElementById('icoMeta').innerHTML = DG.ICONS.dataset;
+  document.getElementById('icoHealth').innerHTML = DG.ICONS.metric;
+  document.querySelectorAll('[data-ico]').forEach(el => el.innerHTML = DG.ICONS[el.dataset.ico]);
+
+  /* 数据源列表 */
+  const DS = [
+    { n: '华北油田生产库', t: 'MySQL',      tc: '',    st: 'ok',   tables: 128, by: '张伟',  vis: '已共享', time: '10 分钟前', ic: 'var(--oil)', bg: 'var(--oil-soft)' },
+    { n: '长庆气田 SCADA 实时库', t: 'Kafka', tc: '',  st: 'ok',   tables: 12,  by: '王芳',  vis: '私有',   time: '实时接入', ic: 'var(--gas)', bg: 'var(--gas-soft)' },
+    { n: '煤化工 ERP 库', t: 'Oracle',       tc: '',    st: 'ok',   tables: 86,  by: '陈磊',  vis: '已共享', time: '1 小时前',  ic: 'var(--chem)', bg: 'var(--chem-soft)' },
+    { n: '集团财务核算库', t: '达梦 DM8',     tc: 'xc',  st: 'ok',   tables: 54,  by: '赵静',  vis: '私有',   time: '2 小时前',  ic: 'var(--info)', bg: 'var(--info-soft)' },
+    { n: '煤矿安全监测流', t: 'Kafka',        tc: '',    st: 'ok',   tables: 9,   by: '李明',  vis: '已共享', time: '实时接入', ic: 'var(--coal)', bg: 'var(--coal-soft)' },
+    { n: '塔里木油田档案库', t: '金仓 Kingbase', tc: 'xc', st: 'ok', tables: 61,  by: '张伟',  vis: '已共享', time: '3 小时前',  ic: 'var(--ok)', bg: 'var(--ok-soft)' },
+    { n: '勘探开发数据湖', t: 'GaussDB',      tc: 'xc',  st: 'warn', tables: 203, by: '刘总',  vis: '已共享', time: '昨天 22:00', ic: 'var(--info)', bg: 'var(--info-soft)' },
+    { n: '西气东输管网 SCADA', t: 'SQLServer', tc: '',   st: 'ok',   tables: 45,  by: '王芳',  vis: '私有',   time: '5 小时前',  ic: 'var(--gas)', bg: 'var(--gas-soft)' },
+    { n: '物资采购 CSV 目录', t: 'CSV 文件',   tc: '',   st: 'ok',   tables: 3,   by: '赵静',  vis: '私有',   time: '昨天 18:20', ic: 'var(--coal)', bg: 'var(--coal-soft)' },
+    { n: '历史井史归档库', t: 'Oracle',        tc: '',   st: 'err',  tables: 97,  by: '陈磊',  vis: '已共享', time: '检测失败', ic: 'var(--danger)', bg: 'var(--danger-soft)' },
+  ];
+  document.getElementById('dsTbody').innerHTML = DS.map((d, i) => `
+    <tr data-i="${i}" style="cursor:pointer">
+      <td><div class="flex" style="gap:10px">
+        <span style="width:30px;height:30px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;color:${d.ic};background:${d.bg}">${DG.ICONS.db}</span>
+        <span class="cell-main">${d.n}</span>
+        ${d.tc === 'xc' ? '<span class="tag brand">信创</span>' : ''}
+      </div></td>
+      <td><span class="tag">${d.t}</span></td>
+      <td>${d.st === 'ok' ? '<span class="tag ok">连接正常</span>'
+          : d.st === 'warn' ? '<span class="tag warn">响应缓慢</span>'
+          : '<span class="tag danger">连接异常</span> <button class="btn sm" style="margin-left:6px" onclick="event.stopPropagation();DG.toast(\'正在重试连接…\')">重试</button>'}</td>
+      <td class="num">${d.tables}</td>
+      <td>${d.by}</td>
+      <td>${d.vis === '私有' ? '<span class="tag">私有</span>' : '<span class="tag info">已共享</span>'}</td>
+      <td class="sm tx-3">${d.time}</td>
+      <td onclick="event.stopPropagation()">
+        <span class="link" onclick="DG.toast('原型演示：打开编辑面板')">编辑</span> ·
+        <span class="link" onclick="DG.toast('连接测试通过：延迟 16ms')">测试连接</span> ·
+        <span class="link" onclick="DG.toast('原型演示：按用户 / 角色授权共享')">授权</span> ·
+        <span class="link danger" onclick="DG.toast('原型演示：删除需二次确认')">删除</span>
+      </td>
+    </tr>`).join('');
+
+  /* 行点击 → 抽屉 */
+  let healthDone = false;
+  document.querySelectorAll('#dsTbody tr').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const d = DS[+tr.dataset.i];
+      document.getElementById('dName').textContent = d.n;
+      document.getElementById('dSub').textContent = d.t + ' · 创建人 ' + d.by + ' · ' + d.time + '检测';
+      const di = document.getElementById('dIcon');
+      di.style.color = d.ic; di.style.background = d.bg;
+      di.innerHTML = DG.ICONS.db;
+      document.getElementById('dsDrawer').classList.add('show');
+      if (!healthDone) {
+        healthDone = true;
+        DG.makeChart(document.getElementById('healthChart'), {
+          grid: { left: 4, right: 8, top: 26, bottom: 2, containLabel: true },
+          tooltip: { trigger: 'axis' },
+          xAxis: { type: 'category', data: DG.WEEK },
+          yAxis: { type: 'value', min: 95, max: 100, name: '%', nameTextStyle: { color: '#7C88A0' } },
+          series: [{
+            name: '连接成功率', type: 'line', smooth: true, symbol: 'circle', symbolSize: 5,
+            data: [99.8, 99.9, 98.6, 99.7, 99.9, 99.5, 99.4],
+            lineStyle: { width: 2.5, color: '#34D399' }, itemStyle: { color: '#34D399' },
+            areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(52,211,153,.25)' }, { offset: 1, color: 'rgba(52,211,153,0)' }] } }
+          }]
+        });
+      }
+    });
+  });
+
+  /* 新建数据源向导 · 类型网格 */
+  const DB_TYPES = [
+    ['MySQL', '开源关系库', '#FF8A3D'], ['Oracle', '商用关系库', '#F87171'], ['SQLServer', '微软关系库', '#60A5FA'],
+    ['达梦 DM8', '信创关系库', '#22D3EE'], ['金仓 Kingbase', '信创关系库', '#34D399'], ['GaussDB', '华为信创库', '#A78BFA'],
+    ['Hive', '大数据仓库', '#E8B33C'], ['ClickHouse', '实时分析库', '#F472B6'],
+  ];
+  const OTHER_TYPES = [
+    ['CSV', '单文件', '#E8B33C'], ['Excel', '工作簿', '#34D399'], ['HTTP', 'REST 接口', '#60A5FA'], ['Kafka', '实时消息流', '#22D3EE'],
+  ];
+  const cell = (t, sel) => `
+    <div class="type-cell ${sel ? 'sel' : ''}" onclick="this.parentNode.querySelectorAll('.type-cell').forEach(x=>x.classList.remove('sel'));this.classList.add('sel')">
+      <div class="t-logo" style="background:${t[2]}">${t[0].slice(0, 2).toUpperCase()}</div>
+      <div><div class="t-name">${t[0]}</div><div class="t-sub">${t[1]}</div></div>
+    </div>`;
+  document.getElementById('typeGridDb').innerHTML = DB_TYPES.map((t, i) => cell(t, i === 0)).join('');
+  document.getElementById('typeGridOther').innerHTML = OTHER_TYPES.map(t => cell(t)).join('');
+
+  document.getElementById('btnNewDs').onclick = () => document.getElementById('dsModal').classList.add('show');
+  document.getElementById('dsModal').addEventListener('click', e => { if (e.target.id === 'dsModal') e.target.classList.remove('show'); });
+</script>
+</body>
+</html>

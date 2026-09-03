@@ -3,533 +3,627 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>集团能源生产运营驾驶舱 · DataGear 能源BI</title>
-<link rel="stylesheet" href="assets/css/theme.css" />
+<title>ENERGY PULSE · 集团能源生产运营驾驶舱</title>
 <style>
-  html, body { overflow: hidden; background: #05070D; }
-  body::before {
+  /* ============================================================
+     数据大屏 · Kimi 仪器终端风格（复刻 Kimi 看板设计语言）
+     纯黑 #0d0d0d + 22px 网格线 / 等宽字体 / LED 方块 /
+     点阵数码管 / 热力墙 / 磁带滚动 / 手绘 canvas 图表
+     ============================================================ */
+  :root {
+    --ink:#eeeeee; --dim:#8a8a8a; --faint:#5a5a5a;
+    --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.16);
+    --acc:#e04b34;             /* 告警红 LED */
+    --up:#ff5a3c; --down:#3fbf6f; --flat:#2a2a2a;
+    --oil:#ff8a3d; --gas:#22d3ee; --chem:#a78bfa; --coal:#e8b33c;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC","Microsoft YaHei",monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; }
+  body {
     background:
-      radial-gradient(1000px 520px at 50% -12%, rgba(255,138,61,.14), transparent 62%),
-      radial-gradient(900px 560px at -8% 108%, rgba(34,211,238,.10), transparent 62%),
-      radial-gradient(900px 560px at 108% 108%, rgba(167,139,250,.08), transparent 62%) !important;
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px) 0 0 / 100% 22px,
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px) 0 0 / 22px 100%,
+      #0d0d0d;
+    color:var(--ink); overflow:hidden;
+    font-family:var(--mono);
+    -webkit-font-smoothing:antialiased;
   }
-  /* 1920×1080 舞台 + 自适应缩放 */
-  #viewport { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  #stage {
-    width: 1920px; height: 1080px; flex: none; position: relative;
-    transform-origin: center center; overflow: hidden;
-    background:
-      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 100% 54px,
-      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 96px 100%,
-      radial-gradient(1200px 500px at 50% 42%, rgba(255,138,61,.05), transparent 65%);
-    display: flex; flex-direction: column;
-  }
-  /* 四角装饰线框 */
-  .corner { position: absolute; width: 42px; height: 42px; z-index: 5; pointer-events: none; opacity: .8; }
-  .corner.tl { left: 10px; top: 10px; border-left: 2px solid var(--brand); border-top: 2px solid var(--brand); }
-  .corner.tr { right: 10px; top: 10px; border-right: 2px solid var(--brand); border-top: 2px solid var(--brand); }
-  .corner.bl { left: 10px; bottom: 10px; border-left: 2px solid var(--brand); border-bottom: 2px solid var(--brand); }
-  .corner.br { right: 10px; bottom: 10px; border-right: 2px solid var(--brand); border-bottom: 2px solid var(--brand); }
+  #stage { position:absolute; left:50%; top:50%; width:1920px; height:1080px; transform-origin:center center;
+    display:flex; flex-direction:column; padding:22px 26px 16px; }
 
-  /* 返回工作台 */
-  .back-btn {
-    position: fixed; left: 18px; bottom: 18px; z-index: 50;
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--tx-2); padding: 6px 14px; border-radius: 16px;
-    background: rgba(13,20,32,.8); border: 1px solid var(--line-2); backdrop-filter: blur(8px);
-    transition: all var(--dur); cursor: pointer;
-  }
-  .back-btn:hover { color: var(--brand); border-color: var(--brand-line); box-shadow: var(--shadow-glow-brand); }
-  .back-btn svg { width: 13px; height: 13px; }
+  /* ---------- 顶栏 ---------- */
+  .top { flex:none; display:flex; align-items:center; gap:14px; padding-bottom:14px; border-bottom:1px solid var(--line); }
+  .top .sq { width:8px; height:8px; background:var(--acc); flex:none; box-shadow:0 0 8px rgba(224,75,52,.6); }
+  .top .brand { font-size:11px; letter-spacing:.30em; color:var(--dim); text-transform:uppercase; }
+  .top .brand b { color:var(--ink); font-weight:600; }
+  .top .tabs { display:flex; gap:4px; margin-left:10px; }
+  .top .tab { cursor:pointer; padding:4px 12px; font:inherit; font-size:10px; letter-spacing:.18em;
+    color:var(--faint); border:1px solid var(--line-2); background:none; }
+  .top .tab.on { color:#0d0d0d; background:#eaeaea; border-color:#eaeaea; }
+  .top .tab:hover:not(.on) { color:var(--ink); }
+  .top .right { margin-left:auto; display:flex; align-items:center; gap:18px; }
+  .top .clockbox { text-align:right; }
+  .top .date { font-size:9px; letter-spacing:.22em; color:var(--faint); margin-top:4px; text-transform:uppercase; }
+  .top .sys-btn { cursor:pointer; font:inherit; font-size:10px; letter-spacing:.18em; padding:5px 12px;
+    color:var(--dim); border:1px solid var(--line-2); background:none; }
+  .top .sys-btn:hover { color:#0d0d0d; background:#eaeaea; border-color:#eaeaea; }
 
-  /* 顶部标题栏 */
-  .scr-head {
-    flex: none; height: 86px; display: flex; align-items: center; padding: 0 40px; position: relative;
-    background: linear-gradient(180deg, rgba(255,138,61,.06), transparent);
-  }
-  .scr-sys { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; width: 380px; }
-  .scr-sys .logo-mark { width: 34px; height: 34px; border-radius: 9px; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; font-family: var(--font-num); font-weight: 800; color: #1A0E05; box-shadow: var(--shadow-glow-brand); }
-  .scr-sys .sys-sub { font-size: 10px; color: var(--tx-3); letter-spacing: 2px; font-weight: 400; }
-  .scr-title { flex: 1; text-align: center; position: relative; }
-  .scr-title h1 {
-    font-size: 34px; font-weight: 800; letter-spacing: 6px; line-height: 1.2;
-    background: linear-gradient(180deg, #FFF2E4 20%, #FFB25E 55%, #F4633A 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 40px rgba(255,138,61,.25);
-  }
-  .scr-title .t-line {
-    position: absolute; top: 50%; height: 1px; width: 240px;
-    background: linear-gradient(90deg, transparent, var(--brand-line), transparent);
-  }
-  .scr-title .t-line.l { right: calc(50% + 340px); }
-  .scr-title .t-line.r { left: calc(50% + 340px); }
-  .scr-time { width: 380px; text-align: right; font-family: var(--font-num); }
-  .scr-time .t-now { font-size: 24px; font-weight: 700; letter-spacing: 2px; color: var(--tx-1); }
-  .scr-time .t-date { font-size: 12px; color: var(--tx-3); margin-top: 2px; }
-  .scr-time .t-upd { display: inline-block; font-size: 11px; color: var(--ok); border: 1px solid rgba(52,211,153,.3); background: var(--ok-soft); border-radius: 10px; padding: 1px 10px; margin-left: 8px; }
+  /* ---------- 主网格 ---------- */
+  .grid { flex:1; min-height:0; display:grid; grid-template-columns:400px 1fr 400px; gap:18px; padding-top:16px; }
+  .col { display:flex; flex-direction:column; gap:18px; min-height:0; min-width:0; }
 
-  /* 主体布局 */
-  .scr-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 430px 1fr 430px; gap: 16px; padding: 6px 24px 14px; }
-  .scr-col { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
-  .scr-panel {
-    position: relative; border: 1px solid var(--line-1); border-radius: var(--r-l);
-    background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
-    backdrop-filter: blur(8px); padding: 14px 16px; display: flex; flex-direction: column; min-height: 0;
-    box-shadow: inset 0 0 40px rgba(255,255,255,.015);
-  }
-  .scr-panel::before, .scr-panel::after {
-    content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none;
-  }
-  .scr-panel::before { left: -1px; top: -1px; border-left: 2px solid var(--brand); border-top: 2px solid var(--brand); border-radius: var(--r-l) 0 0 0; opacity: .7; }
-  .scr-panel::after { right: -1px; bottom: -1px; border-right: 2px solid var(--brand); border-bottom: 2px solid var(--brand); border-radius: 0 0 var(--r-l) 0; opacity: .7; }
-  .sp-title {
-    flex: none; font-size: 15px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
-    margin-bottom: 10px;
-  }
-  .sp-title::before { content: ""; width: 4px; height: 15px; border-radius: 2px; background: var(--brand-grad); box-shadow: var(--shadow-glow-brand); }
-  .sp-title .sp-extra { margin-left: auto; font-size: 11px; color: var(--tx-3); font-weight: 400; }
+  /* ---------- 仪器面板（直角 + 角标刻度） ---------- */
+  .panel { position:relative; border:1px solid var(--line); padding:14px 16px 12px; display:flex; flex-direction:column; min-height:0; }
+  .panel::before, .panel::after { content:""; position:absolute; width:10px; height:10px; border-color:rgba(255,255,255,.35); border-style:solid; }
+  .panel::before { left:-1px; top:-1px; border-width:1px 0 0 1px; }
+  .panel::after { right:-1px; bottom:-1px; border-width:0 1px 1px 0; }
+  .p-head { flex:none; display:flex; align-items:center; gap:8px; font-size:10px; letter-spacing:.26em;
+    color:var(--dim); text-transform:uppercase; margin-bottom:10px; }
+  .p-head .led { width:6px; height:6px; background:var(--ink); flex:none; }
+  .p-head .more { margin-left:auto; cursor:pointer; color:var(--faint); letter-spacing:.14em; }
+  .p-head .more:hover { color:var(--ink); }
+  .p-body { flex:1; min-height:0; position:relative; }
+  .p-foot { flex:none; padding-top:8px; display:flex; gap:14px; font-size:8px; letter-spacing:.16em;
+    color:var(--faint); text-transform:uppercase; }
+  .p-foot .r { margin-left:auto; }
+  .p-foot .k { display:inline-flex; align-items:center; gap:5px; }
+  .p-foot .b { width:7px; height:7px; }
 
-  /* 四大产业 KPI 行 */
-  .ind-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
-  .ind-row:last-child { border-bottom: none; }
-  .ind-row .ir-ico { width: 36px; height: 36px; border-radius: 10px; flex: none; display: flex; align-items: center; justify-content: center; }
-  .ind-row .ir-ico svg { width: 18px; height: 18px; }
-  .ind-row .ir-name { font-size: 13px; color: var(--tx-2); width: 64px; flex: none; }
-  .ind-row .ir-val { font-family: var(--font-num); font-size: 22px; font-weight: 700; flex: 1; }
-  .ind-row .ir-val .unit { font-size: 11px; color: var(--tx-3); font-weight: 400; }
-  .ind-row .ir-yoy { font-size: 11.5px; font-family: var(--font-num); width: 76px; text-align: right; }
+  /* ---------- 四大产业 KPI 行 ---------- */
+  .kpi-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+  .kpi-row:last-child { border-bottom:0; }
+  .kpi-row .iled { width:8px; height:8px; flex:none; }
+  .kpi-row .iname { font-size:11px; letter-spacing:.20em; color:var(--dim); width:58px; }
+  .kpi-row .ival { font-size:22px; font-weight:600; color:var(--ink); letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+  .kpi-row .iunit { font-size:9px; color:var(--faint); letter-spacing:.12em; margin-left:2px; }
+  .kpi-row .idelta { margin-left:auto; font-size:10px; letter-spacing:.06em; font-variant-numeric:tabular-nums; }
+  .u { color:var(--up); } .d { color:var(--down); } .n { color:var(--dim); }
 
-  /* 完成率 */
-  .rate-row { padding: 7px 0; }
-  .rate-row .rr-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--tx-2); margin-bottom: 5px; }
-  .rate-row .rr-top b { font-family: var(--font-num); color: var(--tx-1); }
+  /* ---------- 完成率轨道条 ---------- */
+  .track-row { padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+  .track-row:last-child { border-bottom:0; }
+  .track-row .tr-top { display:flex; justify-content:space-between; font-size:9px; letter-spacing:.18em; color:var(--dim); margin-bottom:5px; text-transform:uppercase; }
+  .track-row .tr-top .v { color:var(--ink); font-variant-numeric:tabular-nums; }
+  .track { height:4px; background:rgba(255,255,255,.08); position:relative; }
+  .track i { position:absolute; left:0; top:0; bottom:0; background:#eaeaea; }
+  .track i.over { background:var(--up); }
 
-  /* 告警滚动 */
-  .alarm-list { flex: 1; min-height: 0; overflow: hidden; position: relative; }
-  .alarm-item {
-    display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 6px;
-    border-radius: 8px; background: rgba(255,255,255,.03); border: 1px solid var(--line-1);
-    font-size: 12px; animation: slideIn .35s var(--ease);
-  }
-  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
-  .alarm-item .a-time { font-family: var(--font-num); font-size: 11px; color: var(--tx-4); flex: none; }
-  .alarm-item .a-msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-1); }
-  .alarm-item:hover { border-color: var(--line-3); }
+  /* ---------- 中央 HERO 点阵数字 ---------- */
+  .hero { flex:none; display:flex; align-items:flex-end; gap:28px; border:1px solid var(--line); padding:16px 20px 14px; position:relative; }
+  .hero::before, .hero::after { content:""; position:absolute; width:10px; height:10px; border-color:rgba(255,255,255,.35); border-style:solid; }
+  .hero::before { left:-1px; top:-1px; border-width:1px 0 0 1px; }
+  .hero::after { right:-1px; bottom:-1px; border-width:0 1px 1px 0; }
+  .hero .h-label { font-size:9px; letter-spacing:.26em; color:var(--dim); text-transform:uppercase; margin-bottom:8px; }
+  .hero .h-sub { display:flex; flex-direction:column; gap:8px; padding-bottom:4px; }
+  .hero .h-stat { display:flex; align-items:baseline; gap:8px; font-size:10px; letter-spacing:.14em; color:var(--dim); }
+  .hero .h-stat b { font-size:16px; color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+  .hero .h-right { margin-left:auto; text-align:right; font-size:9px; letter-spacing:.20em; color:var(--faint); text-transform:uppercase; line-height:2; }
 
-  /* 状态点矩阵 */
-  .st-matrix { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px; }
-  .st-cell { text-align: center; }
-  .st-cell i { display: block; width: 100%; height: 30px; border-radius: 6px; }
-  .st-cell span { font-size: 10px; color: var(--tx-4); display: block; margin-top: 3px; }
-  .st-cell .run { background: rgba(52,211,153,.22); border: 1px solid rgba(52,211,153,.5); box-shadow: inset 0 0 12px rgba(52,211,153,.15); }
-  .st-cell .mnt { background: rgba(251,191,36,.18); border: 1px solid rgba(251,191,36,.5); }
-  .st-cell .stp { background: rgba(248,113,113,.18); border: 1px solid rgba(248,113,113,.5); }
-  .st-sum { display: flex; gap: 14px; font-size: 11.5px; color: var(--tx-3); margin-top: 10px; }
-  .st-sum b { font-family: var(--font-num); font-size: 15px; margin-right: 2px; }
+  /* ---------- 热力墙 ---------- */
+  .wall { position:relative; }
+  .cell { position:absolute; overflow:hidden; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px;
+    border:1px solid #0d0d0d; transition:filter .15s ease; cursor:pointer; }
+  .cell:hover { filter:brightness(1.4); z-index:2; }
+  .cell .nm { font-size:11px; color:rgba(255,255,255,.92); white-space:nowrap; max-width:94%; overflow:hidden; text-overflow:ellipsis; }
+  .cell .pc { font-size:9px; letter-spacing:.04em; color:rgba(255,255,255,.75); font-variant-numeric:tabular-nums; }
+  .cell.sm .nm { font-size:9px; } .cell.sm .pc { display:none; }
 
-  /* 中央产区图 */
-  .scr-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
-  .map-panel { flex: 1; position: relative; min-height: 0; }
-  .map-panel .chart { position: absolute; inset: 0; min-height: 0; }
-  .total-float {
-    position: absolute; left: 50%; top: 44%; transform: translate(-50%,-50%); text-align: center; z-index: 4;
-    pointer-events: none;
-  }
-  .total-float .tf-label { font-size: 13px; color: var(--tx-3); letter-spacing: 3px; }
-  .total-float .tf-val {
-    font-family: var(--font-num); font-size: 58px; font-weight: 800; line-height: 1.15;
-    background: linear-gradient(180deg,#FFF 30%,#FFB25E); -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 60px rgba(255,138,61,.3);
-  }
-  .total-float .tf-unit { font-size: 14px; color: var(--tx-2); }
-  .total-float .tf-sub { font-size: 12px; color: var(--tx-3); margin-top: 4px; }
-  .map-legend { position: absolute; left: 18px; bottom: 14px; display: flex; gap: 14px; font-size: 11.5px; color: var(--tx-3); z-index: 4; }
-  .map-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  /* ---------- 磁带滚动 ---------- */
+  .tape-wrap { flex:none; border:1px solid var(--line); overflow:hidden; position:relative; height:44px; display:flex; align-items:center; min-width:0; }
+  .tape-wrap::before { content:""; position:absolute; left:0; top:0; bottom:0; width:60px; z-index:2;
+    background:linear-gradient(90deg,#0d0d0d,transparent); }
+  .tape-wrap::after { content:""; position:absolute; right:0; top:0; bottom:0; width:60px; z-index:2;
+    background:linear-gradient(-90deg,#0d0d0d,transparent); }
+  .tape { display:flex; gap:38px; white-space:nowrap; animation:tape 36s linear infinite; padding-left:20px; }
+  .tape:hover { animation-play-state:paused; }
+  @keyframes tape { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+  .tp-item { display:inline-flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.10em; color:var(--dim); }
+  .tp-item .tled { width:6px; height:6px; }
+  .tp-item b { color:var(--ink); font-weight:500; font-variant-numeric:tabular-nums; }
 
-  /* 底部横条 */
-  .scr-foot { flex: none; height: 236px; display: grid; grid-template-columns: 1.1fr 1.9fr; gap: 16px; padding: 0 24px 20px; }
-  .well-table { flex: 1; min-height: 0; overflow: hidden; }
-  .well-table table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  .well-table th { text-align: left; color: var(--tx-4); font-weight: 500; font-size: 11px; padding: 6px 10px; border-bottom: 1px solid var(--line-1); }
-  .well-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--tx-2); }
-  .well-table .num { color: var(--tx-1); }
+  /* ---------- 告警 LED 流 ---------- */
+  .alarm-row { display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06);
+    font-size:10px; letter-spacing:.06em; cursor:pointer; }
+  .alarm-row:last-child { border-bottom:0; }
+  .alarm-row:hover { background:rgba(255,255,255,.03); }
+  .alarm-row .led { width:7px; height:7px; flex:none; background:rgba(255,255,255,.12); }
+  .alarm-row.lv-danger .led { background:var(--acc); box-shadow:0 0 7px rgba(224,75,52,.7); animation:blink 1.2s infinite; }
+  .alarm-row.lv-warn .led { background:#eaeaea; }
+  .alarm-row.lv-info .led { background:var(--faint); }
+  @keyframes blink { 50% { opacity:.35; } }
+  .alarm-row .tm { color:var(--faint); width:52px; flex:none; font-variant-numeric:tabular-nums; }
+  .alarm-row .tx { color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .alarm-row .lv { margin-left:auto; flex:none; font-size:8px; letter-spacing:.18em; }
+  .lv-danger .lv { color:var(--acc); } .lv-warn .lv { color:#eaeaea; } .lv-info .lv { color:var(--faint); }
+
+  /* ---------- 状态矩阵 ---------- */
+  .matrix { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; }
+  .mx { aspect-ratio:1; background:rgba(255,255,255,.07); position:relative; cursor:pointer; transition:filter .15s; }
+  .mx:hover { filter:brightness(1.5); }
+  .mx.run { background:rgba(63,191,111,.85); }
+  .mx.maint { background:rgba(238,238,238,.55); }
+  .mx.stop { background:rgba(224,75,52,.9); animation:blink 1.4s infinite; }
+  .mx .mx-lb { position:absolute; left:3px; bottom:2px; font-size:7px; letter-spacing:.04em; color:rgba(0,0,0,.75); }
+
+  /* ---------- Kimi 风格弹窗 ---------- */
+  .k-mask { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:90; display:none; align-items:center; justify-content:center; }
+  .k-mask.show { display:flex; }
+  .k-modal { width:560px; max-width:92vw; background:#0d0d0d; border:1px solid var(--line-2); position:relative; padding:18px 22px 16px; }
+  .k-modal::before, .k-modal::after { content:""; position:absolute; width:12px; height:12px; border-color:rgba(255,255,255,.45); border-style:solid; }
+  .k-modal::before { left:-1px; top:-1px; border-width:1px 0 0 1px; }
+  .k-modal::after { right:-1px; bottom:-1px; border-width:0 1px 1px 0; }
+  .k-modal .km-head { display:flex; align-items:center; gap:8px; font-size:10px; letter-spacing:.26em; color:var(--dim); text-transform:uppercase; margin-bottom:12px; }
+  .k-modal .km-x { margin-left:auto; cursor:pointer; color:var(--faint); font-size:14px; padding:2px 6px; }
+  .k-modal .km-x:hover { color:var(--ink); }
+  .km-desc { display:grid; grid-template-columns:84px 1fr; row-gap:8px; column-gap:12px; font-size:11px; letter-spacing:.08em; }
+  .km-desc dt { color:var(--faint); } .km-desc dd { color:var(--ink); font-variant-numeric:tabular-nums; }
+  .km-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
+  .k-btn { cursor:pointer; font:inherit; font-size:10px; letter-spacing:.18em; padding:7px 16px;
+    color:var(--dim); border:1px solid var(--line-2); background:none; }
+  .k-btn:hover { color:#0d0d0d; background:#eaeaea; border-color:#eaeaea; }
+  .k-btn.primary { color:#0d0d0d; background:#eaeaea; border-color:#eaeaea; }
+  .k-btn.primary:hover { background:#fff; }
+
+  /* ---------- Toast（终端风格） ---------- */
+  #k-toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
+  #k-toast .ti { background:#0d0d0d; border:1px solid var(--line-2); border-left:3px solid var(--acc);
+    color:var(--ink); padding:8px 18px; font-size:11px; letter-spacing:.10em; font-family:var(--mono); transition:all .3s; }
+  canvas.chart { position:absolute; inset:0; width:100%; height:100%; }
+  .back { position:fixed; left:18px; bottom:14px; z-index:50; font-size:9px; letter-spacing:.22em; color:var(--faint);
+    text-transform:uppercase; text-decoration:none; border:1px solid var(--line); padding:5px 12px; background:rgba(13,13,13,.8); }
+  .back:hover { color:#0d0d0d; background:#eaeaea; }
 </style>
 </head>
-<body data-no-shell>
+<body>
+<div id="stage">
 
-<a class="back-btn" href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>返回工作台</a>
-<a class="back-btn" id="fsBtn" style="left:auto;right:18px;top:18px;bottom:auto" title="全屏 / 退出全屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>全屏</a>
-
-<div id="viewport">
-  <div id="stage">
-    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-
-    <!-- 顶部标题栏 -->
-    <header class="scr-head">
-      <div class="scr-sys">
-        <div class="logo-mark">DG</div>
-        <div>DataGear <span style="color:var(--brand)">能源BI</span><div class="sys-sub">ENERGY INTELLIGENCE V4.1</div></div>
+  <!-- ══════════ 顶栏 ══════════ -->
+  <div class="top">
+    <span class="sq"></span>
+    <span class="brand"><b>ENERGY PULSE</b> // 集团能源生产运营驾驶舱</span>
+    <span class="tabs" id="tabs"></span>
+    <div class="right">
+      <a class="sys-btn" href="index.html" style="text-decoration:none">‹ 工作台</a>
+      <button class="sys-btn" id="fsBtn">⛶ FULLSCREEN</button>
+      <div class="clockbox">
+        <canvas id="clock"></canvas>
+        <div class="date" id="date"></div>
       </div>
-      <div class="scr-title">
-        <span class="t-line l"></span><span class="t-line r"></span>
-        <h1>集团能源生产运营驾驶舱</h1>
-      </div>
-      <div class="scr-time">
-        <div class="t-now" id="clock">--:--:--</div>
-        <div class="t-date"><span id="dateTxt"></span><span class="t-upd">数据更新 06:30</span></div>
-      </div>
-    </header>
+    </div>
+  </div>
 
-    <!-- 主体 -->
-    <div class="scr-body">
-      <!-- 左列 -->
-      <div class="scr-col">
-        <div class="scr-panel" style="flex:none">
-          <div class="sp-title">四大产业日产量 <span class="sp-extra">昨日 · 同比</span></div>
-          <div id="indRows"></div>
-        </div>
-        <div class="scr-panel" style="flex:1.2">
-          <div class="sp-title">近30日产量趋势 <span class="sp-extra">万吨 / 亿方</span></div>
-          <div class="chart" style="flex:1;min-height:0" data-chart="trend30"></div>
-        </div>
-        <div class="scr-panel" style="flex:none">
-          <div class="sp-title">月度生产完成率 <span class="sp-extra">截至昨日</span></div>
-          <div id="rateRows"></div>
+  <!-- ══════════ 主网格 ══════════ -->
+  <div class="grid">
+
+    <!-- ── 左列 ── -->
+    <div class="col">
+      <div class="panel" style="flex:none">
+        <div class="p-head"><span class="led"></span>四大产业日产量<span class="more" data-more="产业产量明细">›</span></div>
+        <div class="p-body" id="kpiList" style="flex:none"></div>
+        <div class="p-foot"><span>昨日 · 同比口径</span><span class="r">UPD 06:30</span></div>
+      </div>
+
+      <div class="panel" style="flex:1">
+        <div class="p-head"><span class="led"></span>近30日产量趋势<span class="more" data-more="趋势明细">›</span></div>
+        <div class="p-body"><canvas class="chart" id="trendCv"></canvas></div>
+        <div class="p-foot">
+          <span class="k"><span class="b" style="background:rgba(238,238,238,.35)"></span>原油 万吨</span>
+          <span class="k"><span style="width:12px;border-top:1px dashed #8a8a8a"></span>天然气 亿方</span>
+          <span class="r" id="trendRange"></span>
         </div>
       </div>
 
-      <!-- 中央 -->
-      <div class="scr-center">
-        <div class="scr-panel map-panel">
-          <div class="sp-title" style="position:relative;z-index:4">主力产区分布与管网输送 <span class="sp-extra">气泡=日产量</span></div>
-          <div class="chart" data-chart="map"></div>
-          <div class="total-float">
-            <div class="tf-label">今日总产量 · 油气当量</div>
-            <div class="tf-val" data-count="21.73">0</div>
-            <div class="tf-unit">万吨油当量</div>
-            <div class="tf-sub"><span class="trend up">▲ 2.1%</span> 较昨日 · 计划完成率 <b style="color:var(--ok)" class="num">101.4%</b></div>
-          </div>
-          <div class="map-legend">
-            <span><i style="background:var(--oil)"></i>油田产区</span>
-            <span><i style="background:var(--gas)"></i>气田/管网</span>
-            <span><i style="background:var(--chem)"></i>炼化基地</span>
-            <span><i style="background:var(--coal)"></i>煤矿产区</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右列 -->
-      <div class="scr-col">
-        <div class="scr-panel" style="flex:1.15">
-          <div class="sp-title">实时告警 <span class="sp-extra"><span class="tag danger" style="font-size:10.5px">3 未处理</span></span></div>
-          <div class="alarm-list" id="alarmList"></div>
-        </div>
-        <div class="scr-panel" style="flex:none">
-          <div class="sp-title">场站 / 装置运行状态 <span class="sp-extra">共 24 座</span></div>
-          <div class="st-matrix" id="stMatrix"></div>
-          <div class="st-sum">
-            <span><b style="color:var(--ok)">19</b>运行</span>
-            <span><b style="color:var(--warn)">3</b>检修</span>
-            <span><b style="color:var(--danger)">2</b>停机</span>
-            <span style="margin-left:auto">综合完好率 <b style="color:var(--ok)" class="num">96.8%</b></span>
-          </div>
-        </div>
-        <div class="scr-panel" style="flex:1">
-          <div class="sp-title">能耗与排放 <span class="sp-extra">本月累计</span></div>
-          <div class="chart" style="flex:1;min-height:0" data-chart="energy"></div>
-        </div>
+      <div class="panel" style="flex:none">
+        <div class="p-head"><span class="led"></span>月度生产完成率<span class="more" data-more="完成率明细">›</span></div>
+        <div class="p-body" id="trackList" style="flex:none"></div>
+        <div class="p-foot"><span>截至昨日 · 月度计划口径</span><span class="r">≥100% 标红</span></div>
       </div>
     </div>
 
-    <!-- 底部横条 -->
-    <div class="scr-foot">
-      <div class="scr-panel">
-        <div class="sp-title">采油厂产量 TOP5 <span class="sp-extra">今日 · 万吨</span></div>
-        <div class="chart" style="flex:1;min-height:0" data-chart="top5"></div>
+    <!-- ── 中央 ── -->
+    <div class="col">
+      <div class="hero">
+        <div>
+          <div class="h-label">今日总产量 · 油气当量</div>
+          <canvas id="heroNum"></canvas>
+        </div>
+        <div class="h-sub">
+          <div class="h-stat">较昨日 <b class="u">▲ 2.1%</b></div>
+          <div class="h-stat">计划完成率 <b>101.6%</b></div>
+        </div>
+        <div class="h-right">
+          单位：万吨油当量<br/>统计口径：集团合并<br/>数据更新：06:30
+        </div>
       </div>
-      <div class="scr-panel">
-        <div class="sp-title">重点井场 / 场站运行 <span class="sp-extra">实时</span></div>
-        <div class="well-table">
-          <table>
-            <thead><tr><th>井场 / 场站</th><th>所属</th><th>日产液(t)</th><th>压力(MPa)</th><th>含水率</th><th>状态</th><th>值班</th></tr></thead>
-            <tbody id="wellRows"></tbody>
-          </table>
+
+      <div class="panel" style="flex:1">
+        <div class="p-head"><span class="led"></span>产量热力墙 // 各产区 · 面积=月产量 颜色=同比<span class="more" data-more="热力墙图例">›</span></div>
+        <div class="p-body wall" id="wall"></div>
+        <div class="p-foot">
+          <span class="k"><span class="b" style="background:#ff5a3c"></span>同比增长</span>
+          <span class="k"><span class="b" style="background:#3fbf6f"></span>同比下降</span>
+          <span class="k"><span class="b" style="background:#2a2a2a"></span>持平</span>
+          <span class="r">HOVER 提亮 · CLICK 详情</span>
+        </div>
+      </div>
+
+      <div class="tape-wrap"><div class="tape" id="tape"></div></div>
+    </div>
+
+    <!-- ── 右列 ── -->
+    <div class="col">
+      <div class="panel" style="flex:1.4">
+        <div class="p-head"><span class="led" style="background:var(--acc);box-shadow:0 0 6px rgba(224,75,52,.6)"></span>实时告警<span class="more" data-more="全部告警">›</span></div>
+        <div class="p-body" id="alarmFeed" style="overflow:hidden"></div>
+        <div class="p-foot"><span>3S 轮询 · 点击处理</span><span class="r" id="alarmCnt"></span></div>
+      </div>
+
+      <div class="panel" style="flex:none">
+        <div class="p-head"><span class="led"></span>场站 / 装置运行状态<span class="more" data-more="状态总览">›</span></div>
+        <div class="p-body" style="flex:none"><div class="matrix" id="matrix"></div></div>
+        <div class="p-foot">
+          <span class="k"><span class="b" style="background:rgba(63,191,111,.85)"></span>运行 19</span>
+          <span class="k"><span class="b" style="background:rgba(238,238,238,.55)"></span>检修 3</span>
+          <span class="k"><span class="b" style="background:rgba(224,75,52,.9)"></span>停机 2</span>
+          <span class="r">综合完好率 96.8%</span>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1">
+        <div class="p-head"><span class="led"></span>能耗与排放<span class="more" data-more="能耗明细">›</span></div>
+        <div class="p-body"><canvas class="chart" id="energyCv"></canvas></div>
+        <div class="p-foot">
+          <span class="k"><span class="b" style="background:rgba(238,238,238,.85)"></span>综合能耗 万吨标煤</span>
+          <span class="k"><span class="b" style="background:rgba(90,90,90,.9)"></span>CO₂ 排放 万吨</span>
+          <span class="r">本月累计</span>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- ══════════ 底栏 ══════════ -->
+  <div style="flex:none;display:flex;align-items:center;gap:18px;padding-top:10px;border-top:1px solid var(--line);margin-top:14px;
+    font-size:8px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;">
+    <span>DataGear V4.1 · 能源BI</span>
+    <span>信创全适配 · 达梦/金仓/GaussDB</span>
+    <span>刷新 60S · 告警 3S</span>
+    <span style="margin-left:auto">ENERGY PULSE // KIMI TERMINAL STYLE</span>
+  </div>
 </div>
 
-<script src="assets/js/vendor/echarts.min.js"></script>
-<script src="assets/js/shell.js"></script>
-<script src="assets/js/ui.js"></script>
-<script src="assets/js/mock-api.js"></script>
+<a class="back" href="index.html" style="display:none">‹ 返回工作台</a>
+
+<!-- 告警详情弹窗 -->
+<div class="k-mask" id="alarmMask">
+  <div class="k-modal">
+    <div class="km-head"><span class="led" style="width:6px;height:6px;background:var(--acc);box-shadow:0 0 6px rgba(224,75,52,.7)"></span>告警详情 // ALARM DETAIL<span class="km-x" id="alarmX">✕</span></div>
+    <dl class="km-desc" id="alarmDesc"></dl>
+    <div style="position:relative;height:120px;margin-top:12px;border:1px solid var(--line)"><canvas class="chart" id="alarmCv"></canvas></div>
+    <div class="km-actions">
+      <button class="k-btn" id="alarmClose">关 闭</button>
+      <button class="k-btn primary" id="alarmDispatch">派单处理</button>
+    </div>
+  </div>
+</div>
+
+<div id="k-toast"></div>
+
 <script>
-/* ---------- 自适应缩放 ---------- */
-const stage = document.getElementById('stage');
-function fit() {
-  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
-  stage.style.transform = `scale(${s})`;
+"use strict";
+/* ════════════════ 基础：点阵数码管（Kimi 招牌渲染） ════════════════ */
+const GLYPH = {
+  "0":["01110","10001","10011","10101","11001","10001","01110"],
+  "1":["00100","01100","00100","00100","00100","00100","01110"],
+  "2":["01110","10001","00001","00010","00100","01000","11111"],
+  "3":["11111","00010","00100","00010","00001","00010","01110"],
+  "4":["00010","00110","01010","10010","11111","00010","00010"],
+  "5":["11111","10000","11110","00001","00001","10001","01110"],
+  "6":["00110","01000","10000","11110","10001","10001","01110"],
+  "7":["11111","00001","00010","00100","01000","01000","01000"],
+  "8":["01110","10001","10001","01110","10001","10001","01110"],
+  "9":["01110","10001","10001","01111","00001","00010","01100"],
+  ":":["0","1","0","0","0","1","0"], " ":["0","0","0","0","0","0","0"],
+  ".":["00","00","00","00","00","11","11"], ",":["000","000","000","000","011","001","010"],
+  "%":["11001","11010","00100","01000","10000","01011","10011"]
+};
+function cellsOf(t){ let n=0; for(const c of t){ const g=GLYPH[c]; if(g) n+=g[0].length+1; } return Math.max(n-1,0); }
+function drawDots(cv, text, px, lit){
+  const dpr=window.devicePixelRatio||1, w=cellsOf(text)*px, h=7*px;
+  cv.width=w*dpr; cv.height=h*dpr; cv.style.width=w+"px"; cv.style.height=h+"px";
+  const ctx=cv.getContext("2d"); if(!ctx) return;
+  ctx.scale(dpr,dpr);
+  const dot=Math.max(px-Math.max(1,Math.round(px*.24)),1);
+  let cx=0;
+  for(const ch of text){
+    const g=GLYPH[ch]; if(!g) continue;
+    const gw=g[0].length;
+    for(let r=0;r<7;r++) for(let c=0;c<gw;c++){
+      ctx.fillStyle=g[r][c]==="1"?lit:"rgba(255,255,255,.06)";
+      ctx.fillRect((cx+c)*px, r*px, dot, dot);
+    }
+    cx+=gw+1;
+  }
 }
-window.addEventListener('resize', fit); fit();
 
-/* ---------- 时钟 ---------- */
-function tick() {
-  const d = new Date(), p = n => String(n).padStart(2, '0');
-  document.getElementById('clock').textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-  document.getElementById('dateTxt').textContent =
-    `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ` + ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+/* ════════════════ 舞台缩放（1920×1080 适配） ════════════════ */
+function fit(){
+  const s=Math.min(innerWidth/1920, innerHeight/1080);
+  document.getElementById('stage').style.transform=`translate(-50%,-50%) scale(${s})`;
 }
-setInterval(tick, 1000); tick();
+fit(); addEventListener('resize',()=>{fit();});
 
-const C = DG.colors;
+/* ════════════════ 顶栏：时钟 + Tab ════════════════ */
+const WD=["SUN","MON","TUE","WED","THU","FRI","SAT"], MO=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+function tickClock(){
+  const n=new Date();
+  const hh=String(n.getHours()).padStart(2,"0"), mm=String(n.getMinutes()).padStart(2,"0");
+  drawDots(document.getElementById('clock'), hh+(n.getSeconds()%2===0?":":" ")+mm, 4, "#eeeeee");
+  document.getElementById('date').textContent=`${WD[n.getDay()]}, ${MO[n.getMonth()]} ${n.getDate()} · CST +8`;
+}
+tickClock(); setInterval(tickClock,1000);
 
-/* ---------- 四大产业 KPI ---------- */
-const inds = [
-  { n: '原油',   v: '12.86', u: '万吨', yoy: '+5.1%',  up: true,  c: 'var(--oil)',  bg: 'var(--oil-soft)',  i: 'flame' },
-  { n: '天然气', v: '4.32',  u: '亿方', yoy: '+8.6%',  up: true,  c: 'var(--gas)',  bg: 'var(--gas-soft)',  i: 'drill' },
-  { n: '化工品', v: '3.15',  u: '万吨', yoy: '+3.2%',  up: true,  c: 'var(--chem)', bg: 'var(--chem-soft)', i: 'system' },
-  { n: '原煤',   v: '28.4',  u: '万吨', yoy: '-0.1%',  up: false, c: 'var(--coal)', bg: 'var(--coal-soft)', i: 'db' },
+const TABS=["总览","石油","天然气","化工","煤矿"];
+const tabsEl=document.getElementById('tabs');
+TABS.forEach((t,i)=>{
+  const b=document.createElement('button');
+  b.className='tab'+(i===0?' on':''); b.textContent=t;
+  b.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    kToast('原型演示：切换产业视图「'+t+'」（FR-SCREEN-03 多页轮播/筛选）'); };
+  tabsEl.appendChild(b);
+});
+document.getElementById('fsBtn').onclick=()=>{
+  if(document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(()=>kToast('当前环境不支持全屏'));
+};
+
+/* ════════════════ HERO 点阵数字 ════════════════ */
+function heroTick(){
+  drawDots(document.getElementById('heroNum'), "21.73", 12, "#eeeeee");
+}
+heroTick();
+
+/* ════════════════ 左列：产业 KPI ════════════════ */
+const KPIS=[
+  { led:'var(--oil)',  name:'原油',   val:'12.86', unit:'万吨', d:'▲ 5.1%',  cls:'u' },
+  { led:'var(--gas)',  name:'天然气', val:'4.32',  unit:'亿方', d:'▲ 8.6%',  cls:'u' },
+  { led:'var(--chem)', name:'化工品', val:'3.15',  unit:'万吨', d:'▲ 3.2%',  cls:'u' },
+  { led:'var(--coal)', name:'原煤',   val:'28.4',  unit:'万吨', d:'▼ 0.1%',  cls:'d' }
 ];
-document.getElementById('indRows').innerHTML = inds.map(x => `
-  <div class="ind-row">
-    <div class="ir-ico" style="color:${x.c};background:${x.bg}">${DG.ICONS[x.i]}</div>
-    <span class="ir-name">${x.n}</span>
-    <span class="ir-val" style="color:${x.c}">${x.v}<span class="unit"> ${x.u}</span></span>
-    <span class="ir-yoy" style="color:${x.up ? 'var(--ok)' : 'var(--danger)'}">${x.up ? '▲' : '▼'} ${x.yoy.replace('-', '')}</span>
+document.getElementById('kpiList').innerHTML = KPIS.map(k=>`
+  <div class="kpi-row">
+    <span class="iled" style="background:${k.led}"></span>
+    <span class="iname">${k.name}</span>
+    <span class="ival">${k.val}</span><span class="iunit">${k.unit}</span>
+    <span class="idelta ${k.cls}">${k.d}</span>
   </div>`).join('');
 
-/* ---------- 生产完成率 ---------- */
-const rates = [
-  { n: '原油 · 月度计划', v: 96.4, c: 'linear-gradient(90deg,#FFB25E,#F4633A)' },
-  { n: '天然气 · 月度计划', v: 102.8, c: 'linear-gradient(90deg,#22D3EE,#0E7490)' },
-  { n: '化工品 · 月度计划', v: 91.2, c: 'linear-gradient(90deg,#A78BFA,#6D28D9)' },
-  { n: '原煤 · 月度计划', v: 98.7, c: 'linear-gradient(90deg,#E8B33C,#92610A)' },
+/* ════════════════ 左列：完成率轨道条 ════════════════ */
+const TRACKS=[
+  { name:'原油 · 月度计划', v:96.4 },
+  { name:'天然气 · 月度计划', v:102.4 },
+  { name:'化工品 · 月度计划', v:91.2 },
+  { name:'原煤 · 月度计划', v:98.7 }
 ];
-document.getElementById('rateRows').innerHTML = rates.map(r => `
-  <div class="rate-row">
-    <div class="rr-top"><span>${r.n}</span><b style="color:${r.v >= 100 ? 'var(--ok)' : 'var(--tx-1)'}">${r.v}%</b></div>
-    <div class="progress" style="height:8px"><i style="width:${Math.min(r.v, 100)}%;background:${r.c}"></i></div>
+document.getElementById('trackList').innerHTML = TRACKS.map(t=>`
+  <div class="track-row">
+    <div class="tr-top"><span>${t.name}</span><span class="v">${t.v.toFixed(1)}%</span></div>
+    <div class="track"><i class="${t.v>=100?'over':''}" style="width:${Math.min(t.v,100)}%"></i></div>
   </div>`).join('');
 
-/* ---------- 场站状态矩阵 ---------- */
-const stations = [
-  ['任11','run'],['霸二联','run'],['岔一转','mnt'],['留北','stp'],['深县','run'],['河间','run'],
-  ['安塞','run'],['靖安','run'],['轮南','run'],['哈得','run'],['孤岛','run'],['孤东','run'],
-  ['克一门站','run'],['轮南首站','run'],['靖边压气站','run'],['霍尔果斯','run'],['郑州分输','mnt'],['上海末站','run'],
-  ['甲醇一厂','run'],['烯烃装置','run'],['常减压','run'],['催化','mnt'],['洗煤一厂','stp'],['洗煤二厂','run'],
-];
-document.getElementById('stMatrix').innerHTML = stations.map(([n, s]) =>
-  `<div class="st-cell"><i class="${s}"></i><span>${n}</span></div>`).join('');
+/* ════════════════ 左列：近30日趋势（手绘 canvas · Kimi 磁带风格） ════════════════ */
+function series(n, base, wave, seed){
+  const arr=[]; let v=base;
+  for(let i=0;i<n;i++){ v+=Math.sin(i*0.8+seed)*wave*0.4+(Math.random()-0.48)*wave; arr.push(Math.max(0,+v.toFixed(2))); }
+  return arr;
+}
+const OIL30=series(30,12.6,0.7,2), GAS30=series(30,4.2,0.22,4);
+function drawTrend(){
+  const cv=document.getElementById('trendCv'), box=cv.parentElement;
+  const dpr=window.devicePixelRatio||1, W=box.clientWidth, H=box.clientHeight;
+  if(W<20||H<20) return;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); if(!ctx) return;
+  ctx.scale(dpr,dpr);
+  const n=OIL30.length, cw=Math.max(Math.floor((W-8)/n),2), x0=W-cw*n-4;
+  let hi=-Infinity, lo=Infinity;
+  OIL30.forEach(v=>{hi=Math.max(hi,v);lo=Math.min(lo,v);});
+  const pad=(hi-lo)*0.12||1; hi+=pad; lo-=pad;
+  const Y=v=>H-((v-lo)/(hi-lo))*(H-6)-3;
+  /* 原油：细柱（单色系） */
+  for(let i=0;i<n;i++){
+    const v=OIL30[i], x=x0+i*cw;
+    const last=i===n-1;
+    ctx.fillStyle=last?'#eeeeee':'rgba(238,238,238,.28)';
+    ctx.fillRect(x+1, Y(v), Math.max(cw-2,1), H-Y(v)-2);
+  }
+  /* 天然气：折线（右轴映射到上半区） */
+  let gHi=-Infinity,gLo=Infinity; GAS30.forEach(v=>{gHi=Math.max(gHi,v);gLo=Math.min(gLo,v);});
+  const gY=v=>(H*0.42)-((v-gLo)/((gHi-gLo)||1))*(H*0.34);
+  ctx.strokeStyle='rgba(238,238,238,.9)'; ctx.lineWidth=1.2; ctx.beginPath();
+  GAS30.forEach((v,i)=>{ const x=x0+i*cw+cw/2; i===0?ctx.moveTo(x,gY(v)):ctx.lineTo(x,gY(v)); });
+  ctx.stroke();
+  /* 虚线均值 */
+  const avg=OIL30.reduce((s,v)=>s+v,0)/n;
+  ctx.strokeStyle='rgba(138,138,138,.8)'; ctx.setLineDash([2,3]); ctx.beginPath();
+  ctx.moveTo(x0,Y(avg)); ctx.lineTo(W-4,Y(avg)); ctx.stroke(); ctx.setLineDash([]);
+  document.getElementById('trendRange').textContent='近30日 · MA 虚线';
+}
+drawTrend(); addEventListener('resize',()=>setTimeout(drawTrend,120));
 
-/* ---------- 实时告警滚动（点击 → 告警详情 modal + 近24h 趋势） ---------- */
-const ALARM_POOL = [
-  { lv: 'danger', msg: '留路北井场 外输压力异常 3.2MPa（阈值≥3.6）', metric: '外输压力', value: '3.2 MPa', th: '≥ 3.6 MPa', base: 3.15 },
-  { lv: 'warn',   msg: '大同煤矿 1309 工作面 瓦斯浓度预警 0.82%',   metric: '瓦斯浓度', value: '0.82 %', th: '预警 ≥ 0.8 % · 超限 ≥ 1.0 %', base: 0.7 },
-  { lv: 'danger', msg: '岔河集一转油站 2#外输泵 轴承温度 86℃ 超限', metric: '轴承温度', value: '86 ℃', th: '≤ 80 ℃', base: 76 },
-  { lv: 'warn',   msg: '西气东输郑州分输站 瞬时流量波动 +12%',      metric: '瞬时流量波动', value: '+12 %', th: '|波动| ≤ 8 %', base: 4 },
-  { lv: 'warn',   msg: '塔里木哈得区块 H₂S 检测点 HD-07 浓度 12ppm', metric: 'H₂S 浓度', value: '12 ppm', th: '≤ 10 ppm', base: 8.4 },
-  { lv: 'info',   msg: '安塞区块王窑作业区 新井 WY-14 投产见油',     metric: '新井投产', value: '投产见油', th: '—（事件通知）', base: 10 },
-  { lv: 'danger', msg: '甲醇一厂 合成塔触媒层温差 +9℃ 偏离',         metric: '触媒层温差', value: '+9 ℃', th: '≤ 5 ℃', base: 4.2 },
-  { lv: 'warn',   msg: '霸州二联合站 污水外排 COD 接近限值',         metric: '外排 COD', value: '58 mg/L', th: '≤ 60 mg/L', base: 50 },
-  { lv: 'info',   msg: '胜利孤东区块 日注水量恢复至计划线',          metric: '日注水量', value: '1.24 万方', th: '计划 1.2 万方', base: 1.1 },
-  { lv: 'warn',   msg: '洗煤一厂 精煤灰分 10.6% 逼近上限 11%',       metric: '精煤灰分', value: '10.6 %', th: '≤ 11 %', base: 10.1 },
+/* ════════════════ 中央：产量热力墙（Kimi HEAT WALL 展示方式） ════════════════ */
+const HEAT=[
+  { name:'长庆油田', w:94.8, pct:12.3 }, { name:'大庆油田', w:88.6, pct:-1.8 },
+  { name:'塔里木油田', w:71.5, pct:5.3 }, { name:'胜利油田', w:68.2, pct:2.6 },
+  { name:'华北油田', w:62.1, pct:5.6 }, { name:'西南气田', w:41.2, pct:6.4 },
+  { name:'塔河炼化', w:18.6, pct:3.1 }, { name:'大同矿区', w:15.2, pct:-2.2 },
+  { name:'神东矿区', w:13.2, pct:0.6 }, { name:'独山子炼化', w:12.4, pct:1.4 },
+  { name:'普光气田', w:9.8, pct:4.2 }, { name:'靖边气田', w:7.5, pct:2.0 },
+  { name:'延长石油', w:6.8, pct:-0.6 }, { name:'中原油田', w:5.4, pct:0.0 }
 ];
-function openAlarm(a, time) {
-  const m = DG.ui.modal({
-    title: '告警详情 · ' + a.metric, width: 560,
-    body: `
-      <dl class="desc-list" style="grid-template-columns:88px 1fr">
-        <dt>告警内容</dt><dd>${a.msg}</dd>
-        <dt>告警级别</dt><dd><span class="tag ${a.lv}">${a.lv === 'danger' ? '紧急' : a.lv === 'warn' ? '预警' : '提示'}</span></dd>
-        <dt>告警指标</dt><dd>${a.metric}</dd>
-        <dt>当前值</dt><dd class="num" style="color:${a.lv === 'danger' ? 'var(--danger)' : a.lv === 'warn' ? 'var(--warn)' : 'var(--info)'}">${a.value}</dd>
-        <dt>阈值</dt><dd class="num">${a.th}</dd>
-        <dt>触发时间</dt><dd>${time}</dd>
-      </dl>
-      <div class="form-label" style="margin:14px 0 6px">近 24h 指标趋势（红虚线为阈值参考线）</div>
-      <div class="chart" style="height:150px;min-height:0"></div>`,
-    buttons: [
-      { label: '关 闭' },
-      { label: '派单处理', primary: true, onClick: () => DG.ui.toast('已派发工单至属地值班调度，限时 30min 响应（FR-ALERT-05）', 'ok') }
-    ]
-  });
-  const lc = a.lv === 'danger' ? '#F87171' : a.lv === 'warn' ? '#FBBF24' : '#60A5FA';
-  DG.makeChart(m.body.querySelector('.chart'), {
-    grid: { left: 6, right: 12, top: 16, bottom: 2 },
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, i) => i + ':00'), axisLabel: { fontSize: 9, interval: 5 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 9 }, scale: true },
-    series: [{
-      type: 'line', smooth: true, symbol: 'none', data: DG.series(24, a.base, Math.max(a.base * 0.06, 0.2), 2),
-      lineStyle: { width: 2, color: lc }, itemStyle: { color: lc },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: lc + '2E' }, { offset: 1, color: lc + '00' }] } },
-      markLine: { silent: true, symbol: 'none', label: { fontSize: 9, color: '#F87171', formatter: '阈值' }, lineStyle: { color: '#F87171', type: 'dashed', width: 1 }, data: [{ yAxis: +(a.base * 1.1).toFixed(2) }] }
-    }]
-  });
+function heatColor(p){
+  if(p>0)  return `rgba(255,90,60,${Math.min(.16+p/16,.92).toFixed(2)})`;
+  if(p<0)  return `rgba(63,191,111,${Math.min(.16-p/16,.92).toFixed(2)})`;
+  return "#2a2a2a";
 }
-const alarmList = document.getElementById('alarmList');
-let alarmIdx = 0;
-function pushAlarm() {
-  const a = ALARM_POOL[alarmIdx % ALARM_POOL.length]; alarmIdx++;
-  const d = new Date(), p = n => String(n).padStart(2, '0');
-  const time = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-  const el = document.createElement('div');
-  el.className = 'alarm-item';
-  el.style.cursor = 'pointer';
-  el.innerHTML = `<span class="a-time">${time}</span>
-    <span class="tag ${a.lv}" style="flex:none;font-size:10px">${a.lv === 'danger' ? '紧急' : a.lv === 'warn' ? '预警' : '提示'}</span>
-    <span class="a-msg" title="${a.msg}">${a.msg}</span>`;
-  el.addEventListener('click', () => openAlarm(a, '今天 ' + time));
-  alarmList.prepend(el);
-  while (alarmList.children.length > 7) alarmList.lastElementChild.remove();
+function wallLayout(rows,W,H){
+  const total=rows.reduce((s,r)=>s+r.w,0), placed=[];
+  let y=0,i=0;
+  const targetRowH=H/Math.max(2,Math.round(Math.sqrt(rows.length/(W/H))));
+  while(i<rows.length){
+    let rw=0,j=i;
+    while(j<rows.length){ rw+=rows[j].w; j++; if((rw/total)*H>=targetRowH||j===rows.length) break; }
+    const rowItems=rows.slice(i,j), rowW=rowItems.reduce((s,r)=>s+r.w,0);
+    const rowH=Math.max((rowW/total)*H,26); let x=0;
+    for(const r of rowItems){ const cw=(r.w/rowW)*W; placed.push({...r,x,y,cw,ch:rowH}); x+=cw; }
+    y+=rowH; i=j;
+  }
+  return placed;
 }
-for (let i = 0; i < 5; i++) pushAlarm();
+function renderWall(){
+  const wall=document.getElementById('wall'), W=wall.clientWidth, H=wall.clientHeight;
+  if(W<20||H<20) return;
+  wall.querySelectorAll('.cell').forEach(n=>n.remove());
+  const sorted=[...HEAT].sort((a,b)=>b.w-a.w);
+  for(const p of wallLayout(sorted,W,H)){
+    const div=document.createElement('div');
+    const tiny=(p.cw<52||p.ch<30);
+    div.className='cell'+((p.cw<64||p.ch<40)?' sm':'');
+    div.style.cssText=`left:${p.x}px;top:${p.y}px;width:${p.cw}px;height:${p.ch}px;background:${heatColor(p.pct)}`;
+    div.innerHTML=tiny?'':`<span class="nm">${p.name}</span><span class="pc">${p.w.toFixed(1)}万吨 · ${p.pct>0?'+':''}${p.pct}%</span>`;
+    div.onclick=()=>kToast(`${p.name} · 月产量 ${p.w.toFixed(1)} 万吨 · 同比 ${p.pct>0?'+':''}${p.pct}%`);
+    wall.appendChild(div);
+  }
+}
+renderWall(); addEventListener('resize',()=>setTimeout(renderWall,120));
+
+/* ════════════════ 中央：磁带滚动 ════════════════ */
+const TAPE=[
+  ['var(--oil)','长庆油田','3.42万吨','▲1.8%','u'], ['var(--oil)','大庆油田','3.31万吨','▼0.4%','d'],
+  ['var(--oil)','塔里木油田','2.42万吨','▲0.9%','u'], ['var(--gas)','西气东输一线','1.62亿方','▲0.9%','u'],
+  ['var(--gas)','陕京三线','0.88亿方','▲1.6%','u'], ['var(--chem)','甲醇装置','0.96万吨','▼0.6%','d'],
+  ['var(--chem)','烯烃装置','0.74万吨','▲2.2%','u'], ['var(--coal)','大同矿区','9.8万吨','▼0.7%','d'],
+  ['var(--coal)','神东矿区','8.6万吨','▲0.2%','u'], ['var(--oil)','胜利油田','2.31万吨','▲0.6%','u'],
+  ['var(--gas)','储气库注采','0.42亿方','▲3.4%','u'], ['var(--oil)','华北油田','1.78万吨','▲1.1%','u']
+];
+const tapeHtml=TAPE.map(t=>`<span class="tp-item"><span class="tled" style="background:${t[0]}"></span>${t[1]} <b>${t[2]}</b> <span class="${t[4]}">${t[3]}</span></span>`).join('');
+document.getElementById('tape').innerHTML=tapeHtml+tapeHtml; /* 双份无缝滚动 */
+
+/* ════════════════ 右列：实时告警 LED 流 ════════════════ */
+const ALARM_POOL=[
+  { lv:'danger', tx:'大同矿区 3#工作面 瓦斯浓度 1.24% 超限', m:{ name:'瓦斯浓度超限', metric:'瓦斯浓度 M-COAL-003', val:'1.24 %', th:'> 1.0 %', loc:'大同矿区 3#工作面' } },
+  { lv:'warn',   tx:'塔里木哈得区块 H₂S 检测点 HD-07 浓度 12ppm', m:{ name:'H₂S 浓度预警', metric:'H₂S 浓度 M-GAS-004', val:'12 ppm', th:'> 10 ppm', loc:'塔里木哈得区块' } },
+  { lv:'warn',   tx:'西气东输郑州分输站 瞬时流量波动 +12%', m:{ name:'管输流量波动', metric:'管输压力 M-GAS-002', val:'+12 %', th:'变化率 > 8 %', loc:'郑州分输站' } },
+  { lv:'info',   tx:'安塞区块王窑作业区 新井 WY-14 投产见油', m:{ name:'新井投产', metric:'投产通知', val:'日产 42 t', th:'—', loc:'长庆安塞区块' } },
+  { lv:'danger', tx:'长庆区块日产油量 98.6 万吨 低于阈值', m:{ name:'日产油低于阈值', metric:'原油产量 M-OIL-001', val:'98.6 万吨', th:'< 100 万吨', loc:'长庆区块' } },
+  { lv:'info',   tx:'神东矿区 12#工作面 瓦斯复测恢复正常', m:{ name:'恢复正常', metric:'瓦斯浓度 M-COAL-003', val:'0.62 %', th:'> 1.0 %', loc:'神东矿区' } },
+  { lv:'warn',   tx:'甲醇装置 B 系列 负荷降至 82%', m:{ name:'装置负荷预警', metric:'装置开工率 M-CHEM-002', val:'82 %', th:'< 85 %', loc:'煤化工基地' } }
+];
+let alarmIdx=0, alarmSeq=0;
+const feed=document.getElementById('alarmFeed');
+function fmtTime(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
+function pushAlarm(init){
+  const a=ALARM_POOL[alarmIdx++%ALARM_POOL.length];
+  const row=document.createElement('div');
+  row.className='alarm-row lv-'+a.lv;
+  const tm=fmtTime(new Date());
+  row.innerHTML=`<span class="led"></span><span class="tm">${tm}</span><span class="tx">${a.tx}</span>
+    <span class="lv">${a.lv==='danger'?'严重':a.lv==='warn'?'预警':'告知'}</span>`;
+  row.onclick=()=>openAlarm(a, tm);
+  feed.insertBefore(row, feed.firstChild);
+  while(feed.children.length>7) feed.removeChild(feed.lastChild);
+  document.getElementById('alarmCnt').textContent='未处理 '+(++alarmSeq>9?'9+':'0'+alarmSeq);
+}
+for(let i=0;i<5;i++) pushAlarm(true);
 setInterval(pushAlarm, 3000);
 
-/* ---------- 重点井场表（点击行 → 井场详情） ---------- */
-const wells = [
-  ['任11井场', '华北油田', 486.2, 2.84, '86.1%', ['ok', '运行'], '张立新'],
-  ['王窑 WY-14 新井', '长庆油田', 62.4, 4.12, '31.5%', ['ok', '运行'], '马晓峰'],
-  ['哈得 HD-4 井场', '塔里木油田', 218.6, 3.66, '58.2%', ['ok', '运行'], '艾尔肯'],
-  ['岔河集一转油站', '华北油田', 301.5, 3.21, '91.2%', ['warn', '检修'], '李志远'],
-  ['留路北井场', '华北油田', 268.9, 3.62, '84.7%', ['danger', '压力异常'], '王学兵'],
+/* 告警详情弹窗（Kimi 风格） */
+const mask=document.getElementById('alarmMask');
+function openAlarm(a, tm){
+  document.getElementById('alarmDesc').innerHTML=`
+    <dt>告警名称</dt><dd>${a.m.name}</dd>
+    <dt>监控指标</dt><dd>${a.m.metric}</dd>
+    <dt>当前值</dt><dd class="${a.lv==='danger'?'u':''}" style="color:${a.lv==='danger'?'#ff5a3c':'#eee'}">${a.m.val}（阈值 ${a.m.th}）</dd>
+    <dt>位置</dt><dd>${a.m.loc}</dd>
+    <dt>触发时间</dt><dd>${tm}</dd>
+    <dt>通知渠道</dt><dd>企业微信 · 短信 · 已送达</dd>`;
+  mask.classList.add('show');
+  setTimeout(()=>drawAlarmChart(), 30);
+}
+function drawAlarmChart(){
+  const cv=document.getElementById('alarmCv'), box=cv.parentElement;
+  const dpr=window.devicePixelRatio||1, W=box.clientWidth, H=box.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); if(!ctx) return;
+  ctx.scale(dpr,dpr);
+  const data=series(24, 50, 14, 7); const th=68;
+  let hi=Math.max(...data,th)*1.1, lo=Math.min(...data,th)*0.85;
+  const X=i=>8+i*(W-16)/23, Y=v=>H-((v-lo)/(hi-lo))*(H-12)-6;
+  ctx.strokeStyle='rgba(238,238,238,.85)'; ctx.lineWidth=1.2; ctx.beginPath();
+  data.forEach((v,i)=> i===0?ctx.moveTo(X(i),Y(v)):ctx.lineTo(X(i),Y(v))); ctx.stroke();
+  ctx.strokeStyle='rgba(224,75,52,.9)'; ctx.setLineDash([3,3]); ctx.beginPath();
+  ctx.moveTo(8,Y(th)); ctx.lineTo(W-8,Y(th)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='rgba(224,75,52,.9)'; ctx.font='8px '+getComputedStyle(document.body).fontFamily;
+  ctx.fillText('THRESHOLD', W-66, Y(th)-4);
+  ctx.fillStyle='rgba(138,138,138,.9)'; ctx.fillText('近24H', 10, 12);
+}
+document.getElementById('alarmX').onclick=()=>mask.classList.remove('show');
+document.getElementById('alarmClose').onclick=()=>mask.classList.remove('show');
+mask.onclick=e=>{ if(e.target===mask) mask.classList.remove('show'); };
+document.getElementById('alarmDispatch').onclick=()=>{ mask.classList.remove('show'); kToast('已派单至属地运维组 · 工单 WO-20260903-0'+(10+alarmSeq)); };
+
+/* ════════════════ 右列：场站状态矩阵 ════════════════ */
+const STATIONS=[
+  ['任11井场','run'],['霸二联','run'],['岔河集','run'],['留路北','run'],['靖边首站','run'],
+  ['榆林压气','maint'],['郑州分输','run'],['塔中一联','run'],['哈得转油','stop'],['轮南集气','run'],
+  ['甲醇B系','run'],['烯烃A系','run'],['普光净化','run'],['大湾集气','maint'],['3#综采面','run'],
+  ['12#综采','stop'],['洗煤一厂','run'],['洗煤二厂','run'],['储气库1','run'],['储气库2','run'],
+  ['码头装卸','maint'],['LNG液化','run'],['动力站','run'],['污水厂','run']
 ];
-document.getElementById('wellRows').innerHTML = wells.map(w => `
-  <tr>
-    <td style="color:var(--tx-1)">${w[0]}</td><td>${w[1]}</td>
-    <td class="num">${w[2]}</td><td class="num">${w[3]}</td><td class="num">${w[4]}</td>
-    <td><span class="tag ${w[5][0]}" style="font-size:10.5px">${w[5][1]}</span></td><td>${w[6]}</td>
-  </tr>`).join('');
-document.querySelectorAll('#wellRows tr').forEach((tr, i) => {
-  tr.style.cursor = 'pointer';
-  tr.addEventListener('click', () => {
-    const w = wells[i];
-    DG.ui.toast(`井场详情：${w[0]}（${w[1]}）· 日产液 ${w[2]}t · 压力 ${w[3]}MPa · 含水 ${w[4]} · ${w[5][1]} · 值班 ${w[6]}`);
+const mx=document.getElementById('matrix');
+mx.innerHTML=STATIONS.map((s,i)=>`<div class="mx ${s[1]}" data-n="${s[0]}" data-s="${s[1]}"><span class="mx-lb">${String(i+1).padStart(2,'0')}</span></div>`).join('');
+mx.querySelectorAll('.mx').forEach(c=>c.onclick=()=>{
+  const st=c.dataset.s==='run'?'运行正常':c.dataset.s==='maint'?'计划检修':'停机 · 已派单';
+  kToast(`${c.dataset.n} · ${st}`);
+});
+
+/* ════════════════ 右列：能耗与排放（手绘 canvas） ════════════════ */
+const ENERGY={ cats:['油田板块','气田板块','炼化板块','煤矿板块'], use:[42.6,28.4,56.8,18.2], co2:[128,86,172,55] };
+function drawEnergy(){
+  const cv=document.getElementById('energyCv'), box=cv.parentElement;
+  const dpr=window.devicePixelRatio||1, W=box.clientWidth, H=box.clientHeight;
+  if(W<20||H<20) return;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); if(!ctx) return;
+  ctx.scale(dpr,dpr);
+  const maxV=Math.max(...ENERGY.use)*1.15, n=ENERGY.cats.length;
+  const gw=W/n, bw=Math.min(gw*0.22,26);
+  ENERGY.cats.forEach((c,i)=>{
+    const cx=gw*i+gw/2;
+    const h1=(ENERGY.use[i]/maxV)*(H-26);
+    ctx.fillStyle='rgba(238,238,238,.85)';
+    ctx.fillRect(cx-bw-3, H-20-h1, bw, h1);
+    const h2=(ENERGY.co2[i]/maxV/3)*(H-26);
+    ctx.fillStyle='rgba(90,90,90,.9)';
+    ctx.fillRect(cx+3, H-20-h2, bw, h2);
+    ctx.fillStyle='rgba(138,138,138,.95)'; ctx.font='9px '+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign='center'; ctx.fillText(c, cx, H-6); ctx.textAlign='left';
+    ctx.fillStyle='rgba(238,238,238,.9)'; ctx.fillText(ENERGY.use[i], cx-bw-3, H-26-h1);
   });
-});
+}
+drawEnergy(); addEventListener('resize',()=>setTimeout(drawEnergy,120));
 
-/* ---------- 图表 ---------- */
-DG.autoCharts({
-  /* 近30日趋势 */
-  trend30: () => ({
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['原油', '天然气', '化工品', '原煤'] },
-    grid: { left: 6, right: 10, top: 30, bottom: 4 },
-    xAxis: { type: 'category', boundaryGap: false, data: Array.from({ length: 30 }, (_, i) => `8/${i + 3 > 31 ? i - 28 : i + 3}`), axisLabel: { fontSize: 10, interval: 4 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
-    series: [
-      { name: '原油', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 12.8, 0.6, 1) },
-      { name: '天然气', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 4.3, 0.2, 3) },
-      { name: '化工品', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 3.1, 0.18, 5) },
-      { name: '原煤', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2 }, data: DG.series(30, 28.4, 1.4, 7),
-        areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: 'rgba(232,179,60,.16)' }, { offset: 1, color: 'rgba(232,179,60,0)' }] } } },
-    ]
-  }),
-
-  /* 能耗与排放 */
-  energy: () => ({
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['综合能耗(万吨标煤)', 'CO₂排放(万吨)'] },
-    grid: { left: 6, right: 26, top: 30, bottom: 4 },
-    xAxis: { type: 'category', data: ['油田板块', '气田板块', '炼化板块', '煤矿板块'], axisLabel: { fontSize: 10.5 } },
-    yAxis: [{ type: 'value', axisLabel: { fontSize: 10 } }, { type: 'value', splitLine: { show: false }, axisLabel: { fontSize: 10 } }],
-    series: [
-      { name: '综合能耗(万吨标煤)', type: 'bar', barWidth: 22, data: [42.6, 18.9, 56.3, 24.1],
-        itemStyle: { borderRadius: [4,4,0,0], color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: '#E8B33C' }, { offset: 1, color: 'rgba(146,97,10,.4)' }] } } },
-      { name: 'CO₂排放(万吨)', type: 'line', yAxisIndex: 1, smooth: true, symbolSize: 6,
-        lineStyle: { width: 2, color: C.chem }, itemStyle: { color: C.chem }, data: [98.4, 41.2, 132.7, 52.6] }
-    ]
-  }),
-
-  /* 采油厂 TOP5 横向条形 */
-  top5: () => ({
-    tooltip: { trigger: 'axis' },
-    grid: { left: 6, right: 40, top: 8, bottom: 4 },
-    xAxis: { type: 'value', axisLabel: { fontSize: 10 } },
-    yAxis: { type: 'category', inverse: true, data: ['长庆采油厂', '大庆采油厂', '塔里木采油厂', '胜利采油厂', '华北采油厂'], axisLabel: { fontSize: 11.5, color: '#C9D4E8' } },
-    series: [{
-      type: 'bar', barWidth: 14, data: [3.42, 3.31, 2.42, 2.31, 1.78].map((v, i) => ({
-        value: v,
-        itemStyle: { borderRadius: [0, 4, 4, 0], color: { type: 'linear', x:0, y:0, x2:1, y2:0, colorStops: [
-          { offset: 0, color: 'rgba(244,99,58,.35)' },
-          { offset: 1, color: ['#FF8A3D', '#FF9D5C', '#FAA96E', '#F4B57F', '#EEC190'][i] }] } }
-      })),
-      label: { show: true, position: 'right', color: '#FFB25E', fontFamily: 'Barlow, Bahnschrift, sans-serif', fontSize: 12, formatter: '{c} 万吨' }
-    }]
-  })
-});
-
-/* ---------- 产区分布（手动初始化以绑定气泡点击，气泡=日产量） ---------- */
-const MAP_SCATTER = [
-  [20, 47, 46, '长庆油田', C.oil, '3.42 万吨'], [52, 52, 30, '大庆油田', C.oil, '3.31 万吨'], [14, 38, 26, '塔里木油田', C.oil, '2.42 万吨'],
-  [70, 42, 24, '胜利油田', C.oil, '2.31 万吨'], [64, 47, 20, '华北油田', C.oil, '1.78 万吨'],
-  [26, 40, 22, '靖边气田', C.gas, '0.62 亿方'], [44, 22, 18, '普光气田', C.gas, '0.35 亿方'],
-  [58, 30, 16, '独山子炼化', C.chem, '1.05 万吨'], [78, 26, 15, '镇海炼化', C.chem, '0.98 万吨'],
-  [56, 44, 20, '大同矿区', C.coal, '9.6 万吨'], [40, 46, 17, '鄂尔多斯矿区', C.coal, '8.8 万吨'],
-];
-const mapChart = DG.makeChart(document.querySelector('[data-chart="map"]'), {
-  grid: { left: 0, right: 0, top: 0, bottom: 0 },
-  xAxis: { show: false, min: 0, max: 100 },
-  yAxis: { show: false, min: 0, max: 62 },
-  series: [
-    /* 西气东输管线弧线 */
-    { type: 'lines', coordinateSystem: 'cartesian2d', polyline: false, silent: true,
-      lineStyle: { color: 'rgba(34,211,238,.55)', width: 2, curveness: 0.25, type: 'solid',
-        shadowBlur: 8, shadowColor: 'rgba(34,211,238,.5)' },
-      effect: { show: true, period: 5, trailLength: 0.4, symbol: 'arrow', symbolSize: 5, color: '#7DEFFC' },
-      data: [
-        { coords: [[18, 44], [34, 38], [52, 33], [72, 30], [88, 33]] },   // 轮南→上海
-        { coords: [[26, 40], [44, 44], [62, 42], [80, 45]] },             // 靖边→北京方向
-        { coords: [[30, 28], [48, 22], [66, 20], [84, 24]] },             // 川气东送
-      ] },
-    /* 产区气泡（点击 → 产区名 + 日产量） */
-    { type: 'scatter', coordinateSystem: 'cartesian2d',
-      label: { show: true, position: 'bottom', color: '#C9D4E8', fontSize: 12, formatter: p => p.data[3], distance: 6 },
-      data: MAP_SCATTER,
-      symbolSize: d => d[2],
-      itemStyle: {
-        color: p => p.data[4], opacity: .85,
-        shadowBlur: 16, shadowColor: p => p.data[4],
-        borderColor: 'rgba(255,255,255,.35)', borderWidth: 1
-      },
-      emphasis: { scale: 1.25 } },
-    /* 呼吸光圈 */
-    { type: 'effectScatter', coordinateSystem: 'cartesian2d', rippleEffect: { brushType: 'stroke', scale: 3.2 },
-      symbolSize: d => d[2] * 0.55, itemStyle: { color: p => p.data[4] },
-      label: { show: false },
-      data: [[20, 47, 46, '', C.oil], [26, 40, 22, '', C.gas], [70, 42, 24, '', C.oil]] },
-  ]
-});
-mapChart.on('click', p => {
-  if (p.seriesType === 'scatter' && p.data && p.data[3]) DG.ui.toast(p.data[3] + ' · 日产量 ' + p.data[5], 'ok');
-});
-
-/* ---------- 全屏（演示模式） ---------- */
-document.getElementById('fsBtn').addEventListener('click', async e => {
-  e.preventDefault();
-  try {
-    if (document.fullscreenElement) { await document.exitFullscreen(); DG.ui.toast('已退出全屏'); }
-    else { await document.documentElement.requestFullscreen(); DG.ui.toast('已进入全屏，按 ESC 或再次点击退出', 'ok'); }
-  } catch (err) { DG.ui.toast('浏览器拒绝了全屏请求：' + err.message, 'err'); }
-});
-
-/* ---------- 各面板右上角「更多 ›」 ---------- */
-document.querySelectorAll('.sp-title').forEach(t => {
-  const extra = t.querySelector('.sp-extra');
-  if (!extra) return;
-  const name = t.childNodes[0].textContent.trim();
-  const more = document.createElement('span');
-  more.textContent = '更多 ›';
-  more.style.cssText = 'margin-left:10px;cursor:pointer;transition:color var(--dur)';
-  more.onmouseenter = () => more.style.color = 'var(--brand)';
-  more.onmouseleave = () => more.style.color = '';
-  more.onclick = () => DG.ui.toast('打开「' + name + '」全屏明细视图（原型演示）');
-  extra.appendChild(more);
-});
-
-/* ---------- #demo 演示入口：打开告警详情 ---------- */
-if (location.hash === '#demo') setTimeout(() => openAlarm(ALARM_POOL[0], '今天 08:12:05'), 800);
+/* ════════════════ 更多 › 与 Toast ════════════════ */
+document.querySelectorAll('.more').forEach(m=>m.onclick=()=>kToast('原型演示：'+m.dataset.more+'（FR-SCREEN-05 面板下钻）'));
+/* #demo：自动打开告警详情弹窗（演示/文档截图入口） */
+if(location.hash==='#demo'){ const a=ALARM_POOL[0]; openAlarm(a, fmtTime(new Date())); }
+function kToast(msg){
+  const box=document.getElementById('k-toast');
+  const ti=document.createElement('div');
+  ti.className='ti'; ti.textContent=msg;
+  box.appendChild(ti);
+  setTimeout(()=>{ ti.style.opacity='0'; ti.style.transform='translateY(-8px)'; setTimeout(()=>ti.remove(),300); },2600);
+}
 </script>
 </body>
 </html>

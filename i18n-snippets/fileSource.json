@@ -1,0 +1,13 @@
+{
+  "fileSourcePage.title": "文件数据源",
+  "fileSourcePage.desc": "服务端文件目录接入，供数据集、数据交换等功能引用",
+  "fileSourcePage.newSource": "新建文件源",
+  "fileSourcePage.total": "共 {n} 条",
+  "fileSourcePage.empty": "暂无文件数据源，点击右上角「新建文件源」接入服务端文件目录",
+  "fileSourcePage.selPrefix": "已选",
+  "fileSourcePage.selSuffix": "项",
+  "fileSourcePage.clearSel": "清除选择",
+  "fileSourcePage.perPage": "条/页",
+  "fileSourcePage.confirmDeleteOne": "确定删除文件源「{name}」吗？",
+  "fileSourcePage.browseEmpty": "该目录下暂无文件"
+}

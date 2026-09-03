@@ -27,9 +27,9 @@ const url = computed(() => {
 
 function onSelect() {
   const c = current.value
-  host.value = c?.defaultValue?.host ?? 'localhost'
-  port.value = c?.defaultValue?.port ?? ''
-  name.value = c?.defaultValue?.name ?? ''
+  host.value = c?.defaultValue?.host || 'localhost'
+  port.value = c?.defaultValue?.port || ''
+  name.value = c?.defaultValue?.name || ''
 }
 
 async function load() {

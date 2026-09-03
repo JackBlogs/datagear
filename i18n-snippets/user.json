@@ -1,0 +1,15 @@
+{
+  "userPage.title": "用户管理",
+  "userPage.desc": "平台账号与权限主体管理，支持禁用与密码重置",
+  "userPage.newUser": "新建用户",
+  "userPage.colUser": "用户",
+  "userPage.colEmail": "邮箱",
+  "userPage.roleAdmin": "管理员",
+  "userPage.roleNormal": "普通用户",
+  "userPage.totalCount": "共 {n} 条",
+  "userPage.selInfoPrefix": "已选",
+  "userPage.selInfoSuffix": "项",
+  "userPage.batchDelete": "批量删除",
+  "userPage.migratePrompt": "删除用户需指定数据迁移目标用户 ID（留空则直接删除）",
+  "userPage.empty": "暂无用户"
+}

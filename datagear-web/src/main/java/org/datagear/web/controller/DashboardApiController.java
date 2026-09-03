@@ -262,4 +262,70 @@ public class DashboardApiController extends AbstractDataPermissionApiController<
 	{
 		this.htmlTplDashboardWidgetEntityService = htmlTplDashboardWidgetEntityService;
 	}
+
+	/**
+	 * 保存看板设计（可视化/源码产物），替代旧 /dashboard/saveDesign。
+	 */
+	@RequestMapping(value = "/saveDesign", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveDesign(HttpServletRequest request, HttpServletResponse response,
+			Model model, @RequestBody DashboardController.HtmlTplDashboardDesignForm form) throws Exception
+	{
+		return this.dashboardController.saveDesign(request, response, form);
+	}
+
+	/**
+	 * 列出看板资源名（替代旧 /dashboard/listResources）。
+	 */
+	@RequestMapping(value = "/listResources", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public List<String> listResources(HttpServletRequest request, HttpServletResponse response, Model model,
+			@RequestParam("id") String id) throws Exception
+	{
+		return this.dashboardController.listResources(request, response, model, id);
+	}
+
+	/**
+	 * 重命名看板资源（替代旧 /dashboard/renameResource）。
+	 */
+	@RequestMapping(value = "/renameResource", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> renameResource(HttpServletRequest request, HttpServletResponse response,
+			Model model, @RequestParam("id") String id, @RequestParam("srcName") String srcName,
+			@RequestParam("destName") String destName) throws Exception
+	{
+		return this.dashboardController.renameResource(request, response, model, id, srcName, destName);
+	}
+
+	/**
+	 * 删除看板资源（替代旧 /dashboard/deleteResource）。
+	 */
+	@RequestMapping(value = "/deleteResource", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> deleteResource(HttpServletRequest request, HttpServletResponse response,
+			Model model, @RequestParam("id") String id, @RequestParam("name") String name) throws Exception
+	{
+		return this.dashboardController.deleteResource(request, response, model, id, name);
+	}
+
+	/**
+	 * 保存看板模板名列表（替代旧 /dashboard/saveTemplateNames）。
+	 */
+	@RequestMapping(value = "/saveTemplateNames", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> saveTemplateNames(HttpServletRequest request, HttpServletResponse response,
+			Model model, @RequestParam("id") String id, @RequestBody String[] templates) throws Exception
+	{
+		return this.dashboardController.saveTemplateNames(request, response, model, id, templates);
+	}
+
+	/**
+	 * 导出看板资源（zip 下载，替代旧 /dashboard/export）。
+	 */
+	@RequestMapping(value = "/export")
+	public void export(HttpServletRequest request, HttpServletResponse response, Model model,
+			@RequestParam("id") String id) throws Exception
+	{
+		this.dashboardController.export(request, response, model, id);
+	}
 }

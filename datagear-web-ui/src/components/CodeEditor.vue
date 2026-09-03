@@ -32,6 +32,9 @@ onMounted(() => {
     value: props.modelValue,
     lineWrapping: true,
   })
+  // CM5 的 fromTextArea 不一定采纳 config.value（空 textarea 时初始内容为空），
+  // 这里显式同步一次初始值（setValue 触发的 change 与 modelValue 相同，无副作用）
+  if (props.modelValue) editor.setValue(props.modelValue)
   editor.on('change', () => {
     emit('update:modelValue', editor!.getValue())
   })
