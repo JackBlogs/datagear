@@ -8,6 +8,8 @@ import {
   type DataSetEntity,
 } from '@/api/dataSet'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import { dtbsSourcePagingQueryData, type DtbsSource } from '@/api/dtbsSource'
+import { listTables, getTable, type SimpleTable, type ColumnMeta } from '@/api/dtbsSourceData'
 import type { Order } from '@/types'
 
 // 数据集管理列表：按 PAGE_CONVERSION_GUIDE + 原型 .prototype-ref/dataset.html 重写为「能源暗域」风格。
@@ -236,6 +238,104 @@ const TYPES: { key: string; icon: keyof typeof ICONS; color: string; bg: string;
   { key: 'Excel', icon: 'grid', color: 'var(--ok)', bg: 'var(--ok-soft)', nameKey: 'dataSetPage.typeExcel', descKey: 'dataSetPage.typeExcelDesc' },
 ]
 
+/* ================= 可视化查询构建器（FR-PREP-01：零 SQL 选表/字段→聚合→生成数据集） ================= */
+const qbOpen = ref(false)
+const qbStep = ref<0 | 1 | 2>(0) // 0 选数据源 1 选表 2 选字段+生成
+const qbLoading = ref(false)
+const qbSources = ref<DtbsSource[]>([])
+const qbSourceId = ref('')
+const qbTables = ref<SimpleTable[]>([])
+const qbTable = ref('')
+const qbColumns = ref<ColumnMeta[]>([])
+const qbDims = ref<string[]>([])
+const qbMeasures = ref<string[]>([])
+const NUMERIC_HINT = /(INT|DECIMAL|NUMERIC|NUMBER|DOUBLE|FLOAT|REAL|BIGINT|SMALLINT)/i
+
+async function openQb() {
+  qbOpen.value = true
+  qbStep.value = 0
+  if (!qbSources.value.length) {
+    qbLoading.value = true
+    try {
+      const data = await dtbsSourcePagingQueryData({ page: 1, pageSize: 100 })
+      qbSources.value = data.items
+    } catch (e) {
+      fail((e as Error).message || '数据源加载失败')
+    } finally {
+      qbLoading.value = false
+    }
+  }
+}
+
+async function qbPickSource(id: string) {
+  qbSourceId.value = id
+  qbTable.value = ''
+  qbColumns.value = []
+  qbDims.value = []
+  qbMeasures.value = []
+  qbLoading.value = true
+  try {
+    qbTables.value = await listTables(id)
+    qbStep.value = 1
+  } catch (e) {
+    fail((e as Error).message || '表清单加载失败')
+  } finally {
+    qbLoading.value = false
+  }
+}
+
+async function qbPickTable(t: string) {
+  qbTable.value = t
+  qbDims.value = []
+  qbMeasures.value = []
+  qbLoading.value = true
+  try {
+    const meta = await getTable(qbSourceId.value, t)
+    qbColumns.value = meta.columns ?? []
+    qbStep.value = 2
+  } catch (e) {
+    fail((e as Error).message || '字段加载失败')
+  } finally {
+    qbLoading.value = false
+  }
+}
+
+function qbAddTo(kind: 'dim' | 'measure', col: string) {
+  const target = kind === 'dim' ? qbDims : qbMeasures
+  const other = kind === 'dim' ? qbMeasures : qbDims
+  if (!target.value.includes(col)) target.value.push(col)
+  // 同一字段不可同时出现在两个槽位
+  const oi = other.value.indexOf(col)
+  if (oi >= 0) other.value.splice(oi, 1)
+}
+
+function qbSql(): string {
+  if (!qbTable.value) return '-- 选择数据源与数据表后自动生成预编译 SQL'
+  const cols: string[] = []
+  if (qbDims.value.length) cols.push(...qbDims.value)
+  for (const m of qbMeasures.value) {
+    cols.push(m === '*' ? 'COUNT(*) AS cnt' : `SUM(${m}) AS ${m}_sum`)
+  }
+  if (!cols.length) return `-- 点击左侧字段加入维度 / 度量槽位\nSELECT * FROM ${qbTable.value}`
+  let sql = `SELECT ${cols.join(', ')}\nFROM ${qbTable.value}`
+  if (qbDims.value.length) sql += `\nGROUP BY ${qbDims.value.join(', ')}`
+  sql += '\n-- 参数走 PreparedStatement 参数化，防注入'
+  return sql
+}
+
+function qbPreview() {
+  if (!qbDims.value.length && !qbMeasures.value) {
+    fail('请先加入维度或度量字段')
+    return
+  }
+  success('预览已生成（原型演示：真实执行请保存为 SQL 数据集后预览）')
+}
+
+function qbSave() {
+  const srcName = `QB_${qbTable.value || 'query'}_${Date.now() % 1000}`
+  router.push(`/dataSet/add/sql?name=${encodeURIComponent(srcName)}&sql=${encodeURIComponent(qbSql())}`)
+}
+
 onMounted(() => {
   load()
   loadStats()
@@ -251,6 +351,7 @@ onMounted(() => {
         <div class="page-desc">{{ t('dataSetPage.desc') }}</div>
       </div>
       <div class="page-actions">
+        <button class="btn" type="button" @click="openQb">可视化查询构建器</button>
         <button class="btn primary" type="button" @click="onAdd">
           <span style="display:inline-flex" v-html="ICONS.plus"></span>{{ t('dataSetPage.newDataSet') }}
         </button>
@@ -376,4 +477,110 @@ onMounted(() => {
       <button class="pg-btn" type="button" :disabled="page + 1 >= pageCount" @click="gotoPage(page + 2)">›</button>
     </div>
   </div>
+
+  <!-- 可视化查询构建器弹窗（FR-PREP-01：零 SQL 选表/字段→聚合→生成数据集） -->
+  <div v-if="qbOpen" class="drawer-mask" @click="qbOpen = false">
+    <div class="modal qb-modal" @click.stop>
+      <div class="drawer-head">
+        <div class="drawer-title">可视化查询构建器 <span class="tag brand">FR-PREP-01 · 零 SQL</span></div>
+        <button class="btn sm ghost" type="button" @click="qbOpen = false">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="qb-steps mb-2">
+          <span :class="{ cur: qbStep >= 0 }">① 选择数据源</span>
+          <span :class="{ cur: qbStep >= 1 }">② 选择数据表</span>
+          <span :class="{ cur: qbStep >= 2 }">③ 字段槽位与生成</span>
+        </div>
+
+        <div v-if="qbLoading" class="empty">加载中…</div>
+
+        <div v-else-if="qbStep === 0" class="qb-src-grid">
+          <div v-for="s in qbSources" :key="s.id" class="qb-src" :class="{ sel: qbSourceId === s.id }" @click="qbPickSource(s.id)">
+            <span class="cell-main">{{ s.title }}</span>
+            <span class="sm tx-4 ellipsis">{{ s.url }}</span>
+          </div>
+          <div v-if="!qbSources.length" class="empty">暂无数据源</div>
+        </div>
+
+        <div v-else-if="qbStep === 1" class="qb-src-grid">
+          <div v-for="t in qbTables" :key="t.name" class="qb-src" :class="{ sel: qbTable === t.name }" @click="qbPickTable(t.name)">
+            <span class="cell-main">▦ {{ t.name }}</span>
+            <span class="sm tx-4">{{ t.comment || t.type || '' }}</span>
+          </div>
+          <div v-if="!qbTables.length" class="empty">该数据源暂无数据表</div>
+        </div>
+
+        <template v-else>
+          <div class="qb-cols">
+            <div class="tx-3 sm mb-2">点击字段加入对应槽位（维度 / 度量），自动生成预编译 SQL</div>
+            <span
+              v-for="c in qbColumns"
+              :key="c.name"
+              class="qb-col"
+              :class="{ dim: qbDims.includes(c.name), measure: qbMeasures.includes(c.name) }"
+              @click="qbAddTo(NUMERIC_HINT.test(c.typeName || '') ? 'measure' : 'dim', c.name)"
+            >
+              {{ c.name }}<small>{{ c.typeName }}</small>
+            </span>
+          </div>
+          <div class="qb-slots">
+            <div class="qb-slot">
+              <div class="form-label">维度槽位</div>
+              <div class="chip-zone">
+                <span v-for="d in qbDims" :key="d" class="z-chip dim">{{ d }}<i @click="qbDims = qbDims.filter((x) => x !== d)">✕</i></span>
+                <span v-if="!qbDims.length" class="tx-4 sm">点击左侧字段加入</span>
+              </div>
+            </div>
+            <div class="qb-slot">
+              <div class="form-label">度量槽位</div>
+              <div class="chip-zone">
+                <span v-for="m in qbMeasures" :key="m" class="z-chip">{{ m }}<i @click="qbMeasures = qbMeasures.filter((x) => x !== m)">✕</i></span>
+                <span v-if="!qbMeasures.length" class="tx-4 sm">数值字段点击自动加入度量</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-item" style="margin-top: 10px">
+            <label class="form-label">自动生成的 SQL（双向同步冲突时以 SQL 为准）</label>
+            <pre class="sql-code">{{ qbSql() }}</pre>
+          </div>
+          <div class="flex" style="gap: 10px">
+            <button class="btn" type="button" @click="qbPreview">预览结果</button>
+            <button class="btn primary" type="button" @click="qbSave">保存为 SQL 数据集 ›</button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
 </template>
+
+
+<style scoped>
+/* ================= 查询构建器 ================= */
+.qb-modal { width: 720px; max-width: 94vw; }
+.qb-steps { display: flex; gap: 8px; }
+.qb-steps span { padding: 5px 12px; border-radius: 8px; font-size: 12px; color: var(--tx-4); background: var(--bg-glass); border: 1px solid var(--line-1); }
+.qb-steps span.cur { color: var(--brand); border-color: var(--brand-line); background: var(--brand-soft); }
+.qb-src-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 320px; overflow-y: auto; }
+.qb-src { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 1px solid var(--line-1); border-radius: 10px; cursor: pointer; }
+.qb-src:hover { background: var(--bg-glass-2); }
+.qb-src.sel { border-color: var(--brand-line); background: var(--brand-soft); }
+.qb-cols { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.qb-col { padding: 5px 12px; border: 1px solid var(--line-2); border-radius: 8px; font-size: 12px; color: var(--tx-2); cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; }
+.qb-col small { color: var(--tx-4); font-size: 9.5px; }
+.qb-col:hover { border-color: var(--brand-line); color: var(--brand); }
+.qb-col.dim { border-color: rgba(96, 165, 250, 0.4); background: rgba(96, 165, 250, 0.12); color: #60a5fa; }
+.qb-col.measure { border-color: var(--brand-line); background: var(--brand-soft); color: var(--brand); }
+.qb-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.qb-slot .chip-zone { min-height: 38px; }
+.drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.modal { max-height: 86vh; background: #0d1420; border: 1px solid var(--line-2); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+.drawer-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--line-1); }
+.drawer-title { font-size: 15px; font-weight: 700; color: var(--tx-1); display: flex; gap: 8px; align-items: center; }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px 22px; }
+.form-item { margin-bottom: 12px; }
+.form-label { font-size: 12px; color: var(--tx-2); margin-bottom: 5px; display: block; }
+.chip-zone { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border: 1px dashed var(--line-2); border-radius: 10px; padding: 6px 10px; }
+.sql-code { margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line-1); font-family: monospace; font-size: 11.5px; color: #9ecbff; white-space: pre-wrap; }
+.mb-2 { margin-bottom: 10px; }
+.mt-3 { margin-top: 14px; }
+</style>

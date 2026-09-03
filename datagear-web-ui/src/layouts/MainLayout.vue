@@ -7,6 +7,7 @@ import { useThemeStore } from '@/stores/theme'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import { dashboardPagingQueryData } from '@/api/dashboard'
 import { chartPagingQueryData } from '@/api/chart'
+import { metricPagingQueryData, type MetricEntity } from '@/api/metric'
 import { dataSetPagingQueryData } from '@/api/dataSet'
 
 // 主布局：能源暗域风格侧栏（分组菜单）+ 顶栏（全局检索）+ 内容区。
@@ -201,7 +202,7 @@ async function queryAssets(kw: string) {
     const out: SearchResult[] = []
     // 指标优先（v2 /search 契约：跨资源联想，指标第一组）
     if (mt.status === 'fulfilled')
-      out.push(...mt.value.items.map((m) => ({ id: m.id, name: m.name, type: m.certified ? '指标 · 已认证' : '指标', icon: 'pi pi-chart-bar', to: '/metrics' })))
+      out.push(...mt.value.items.map((m: MetricEntity) => ({ id: m.id, name: m.name, type: m.certified ? '指标 · 已认证' : '指标', icon: 'pi pi-chart-bar', to: '/metrics' })))
     if (db.status === 'fulfilled') out.push(...db.value.items.map((d) => ({ id: d.id, name: d.name, type: '看板', icon: 'pi pi-images', to: '/dashboard' })))
     if (ch.status === 'fulfilled') out.push(...ch.value.items.map((c) => ({ id: c.id, name: c.name, type: '图表', icon: 'pi pi-chart-line', to: '/chart' })))
     if (dset.status === 'fulfilled') out.push(...dset.value.items.map((d) => ({ id: d.id, name: d.name, type: '数据集', icon: 'pi pi-table', to: '/dataSet' })))
