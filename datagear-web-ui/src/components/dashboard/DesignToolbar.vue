@@ -3,7 +3,8 @@ import type { Breakpoint } from '@/types/dashboardDesign'
 import { breakpointLabel } from '@/types/dashboardDesign'
 
 /**
- * 设计器顶部工具栏：撤销/重做 / 断点切换 / 预览 / 保存草稿 / 发布。
+ * 设计器顶部工具栏（对齐原型 designer.html）：
+ * 左=名称/状态/自动保存 · 中=撤销重做/断点 · 右（spacer 推右）=返回/源码/预览/保存草稿/发布。
  */
 defineProps<{
   name: string
@@ -24,6 +25,7 @@ const emit = defineEmits<{
   (e: 'saveDraft'): void
   (e: 'publish'): void
   (e: 'toggleCode'): void
+  (e: 'back'): void
 }>()
 
 const bpList: Breakpoint[] = ['desktop', 'tablet', 'mobile']
@@ -62,8 +64,13 @@ const bpIcon: Record<Breakpoint, string> = {
       <i class="pi" :class="bpIcon[bp]"></i>
     </button>
 
-    <div class="d-divider"></div>
+    <!-- 推右：返回 / 源码 / 预览 / 保存草稿 / 发布 -->
+    <div class="t-spacer"></div>
 
+    <button class="btn sm ghost back-btn" @click="emit('back')">
+      <i class="pi pi-arrow-left"></i>返回
+    </button>
+    <div class="d-divider"></div>
     <button class="btn sm ghost" @click="emit('toggleCode')">源码</button>
     <button class="btn sm ghost" @click="emit('preview')">预览</button>
     <button class="btn sm" :disabled="saving" @click="emit('saveDraft')">
@@ -87,6 +94,7 @@ const bpIcon: Record<Breakpoint, string> = {
 .tx-3 { color: var(--tx-3); }
 .sm { font-size: 11.5px; }
 .d-divider { width: 1px; height: 20px; background: var(--line-2); }
+.t-spacer { flex: 1; min-width: 12px; }
 .t-icon-btn {
   width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent;
   background: transparent; color: var(--tx-3); cursor: pointer;
@@ -107,4 +115,5 @@ const bpIcon: Record<Breakpoint, string> = {
 .btn.primary { background: var(--brand-grad); border: none; color: #241105; font-weight: 600; box-shadow: 0 4px 16px rgba(244,99,58,.3); }
 .btn.sm { padding: 5px 12px; font-size: 12px; border-radius: 8px; }
 .btn.ghost { background: transparent; }
+.back-btn { color: var(--tx-2); }
 </style>

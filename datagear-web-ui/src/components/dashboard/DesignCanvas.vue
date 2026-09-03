@@ -5,14 +5,18 @@ import WidgetRenderer from './WidgetRenderer.vue'
 
 /**
  * 设计器中画布：绝对定位部件，支持选中 / 拖拽移动 / 八向手柄缩放 / 8px 网格吸附。
+ * 同时承接组件库的 HTML5 拖放：drop 后按光标位置发出 dropAdd（部件类型 + 画布坐标）。
  */
-const props = defineProps<{ design: DashboardDesign; widgets: DgWidget[]; selectedId: string | null }>()
+const props = defineProps<{ design: DashboardDesign; widgets: DgWidget[]; selectedId: string | null; snapOn?: boolean }>()
 const emit = defineEmits<{
   (e: 'select', id: string | null): void
   (e: 'move', id: string, x: number, y: number): void
   (e: 'resize', id: string, data: { x: number; y: number; w: number; h: number }): void
   (e: 'remove', id: string): void
+  (e: 'dropAdd', payload: Record<string, unknown>, x: number, y: number): void
 }>()
+
+const canvasEl = ref<HTMLElement>()
 
 interface DragState {
   mode: 'move' | 'resize'
@@ -30,7 +34,7 @@ const drag = ref<DragState | null>(null)
 const snap = 8
 
 function snapV(v: number): number {
-  return Math.round(v / snap) * snap
+  return props.snapOn === false ? v : Math.round(v / snap) * snap
 }
 
 function handleDown(e: MouseEvent, widget: DgWidget, mode: 'move' | 'resize', dir?: string) {
@@ -88,6 +92,29 @@ function onBlankClick() {
   emit('select', null)
 }
 
+/* ---------- 组件库拖放：drop 按光标位置创建部件 ---------- */
+function onDragOver(e: DragEvent) {
+  // 必须阻止默认行为才能触发 drop
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+}
+function onDrop(e: DragEvent) {
+  e.preventDefault()
+  const raw = e.dataTransfer?.getData('application/x-dg-widget')
+  if (!raw || !canvasEl.value) return
+  let payload: Record<string, unknown>
+  try {
+    payload = JSON.parse(raw)
+  } catch {
+    return
+  }
+  // clientX/Y 减画布内容左上角（rect 随滚动移动，差值即画布内容坐标）
+  const rect = canvasEl.value.getBoundingClientRect()
+  const x = Math.max(0, snapV(e.clientX - rect.left))
+  const y = Math.max(0, snapV(e.clientY - rect.top))
+  emit('dropAdd', payload, x, y)
+}
+
 function remove(id: string) {
   emit('remove', id)
 }
@@ -107,7 +134,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="canvas-outer">
-    <div class="canvas" :style="canvasStyle" @mousedown="onBlankClick">
+    <div ref="canvasEl" class="canvas" :style="canvasStyle" @mousedown="onBlankClick" @dragover="onDragOver" @drop="onDrop">
       <div
         v-for="w in widgets"
         :key="w.id"

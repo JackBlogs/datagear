@@ -135,7 +135,7 @@
           <div class="top-actions">
             <span class="env-tag">生产环境 · 信创适配</span>
             <button class="icon-btn" id="bellBtn" title="告警通知">${ICONS.bell}<span class="dot"></span></button>
-            <button class="icon-btn" title="帮助与新手引导" onclick="DG.toast('新手引导：角色化任务教学（FR-HOME-23）')">${ICONS.spark}</button>
+            <button class="icon-btn" id="helpBtn" title="帮助与新手引导（FR-HOME-23）">${ICONS.spark}</button>
           </div>
         </header>
         <main class="content" id="content"></main>
@@ -171,7 +171,13 @@
     dd.className = 'dropdown';
     dd.innerHTML = `<div class="dd-head">通知与待办 <span class="dd-op" data-readall>全部已读</span></div>
       <div class="dd-body"><div class="block-loading"><span class="spin"></span> 加载中…</div></div>`;
-    dd.querySelector('[data-readall]').onclick = () => { document.querySelector('.icon-btn .dot') && document.querySelector('.icon-btn .dot').remove(); toast('已全部标记为已读', 'ok'); dd.remove(); };
+    dd.querySelector('[data-readall]').onclick = async () => {
+      const dot = document.querySelector('.icon-btn .dot');
+      if (dot) dot.remove();
+      if (window.DG && DG.api) { try { await DG.api.post('/home/todo/readAll'); } catch (e) { /* noop */ } }
+      toast('已全部标记为已读', 'ok');
+      dd.remove();
+    };
     toggleDropdown(dd);
     const body = dd.querySelector('.dd-body');
     const render = rows => {
@@ -196,9 +202,13 @@
         <div class="sm tx-3 mt-1">liming@energy.local · 华北油田分公司</div>
       </div>
       ${[['个人设置', 'system'], ['我的收藏', 'star'], ['我的订阅', 'alert'], ['主题偏好（暗色）', 'spark'], ['退出登录', 'arrowR']].map(m => `<div class="dd-menu-item" data-act="${m[1]}">${ICONS[m[1]] || ''}${m[0]}</div>`).join('')}`;
-    dd.querySelectorAll('.dd-menu-item').forEach(it => it.onclick = () => {
+    dd.querySelectorAll('.dd-menu-item').forEach(it => it.onclick = async () => {
       const act = it.dataset.act; dd.remove();
-      if (act === 'arrowR') location.href = 'login.html';
+      if (act === 'arrowR') {
+        /* 退出登录：先销毁会话再跳登录页（IX-EV-GLB-08，生产态必须先 POST /auth/logout） */
+        if (window.DG && DG.api) { try { await DG.api.post('/auth/logout'); } catch (e) { /* 失败仍强制跳转 */ } }
+        location.href = 'login.html';
+      }
       else if (act === 'star') location.href = 'index.html';
       else if (act === 'alert') location.href = 'alert.html';
       else toast('原型演示：' + it.textContent.trim());
@@ -265,6 +275,12 @@
     if (bell) bell.addEventListener('click', openNotify);
     const user = document.getElementById('sideUser');
     if (user) user.addEventListener('click', openUserMenu);
+    /* 帮助与新手引导（FR-HOME-23）：首页直接重开引导，其余页面跳首页携 tour 参数 */
+    const help = document.getElementById('helpBtn');
+    if (help) help.addEventListener('click', () => {
+      if (document.body.dataset.page === 'home') window.dispatchEvent(new CustomEvent('dg:tour'));
+      else location.href = 'index.html?tour=1';
+    });
     document.addEventListener('keydown', e => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openSearch(); }
     });

@@ -23,6 +23,19 @@ const fontSizeOptions: { label: string; value: 'small' | 'medium' | 'large' }[] 
   { label: '大', value: 'large' },
 ]
 
+/* 过滤器 chips（对齐原型「添加过滤器」交互） */
+const newFilter = ref('')
+function addFilter() {
+  const v = newFilter.value.trim()
+  if (!v) return
+  if (!dt.value.filters) dt.value.filters = []
+  if (!dt.value.filters.includes(v)) dt.value.filters.push(v)
+  newFilter.value = ''
+}
+function removeFilter(i: number) {
+  dt.value.filters?.splice(i, 1)
+}
+
 const refreshOptions = [0, 60, 300, 900, 3600]
 function refreshLabel(secs: number): string {
   if (!secs) return '手动刷新'
@@ -52,7 +65,7 @@ function chartName(id?: string): string {
 function onPickChart(id?: string) {
   if (!w.value) return
   w.value.chartId = id
-  if (id) w.value.type = 'chart'
+  if (id && w.value.type !== 'map') w.value.type = 'chart'
 }
 
 function removeChip(arr: string[], i: number) {
@@ -73,7 +86,7 @@ function removeChip(arr: string[], i: number) {
     <div v-else class="prop-scroll">
       <!-- ============ 数据 ============ -->
       <div v-show="tab === 'data'" class="pane">
-        <template v-if="w.type === 'chart'">
+        <template v-if="w.type === 'chart' || w.type === 'map'">
           <div class="form-item">
             <label class="form-label">绑定图表</label>
             <div class="p-inputgroup">
@@ -149,8 +162,25 @@ function removeChip(arr: string[], i: number) {
           </div>
         </div>
         <div class="form-item">
-          <label class="form-label">过滤器</label>
-          <input v-model="dt.filter" type="text" class="input" placeholder="如 日期 = 近7日" />
+          <label class="form-label">过滤器（可添加多条）</label>
+          <div v-if="(dt.filters ?? []).length || dt.filter" class="filter-chips">
+            <span v-for="(f, i) in dt.filters ?? []" :key="'f' + i" class="z-chip dim">
+              {{ f }}<i @click="removeFilter(i)">✕</i>
+            </span>
+            <span v-if="dt.filter && !(dt.filters ?? []).length" class="z-chip dim">
+              {{ dt.filter }}<i @click="dt.filter = ''">✕</i>
+            </span>
+          </div>
+          <div class="p-inputgroup">
+            <input
+              v-model="newFilter"
+              type="text"
+              class="input"
+              placeholder="如 日期 = 近7日，回车添加"
+              @keydown.enter.prevent="addFilter"
+            />
+            <button class="btn sm" type="button" @click="addFilter">＋ 添加过滤器</button>
+          </div>
         </div>
 
         <div class="form-item">
@@ -297,6 +327,7 @@ function removeChip(arr: string[], i: number) {
 .switch input:checked + i::after { left: 17px; }
 .link-cfg { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 8px 10px; background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-m); margin-bottom: 8px; }
 .link-cfg .l-arrow { color: var(--tx-4); }
+.filter-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
 .grow { flex: 1; min-width: 0; }
 .tx-3 { color: var(--tx-3); }
 .sm { font-size: 11.5px; }

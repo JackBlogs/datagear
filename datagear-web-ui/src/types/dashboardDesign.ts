@@ -42,12 +42,16 @@ export interface DgWidget {
   h: number
   /** 图表部件绑定的图表 id */
   chartId?: string
+  /** KPI 部件绑定的语义层指标 id（/api/metric，FR-SEM-06 看板消费） */
+  metricId?: string
   /** 数据配置（数据集/维度/度量/过滤/刷新频率/行级权限继承） */
   data?: {
     dataset?: string
     dims?: string[]
     measures?: string[]
     filter?: string
+    /** 过滤器 chips（v2 原型：可移除、可添加多条） */
+    filters?: string[]
     refresh?: number
     inheritRowAuth?: boolean
   }

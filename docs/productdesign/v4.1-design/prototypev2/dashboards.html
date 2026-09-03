@@ -36,6 +36,34 @@
   .link-btn { color: var(--tx-3); cursor: pointer; font-size: 12.5px; padding: 2px 6px; border-radius: 6px; }
   .link-btn:hover { color: var(--brand); background: var(--brand-soft); }
 
+  /* ---- 深化轮：我的看板 工具行（排序 + 双视图） ---- */
+  .mine-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .mine-toolbar .lbl { font-size: 12px; color: var(--tx-4); }
+  /* 卡片视图 */
+  .db-card { position: relative; border-radius: var(--r-l); overflow: hidden; border: 1px solid var(--line-1); height: 208px; cursor: pointer; transition: all var(--dur); display: flex; flex-direction: column; }
+  .db-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); border-color: var(--line-3); }
+  .db-card .c-cover { flex: 1; position: relative; padding: 14px; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; }
+  .db-card .c-cover .c-name { font-size: 15px; font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .db-card .c-cover .c-sub { font-size: 11px; color: var(--tx-2); }
+  .db-card .db-star {
+    position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(5,8,14,.55); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(4px);
+    color: var(--tx-3); cursor: pointer; transition: all var(--dur); z-index: 2;
+  }
+  .db-card .db-star:hover { color: var(--tx-1); border-color: rgba(255,255,255,.35); }
+  .db-card .db-star.on { color: var(--warn); }
+  .db-card .db-star svg { width: 15px; height: 15px; }
+  .db-card .c-acts { position: absolute; top: 10px; left: 12px; display: none; gap: 6px; z-index: 2; }
+  .db-card:hover .c-acts { display: flex; }
+  .db-card .c-acts .mini-btn {
+    padding: 4px 10px; border-radius: 7px; font-size: 11px; cursor: pointer;
+    background: rgba(5,8,14,.6); border: 1px solid rgba(255,255,255,.2); color: var(--tx-2);
+    backdrop-filter: blur(4px); transition: all var(--dur);
+  }
+  .db-card .c-acts .mini-btn:hover { color: var(--tx-1); border-color: var(--brand-line); }
+  .db-card .tpl2-foot .f-meta b { font-family: var(--font-num); color: var(--tx-1); }
+
   @media (max-width: 1100px) { .tpl-grid { grid-template-columns: repeat(2,1fr); } }
   @media (max-width: 760px) { .tpl-grid { grid-template-columns: 1fr; } }
 </style>
@@ -156,9 +184,22 @@
     </div>
   </section>
 
-  <!-- 我的看板（GET /dashboard/list） -->
+  <!-- 我的看板（GET /dashboard/list）：排序 + 表格/卡片双视图 + 右键菜单 -->
   <section id="pane-mine" class="hidden">
-    <div class="table-wrap">
+    <div class="mine-toolbar">
+      <span class="lbl">排序</span>
+      <div class="seg" id="sortSeg">
+        <span class="seg-item active" data-sort="recent">最近更新</span>
+        <span class="seg-item" data-sort="hot">最热</span>
+        <span class="seg-item" data-sort="fav">收藏优先</span>
+      </div>
+      <span style="margin-left:auto" class="lbl">视图</span>
+      <div class="seg" id="viewSeg">
+        <span class="seg-item active" data-view="table">表格</span>
+        <span class="seg-item" data-view="card">卡片</span>
+      </div>
+    </div>
+    <div class="table-wrap" id="mineTableWrap">
       <table class="tbl">
         <thead>
           <tr><th>看板名称</th><th>行业</th><th>部件数</th><th>创建人</th><th>更新时间</th><th>分享状态</th><th>操作</th></tr>
@@ -166,6 +207,7 @@
         <tbody id="dbRows"></tbody>
       </table>
     </div>
+    <div class="tpl-grid hidden" id="mineCards"></div>
   </section>
 
   <!-- 回收站（恢复 / 彻底删除） -->
@@ -191,7 +233,13 @@ const esc = DG.ui.esc;
 /* ================= 常量与状态 ================= */
 const IND_LB = { oil: '石油', gas: '天然气', chem: '化工', coal: '煤矿' };
 const SHARE_TAG = { '密码分享': 'warn', '签名Token嵌入': 'info', '私有': '', '组织内公开': 'brand' };
-const state = { ind: 'all', kw: '', rows: [], total: 0, mineLoaded: false };
+const state = { ind: 'all', kw: '', rows: [], total: 0, mineLoaded: false, sort: 'recent', view: 'table' };
+const IND_COVER = {
+  oil:  'linear-gradient(160deg,rgba(255,138,61,.32),rgba(244,99,58,.06) 65%),radial-gradient(240px 120px at 82% 12%,rgba(255,178,94,.38),transparent),linear-gradient(200deg,#1A1208,#0A0E17)',
+  gas:  'linear-gradient(160deg,rgba(34,211,238,.28),rgba(34,211,238,.05) 65%),radial-gradient(240px 120px at 82% 12%,rgba(34,211,238,.34),transparent),linear-gradient(200deg,#08161A,#0A0E17)',
+  chem: 'linear-gradient(160deg,rgba(167,139,250,.28),rgba(167,139,250,.05) 65%),radial-gradient(240px 120px at 82% 12%,rgba(167,139,250,.34),transparent),linear-gradient(200deg,#120E1E,#0A0E17)',
+  coal: 'linear-gradient(160deg,rgba(232,179,60,.28),rgba(232,179,60,.05) 65%),radial-gradient(240px 120px at 82% 12%,rgba(232,179,60,.34),transparent),linear-gradient(200deg,#181206,#0A0E17)'
+};
 let trash = [
   { board: { id: 'DB-T1', name: '旧版原油生产周报', ind: 'oil', widgets: 8, owner: '李明', updated: '2026-08-28 16:20', share: '私有' }, by: '李明', time: '2026-08-28 16:20', left: 25 },
   { board: { id: 'DB-T2', name: '门站压力测试看板', ind: 'gas', widgets: 6, owner: '周海峰', updated: '2026-08-15 09:44', share: '私有' }, by: '周海峰', time: '2026-08-15 09:44', left: 12 }
@@ -219,18 +267,26 @@ document.querySelectorAll('#dbTabs .tab').forEach(tab => {
   });
 });
 
-/* ================= 我的看板（GET /dashboard/list） ================= */
+/* ================= 我的看板（GET /dashboard/list）：排序 + 双视图 ================= */
+function sortRows(rows) {
+  const r = rows.slice();
+  if (state.sort === 'hot') r.sort((a, b) => (b.hot || 0) - (a.hot || 0));
+  else if (state.sort === 'fav') r.sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || (b.ts || 0) - (a.ts || 0));
+  else r.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return r;
+}
 async function loadMine() {
   state.mineLoaded = true;
   const body = document.getElementById('dbRows');
-  body.innerHTML = '<tr><td colspan="7" style="padding:0"><div class="block-loading"><span class="spin"></span> 数据加载中…</div></td></tr>';
+  const cards = document.getElementById('mineCards');
+  const loading = '<div class="block-loading" style="padding:26px"><span class="spin"></span> 数据加载中…</div>';
+  if (state.view === 'table') body.innerHTML = `<tr><td colspan="7" style="padding:0">${loading}</td></tr>`;
+  else cards.innerHTML = loading;
   const r = await DG.api.get('/dashboard/list', { ind: state.ind });
   if (r.code !== 0) {
-    body.innerHTML = '';
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="7" style="padding:0"></td>';
-    tr.firstChild.appendChild(DG.ui.errorBlock(r.message, loadMine));
-    body.appendChild(tr);
+    const errEl = DG.ui.errorBlock(r.message, loadMine);
+    if (state.view === 'table') { body.innerHTML = ''; const tr = document.createElement('tr'); tr.innerHTML = '<td colspan="7" style="padding:0"></td>'; tr.firstChild.appendChild(errEl); body.appendChild(tr); }
+    else { cards.innerHTML = ''; cards.appendChild(errEl); }
     return;
   }
   state.rows = r.data.rows;
@@ -239,8 +295,14 @@ async function loadMine() {
   renderMine();
 }
 function renderMine() {
+  document.getElementById('mineTableWrap').classList.toggle('hidden', state.view !== 'table');
+  document.getElementById('mineCards').classList.toggle('hidden', state.view !== 'card');
+  if (state.view === 'card') renderMineCards();
+  else renderMineTable();
+}
+function renderMineTable() {
   const body = document.getElementById('dbRows');
-  const rows = state.rows.filter(b => !state.kw || b.name.includes(state.kw));
+  const rows = sortRows(state.rows).filter(b => !state.kw || b.name.includes(state.kw));
   if (!rows.length) {
     body.innerHTML = `<tr><td colspan="7" style="padding:0">${DG.ui.emptyBlock('没有符合条件的看板', '新建看板', 'window.__newBoard')}</td></tr>`;
     return;
@@ -249,7 +311,7 @@ function renderMine() {
     <tr data-id="${b.id}">
       <td><div class="flex" style="gap:10px">
         <span class="db-icon" style="color:var(--${b.ind});background:var(--${b.ind}-soft)">${DG.ICONS.board}</span>
-        <div><div class="cell-main">${esc(b.name)}</div><div class="sm tx-3">看板 · ${b.widgets} 部件</div></div>
+        <div><div class="cell-main">${esc(b.name)}</div><div class="sm tx-3">看板 · ${b.widgets} 部件${b.fav ? ' · <span style="color:var(--warn)">★ 已收藏</span>' : ''}</div></div>
       </div></td>
       <td><span class="ind ${b.ind}"><i></i>${IND_LB[b.ind] || '其他'}</span></td>
       <td class="num">${b.widgets}</td>
@@ -263,15 +325,99 @@ function renderMine() {
         <span class="link-btn" data-op="del">删除</span>
       </td>
     </tr>`).join('');
-  body.querySelectorAll('tr').forEach(tr => {
+  body.querySelectorAll('tr[data-id]').forEach(tr => {
     const b = state.rows.find(x => x.id === tr.dataset.id);
     if (!b) return;
     tr.querySelector('[data-op="preview"]').onclick = () => openBoardPreview(b);
     tr.querySelector('[data-op="edit"]').onclick = () => location.href = 'designer.html?id=' + b.id;
     tr.querySelector('[data-op="share"]').onclick = () => openShare(b);
     tr.querySelector('[data-op="del"]').onclick = () => delBoard(b);
+    DG.ui.bindContextMenu(tr, () => boardMenu(b));           // 右键菜单（IX-EV-DSH-13）
   });
 }
+/* ---- 卡片视图（缩略封面 + 星标 + 悬停操作 + 右键菜单） ---- */
+function renderMineCards() {
+  const cards = document.getElementById('mineCards');
+  const rows = sortRows(state.rows).filter(b => !state.kw || b.name.includes(state.kw));
+  if (!rows.length) {
+    cards.innerHTML = DG.ui.emptyBlock('没有符合条件的看板', '新建看板', 'window.__newBoard');
+    return;
+  }
+  cards.innerHTML = rows.map(b => `
+    <div class="db-card" data-id="${b.id}">
+      <div class="c-cover" style="background:${IND_COVER[b.ind] || IND_COVER.oil}">
+        <div class="c-acts">
+          <span class="mini-btn" data-op="preview">预览</span>
+          <span class="mini-btn" data-op="edit">编辑</span>
+          <span class="mini-btn" data-op="share">分享</span>
+        </div>
+        <span class="db-star ${b.fav ? 'on' : ''}" data-fav title="${b.fav ? '取消收藏' : '加入收藏'}">${DG.ICONS.star}</span>
+        <div class="c-name">${esc(b.name)}</div>
+        <div class="c-sub">看板 · ${b.widgets} 部件 · ${esc(b.owner)}</div>
+      </div>
+      <div class="tpl2-foot">
+        <span class="ind ${b.ind}"><i></i>${IND_LB[b.ind] || '其他'}</span>
+        <span class="f-meta">更新于 ${esc(b.updated)} · 热度 <b>${(b.hot || 0).toLocaleString()}</b></span>
+        <span class="tag ${SHARE_TAG[b.share] || ''}" style="margin-left:auto">${esc(b.share)}</span>
+      </div>
+    </div>`).join('');
+  cards.querySelectorAll('.db-card').forEach(el => {
+    const b = state.rows.find(x => x.id === el.dataset.id);
+    if (!b) return;
+    el.addEventListener('click', e => { if (e.target.closest('.mini-btn,.db-star')) return; openBoardPreview(b); });
+    el.querySelector('[data-op="preview"]').onclick = e => { e.stopPropagation(); openBoardPreview(b); };
+    el.querySelector('[data-op="edit"]').onclick = e => { e.stopPropagation(); location.href = 'designer.html?id=' + b.id; };
+    el.querySelector('[data-op="share"]').onclick = e => { e.stopPropagation(); openShare(b); };
+    el.querySelector('[data-fav]').onclick = e => { e.stopPropagation(); toggleFav(b); };
+    DG.ui.bindContextMenu(el, () => boardMenu(b));
+  });
+}
+/* ---- 星标收藏：切换 + 取消收藏 5 秒撤销窗口（IX-FB-07 / IX-EV-HOME-07） ---- */
+async function toggleFav(b) {
+  const r = await DG.api.post('/dashboard/fav/toggle', { id: b.id });
+  if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+  b.fav = r.data.fav;
+  renderMine();
+  DG.ui.toast(`「${b.name}」已${b.fav ? '加入收藏' : '取消收藏'}`, b.fav ? 'ok' : 'info',
+    b.fav ? undefined : { duration: 5000, action: { label: '撤销', onClick: () => toggleFav(b) } });
+}
+/* ---- 看板右键菜单（行与卡片共用，IX-EV-DSH-13） ---- */
+function boardMenu(b) {
+  return [
+    { label: '打开设计器编辑', icon: DG.ICONS.board, onClick: () => location.href = 'designer.html?id=' + b.id },
+    { label: '预览', icon: DG.ICONS.screen, onClick: () => openBoardPreview(b) },
+    { label: '分享…', icon: DG.ICONS.share, onClick: () => openShare(b) },
+    { divider: true },
+    { label: '复制看板', icon: DG.ICONS.dataset, onClick: () => copyBoard(b) },
+    { label: '删除', danger: true, icon: DG.ICONS.x, onClick: () => delBoard(b) }
+  ];
+}
+async function copyBoard(b) {
+  const r = await DG.api.post('/dashboard/copy', { id: b.id });
+  if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+  state.rows.unshift(r.data);
+  state.total++;
+  updateCnt();
+  renderMine();
+  DG.ui.toast(`已复制为「${r.data.name}」`, 'ok');
+}
+/* ---- 排序 / 视图切换 ---- */
+document.querySelectorAll('#sortSeg .seg-item').forEach(s => {
+  s.addEventListener('click', () => {
+    document.querySelectorAll('#sortSeg .seg-item').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+    state.sort = s.dataset.sort;
+    renderMine();
+  });
+});
+document.querySelectorAll('#viewSeg .seg-item').forEach(s => {
+  s.addEventListener('click', () => {
+    document.querySelectorAll('#viewSeg .seg-item').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+    state.view = s.dataset.view;
+    renderMine();
+  });
+});
 window.__newBoard = () => location.href = 'designer.html';
 
 /* ---- 看板预览（modal 内嵌缩略预览，3 个 ECharts 小图 + 指标摘要） ---- */
@@ -378,10 +524,13 @@ function renderTrash() {
       <td style="white-space:nowrap"><span class="link-btn" data-op="re">恢复</span><span class="link-btn" data-op="del">彻底删除</span></td>
     </tr>`).join('');
   body.querySelectorAll('tr').forEach((tr, i) => {
-    tr.querySelector('[data-op="re"]').onclick = () => {
-      const t = trash[i]; trash.splice(i, 1);
-      state.rows.unshift(t.board); state.total++;
-      renderMine(); renderTrash(); updateCnt();
+    tr.querySelector('[data-op="re"]').onclick = async () => {
+      const t = trash[i];
+      const r = await DG.api.post('/dashboard/restore', { id: t.board.id, name: t.board.name, ind: t.board.ind, widgets: t.board.widgets });
+      if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+      trash.splice(i, 1);
+      await loadMine();
+      renderTrash(); updateCnt();
       DG.ui.toast(`「${t.board.name}」已恢复至「我的看板」`, 'ok');
     };
     tr.querySelector('[data-op="del"]').onclick = async () => {

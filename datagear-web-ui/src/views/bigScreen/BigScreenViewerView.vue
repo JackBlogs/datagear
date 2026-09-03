@@ -35,13 +35,27 @@ async function load() {
         design.value = null
       }
     }
-    await nextTick()
-    computeScale()
   } catch (e) {
     design.value = null
   } finally {
+    // 先关闭 loading 让 viewport 挂载，再计算缩放（否则 containerEl 不存在，scale 恒为 1）
     loading.value = false
+    await nextTick()
+    computeScale()
   }
+}
+
+/* ---------- 驾驶舱头部：实时时钟（对齐原型 screen.html） ---------- */
+const clock = ref('--:--:--')
+const dateTxt = ref('')
+let clockTimer: ReturnType<typeof setInterval> | null = null
+const WEEK = ['日', '一', '二', '三', '四', '五', '六']
+function tickClock() {
+  const n = new Date()
+  clock.value = [n.getHours(), n.getMinutes(), n.getSeconds()]
+    .map((v) => String(v).padStart(2, '0'))
+    .join(':')
+  dateTxt.value = `${n.getFullYear()}年${n.getMonth() + 1}月${n.getDate()}日 星期${WEEK[n.getDay()]}`
 }
 
 function computeScale() {
@@ -74,9 +88,12 @@ function back() {
 
 onMounted(() => {
   load()
+  tickClock()
+  clockTimer = setInterval(tickClock, 1000)
   window.addEventListener('resize', onResize)
 })
 onBeforeUnmount(() => {
+  if (clockTimer) clearInterval(clockTimer)
   window.removeEventListener('resize', onResize)
 })
 </script>
@@ -89,12 +106,33 @@ onBeforeUnmount(() => {
       <div class="stage" :style="stageStyle">
         <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
 
+        <!-- 驾驶舱标题栏（原型 screen.html scr-head）：系统标识 | 渐变大标题+装饰线 | 实时时钟 -->
+        <header class="scr-head">
+          <div class="scr-sys">
+            <div class="logo-mark">DG</div>
+            <div>
+              DataGear <span class="sys-brand">能源BI</span>
+              <div class="sys-sub">ENERGY INTELLIGENCE V4.1</div>
+            </div>
+          </div>
+          <div class="scr-title">
+            <span class="t-line l"></span>
+            <h1>{{ name }}</h1>
+            <span class="t-line r"></span>
+          </div>
+          <div class="scr-time">
+            <div class="t-now">{{ clock }}</div>
+            <div class="t-date">{{ dateTxt }}<span class="t-upd">数据更新 06:30</span></div>
+          </div>
+        </header>
+
         <div
           v-for="w in design.widgets"
           :key="w.id"
           class="vw"
           :style="{ left: w.x + 'px', top: w.y + 'px', width: w.w + 'px', height: w.h + 'px' }"
         >
+          <div v-if="w.style?.title && w.type !== 'kpi'" class="vw-title">{{ w.style.title }}</div>
           <div class="vw-body">
             <ChartPreview v-if="w.type === 'chart' && w.chartId" :chart-id="w.chartId" />
             <WidgetRenderer v-else :widget="w" />
@@ -140,14 +178,70 @@ onBeforeUnmount(() => {
 .corner.tr { right: 10px; top: 10px; border-right: 2px solid var(--brand); border-top: 2px solid var(--brand); }
 .corner.bl { left: 10px; bottom: 10px; border-left: 2px solid var(--brand); border-bottom: 2px solid var(--brand); }
 .corner.br { right: 10px; bottom: 10px; border-right: 2px solid var(--brand); border-bottom: 2px solid var(--brand); }
+/* 驾驶舱标题栏（原型 screen.html scr-head，86px 带） */
+.scr-head {
+  position: relative; z-index: 6; height: 86px; flex: none;
+  display: flex; align-items: center; padding: 0 40px;
+  background: linear-gradient(180deg, rgba(255,138,61,.06), transparent);
+  pointer-events: none;
+}
+.scr-sys { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; width: 380px; }
+.logo-mark {
+  width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #ffb25e, #f4633a); color: #241105; font-size: 13px; font-weight: 800;
+  box-shadow: 0 0 18px rgba(255,138,61,.35);
+}
+.sys-brand { color: var(--brand); }
+.sys-sub { font-size: 10px; letter-spacing: 2px; color: #7c88a0; font-weight: 400; }
+.scr-title { flex: 1; text-align: center; position: relative; }
+.scr-title h1 {
+  font-size: 34px; font-weight: 800; letter-spacing: 6px; line-height: 1.2; margin: 0;
+  background: linear-gradient(180deg, #FFF2E4 20%, #FFB25E 55%, #F4633A 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 40px rgba(255,138,61,.25);
+}
+.t-line {
+  position: absolute; top: 50%; height: 1px; width: 240px;
+  background: linear-gradient(90deg, transparent, rgba(255,138,61,.45), transparent);
+}
+.t-line.l { right: calc(50% + 320px); }
+.t-line.r { left: calc(50% + 320px); }
+.scr-time { width: 380px; text-align: right; font-family: 'Barlow', 'DIN Alternate', monospace; }
+.t-now { font-size: 24px; font-weight: 700; letter-spacing: 2px; color: #f2f5fa; }
+.t-date { font-size: 12px; color: #7c88a0; margin-top: 2px; }
+.t-upd {
+  display: inline-block; font-size: 11px; color: #34d399; border: 1px solid rgba(52,211,153,.3);
+  background: rgba(52,211,153,.12); border-radius: 10px; padding: 1px 10px; margin-left: 8px;
+}
+/* 面板标题 chrome（原型 sp-title） */
+.vw { display: flex; flex-direction: column; }
+.vw-title {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; letter-spacing: 1px; color: #f2f5fa;
+  padding: 10px 14px 6px; position: relative;
+}
+.vw-title::before {
+  content: ''; width: 4px; height: 15px; border-radius: 2px;
+  background: linear-gradient(180deg, #FFB25E, #F4633A);
+  box-shadow: 0 0 12px rgba(255,138,61,.55);
+}
 .vw {
   position: absolute;
-  background: rgba(17,26,42,.62);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 12px;
+  display: flex; flex-direction: column;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 40px rgba(255,255,255,.015);
   overflow: hidden;
 }
-.vw-body { width: 100%; height: 100%; padding: 6px 10px; }
+/* 品牌角标（原型 scr-panel::before/::after） */
+.vw::before, .vw::after {
+  content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; z-index: 2; opacity: .7;
+}
+.vw::before { left: -1px; top: -1px; border-left: 2px solid var(--brand); border-top: 2px solid var(--brand); border-radius: 14px 0 0 0; }
+.vw::after { right: -1px; bottom: -1px; border-right: 2px solid var(--brand); border-bottom: 2px solid var(--brand); border-radius: 0 0 14px 0; }
+.vw-body { flex: 1; min-height: 0; width: 100%; padding: 6px 10px; }
 .back-btn, .full-btn {
   position: fixed; z-index: 50;
   font-size: 12px; color: #B9C2D4; padding: 6px 14px; border-radius: 16px;

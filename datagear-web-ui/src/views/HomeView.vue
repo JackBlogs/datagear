@@ -2,10 +2,13 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { dashboardPagingQueryData, type DashboardListItem } from '@/api/dashboard'
+import { dashboardPagingQueryData, saveDashboard, type DashboardListItem } from '@/api/dashboard'
 import { chartPagingQueryData, type ChartEntity } from '@/api/chart'
 import { dataSetPagingQueryData } from '@/api/dataSet'
 import { dtbsSourcePagingQueryData } from '@/api/dtbsSource'
+import { metricPagingQueryData, queryMetricValue, type MetricEntity } from '@/api/metric'
+import { alertHistory } from '@/mock/alertData'
+import { useOperationMessage } from '@/composables/useOperationMessage'
 import { init, use } from 'echarts/core'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
@@ -192,8 +195,125 @@ function onResize() {
 
 /* ---------- 加载 ---------- */
 const loading = ref(true)
+
+/* ---------- 指标卡横滑区（真实语义指标，FR-SEM-06 消费侧） ---------- */
+const { success: opSuccess } = useOperationMessage()
+const homeMetrics = ref<MetricEntity[]>([])
+const metricValues = ref<Record<string, unknown>>({})
+
+async function loadHomeMetrics() {
+  try {
+    const data = await metricPagingQueryData({ page: 1, pageSize: 8, orders: [{ name: 'createTime', type: 'DESC' as const }] })
+    homeMetrics.value = data.items.slice(0, 4)
+    await Promise.allSettled(
+      homeMetrics.value.map(async (m) => {
+        try {
+          const v = await queryMetricValue(m.id, {})
+          metricValues.value[m.id] = v.value
+        } catch { /* 数据源不可达时显示 — */ }
+      }),
+    )
+  } catch { /* 语义层未就绪时隐藏区块 */ }
+}
+
+function goMetric(_id: string) {
+  router.push('/metrics')
+}
+
+/* ---------- 待办与消息 ---------- */
+interface TodoItem { kind: string; icon: string; title: string; sub: string; level: string; to: string }
+const todos = computed<TodoItem[]>(() => {
+  const fromAlert = alertHistory.value.filter((h) => !h.handled).map(
+    (h): TodoItem => ({ kind: '告警', icon: 'pi pi-bell', title: `【告警】${h.rule}：当前 ${h.value}（阈值 ${h.threshold}）`, sub: `阈值告警 · ${h.time}`, level: 'danger', to: '/alert' }),
+  )
+  return [...fromAlert,
+    { kind: '审批', icon: 'pi pi-check-circle', title: '【审批】「井口含水率」指标查看权限申请', sub: '权限审批 · 昨天 17:42', level: 'info', to: '/metrics' },
+    { kind: '质量', icon: 'pi pi-verified', title: '【质量】ODS_采油日报表 质量校验通过 98.6%', sub: '数据质量 · 昨天 22:00', level: 'ok', to: '/governance' },
+  ].slice(0, 4)
+})
+
+/* ---------- 行业看板模板库（一键套用，真实落库） ---------- */
+interface HomeTpl { name: string; desc: string; cover: string; badge?: string }
+const HOME_TEMPLATES: HomeTpl[] = [
+  { name: '油田生产驾驶舱', desc: '采油厂 · 区块 · 井场 · 含水率', cover: 'linear-gradient(135deg,#3a2410,#8a4d1f 45%,#b06a2a)', badge: '官方推荐' },
+  { name: '天然气管网运行监控', desc: '管输量 · 门站压力 · 储气库', cover: 'linear-gradient(135deg,#0c2a33,#0e5a66 50%,#12808f)' },
+  { name: '煤化工经营分析', desc: '甲醇 · 烯烃 · 产销存', cover: 'linear-gradient(135deg,#241536,#4a2d6e 50%,#6b41a0)' },
+  { name: '煤矿安全双重预防', desc: '瓦斯 · 顶板 · 人员定位', cover: 'linear-gradient(135deg,#332b0d,#7a6420 50%,#a68a2e)' },
+]
+const applyingTpl = ref('')
+
+async function applyHomeTemplate(t: HomeTpl) {
+  applyingTpl.value = t.name
+  try {
+    await saveDashboard({ id: undefined as unknown as string, name: `${t.name}（副本）`, apiVersion: '2.0' })
+    opSuccess(`已套用模板「${t.name}」，生成可编辑副本`)
+    router.push('/dashboard')
+  } catch (e) {
+    opSuccess('套用失败，请稍后重试')
+  } finally {
+    applyingTpl.value = ''
+  }
+}
+
+/* ---------- 我的收藏（看板收藏，localStorage） ---------- */
+const favBoards = computed(() => {
+  try {
+    const favs = JSON.parse(localStorage.getItem('dg_board_favs') || '{}') as Record<string, boolean>
+    return latestDashboards.value.filter((d) => favs[d.id])
+  } catch {
+    return [] as DashboardListItem[]
+  }
+})
+
+/* ---------- 角色化新手引导（FR-HOME-23~25，5 步可跳过） ---------- */
+const GUIDE_KEY = 'dg_home_guide_done'
+const guideDone = ref(localStorage.getItem(GUIDE_KEY) === '1')
+const guideStep = ref(0)
+const guideOpen = ref(false)
+const GUIDE_STEPS = [
+  { title: 'AI 快速问数', body: '用自然语言直接取数，无需写 SQL。输入「上月各采油厂原油产量的同比变化」，回答含图表 + 数据 + 结论，取数逻辑全程透明。' },
+  { title: '指标中心（语义层）', body: '指标的唯一定义与消费中心：先在指标中心定义口径统一的指标，再被看板、告警、问数一致消费。' },
+  { title: '看板与设计器', body: '看板列表支持行业模板一键套用（生成可编辑副本）；设计器支持可视化拖拽、绑定已有图表与语义指标、源码双模式。' },
+  { title: '告警与订阅', body: '基于语义指标配置阈值告警与定时订阅，经邮件/企微/钉钉/Webhook 多通道触达。' },
+  { title: '开放与移动端', body: '指标/数据集一键发布为 API，签名嵌入第三方系统；移动端 H5 随时查看核心看板。' },
+]
+function openGuide() {
+  guideStep.value = 0
+  guideOpen.value = true
+}
+function guideNext() {
+  if (guideStep.value < GUIDE_STEPS.length - 1) guideStep.value++
+  else finishGuide()
+}
+function finishGuide() {
+  guideOpen.value = false
+  localStorage.setItem(GUIDE_KEY, '1')
+  guideDone.value = true
+  opSuccess('引导已完成，可随时重新打开')
+}
+
+/* ---------- 布局管理（隐藏卡片记忆，FR-HOME-19~22 简化版） ---------- */
+const HIDE_KEY = 'dg_home_hidden_cards'
+const hiddenCards = ref<string[]>(localStorage.getItem(HIDE_KEY)?.split(',').filter(Boolean) ?? [])
+const layoutEditing = ref(false)
+function toggleLayoutEditing() {
+  layoutEditing.value = !layoutEditing.value
+}
+function toggleCardHidden(name: string) {
+  if (layoutEditing.value) {
+    if (hiddenCards.value.includes(name)) hiddenCards.value = hiddenCards.value.filter((n) => n !== name)
+    else hiddenCards.value.push(name)
+    localStorage.setItem(HIDE_KEY, hiddenCards.value.join(','))
+  }
+}
+function cardVisible(name: string): boolean {
+  return !hiddenCards.value.includes(name)
+}
+
 onMounted(async () => {
   window.addEventListener('resize', onResize)
+  loadHomeMetrics()
+  if (!guideDone.value) guideOpen.value = true
   const q = (n: number) => ({ page: 1, pageSize: n, orders: [{ name: 'createTime', type: 'DESC' as const }] })
   const [ds, dset, ch, db] = await Promise.allSettled([
     dtbsSourcePagingQueryData(q(1)),
@@ -242,6 +362,21 @@ onBeforeUnmount(() => {
         <span>试试问数：「本月各数据集的访问量排名？」</span>
         <span class="qa-btn">问 AI</span>
       </div>
+      <button class="layout-btn" type="button" title="重新打开新手引导" @click="openGuide">
+        <i class="pi pi-question-circle"></i>帮助
+      </button>
+      <button class="layout-btn" type="button" :class="{ on: layoutEditing }" @click="toggleLayoutEditing">
+        <i class="pi pi-th-large"></i>{{ layoutEditing ? '完成布局' : '布局管理' }}
+      </button>
+    </section>
+
+    <!-- ===== 指标卡横滑区（语义层真实指标 · FR-SEM-06） ===== -->
+    <section v-if="homeMetrics.length" class="metric-strip">
+      <div v-for="m in homeMetrics" :key="m.id" class="h-metric" @click="goMetric(m.id)">
+        <div class="hm-label"><span class="tag brand" v-if="m.certified">已认证</span> {{ m.name }}</div>
+        <div class="hm-value num">{{ metricValues[m.id] !== undefined ? metricValues[m.id] : '—' }}</div>
+        <div class="hm-caliber ellipsis" :title="m.caliber">{{ m.caliber || m.tableName + '.' + m.valueField }}</div>
+      </div>
     </section>
 
     <!-- ===== 核心资产统计卡（真实数据） ===== -->
@@ -264,20 +399,24 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <div v-if="layoutEditing" class="layout-tip">
+      布局编辑中：点击卡片标题的 👁 可隐藏/恢复模块（保存到本地偏好），完成后点击「完成布局」。
+      当前隐藏：{{ hiddenCards.length ? hiddenCards.join('、') : '无' }}
+    </div>
     <div class="portal-grid">
       <!-- ===== 左列 ===== -->
       <div class="col">
         <!-- 资产增长趋势 -->
-        <div class="card">
-          <div class="card-title"><span class="bar"></span>资产增长趋势
+        <div v-show="cardVisible('资产增长趋势')" class="card">
+          <div class="card-title"><span class="bar"></span>资产增长趋势<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('资产增长趋势')">👁</span>
             <span class="tag-period">近 7 日</span>
           </div>
           <div ref="trendEl" class="chart trend"></div>
         </div>
 
         <!-- 快捷入口 -->
-        <div class="card">
-          <div class="card-title"><span class="bar"></span>快捷入口
+        <div v-show="cardVisible('快捷入口')" class="card">
+          <div class="card-title"><span class="bar"></span>快捷入口<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('快捷入口')">👁</span>
             <span class="tag tag-brand">直达模块</span>
           </div>
           <div class="tpl-strip">
@@ -295,9 +434,26 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- 行业看板模板库（一键套用 · FR-HOME-23~25） -->
+        <div v-show="cardVisible('行业看板模板库')" class="card">
+          <div class="card-title"><span class="bar"></span>行业看板模板库<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('行业看板模板库')">👁</span>
+            <span class="more" @click="go('/dashboard')">全部模板 ›</span>
+          </div>
+          <div class="home-tpl-grid">
+            <div v-for="t in HOME_TEMPLATES" :key="t.name" class="home-tpl" :style="{ background: t.cover }">
+              <span v-if="t.badge" class="ht-badge">{{ t.badge }}</span>
+              <div class="ht-name">{{ t.name }}</div>
+              <div class="ht-desc">{{ t.desc }}</div>
+              <button class="btn sm primary ht-apply" type="button" :disabled="applyingTpl === t.name" @click="applyHomeTemplate(t)">
+                {{ applyingTpl === t.name ? '套用中…' : '一键套用' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- 最近创建 -->
-        <div class="card">
-          <div class="card-title"><span class="bar"></span>最近创建
+        <div v-show="cardVisible('最近创建')" class="card">
+          <div class="card-title"><span class="bar"></span>最近创建<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('最近创建')">👁</span>
             <span class="more" @click="go('/dashboard')">更多 ›</span>
           </div>
           <div v-if="recents.length" class="fav-grid">
@@ -320,9 +476,27 @@ onBeforeUnmount(() => {
 
       <!-- ===== 右列 ===== -->
       <div class="col">
+        <!-- 待办与消息（FR-HOME-05） -->
+        <div v-show="cardVisible('待办与消息')" class="card">
+          <div class="card-title"><span class="bar"></span>待办与消息<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('待办与消息')">👁</span>
+            <span class="tag tag-danger">{{ todos.length }} 条</span>
+          </div>
+          <div v-if="todos.length" class="todo-list">
+            <div v-for="t in todos" :key="t.title" class="todo-item" :class="`lv-${t.level}`" @click="go(t.to)">
+              <i :class="t.icon" class="td-icon"></i>
+              <div class="grow">
+                <div class="td-title ellipsis">{{ t.title }}</div>
+                <div class="td-sub">{{ t.sub }}</div>
+              </div>
+              <i class="pi pi-arrow-right row-arrow"></i>
+            </div>
+          </div>
+          <div v-else class="empty"><i class="pi pi-inbox"></i><span>暂无待办</span></div>
+        </div>
+
         <!-- 快捷操作 -->
-        <div class="card">
-          <div class="card-title"><span class="bar"></span>快捷操作</div>
+        <div v-show="cardVisible('快捷操作')" class="card">
+          <div class="card-title"><span class="bar"></span>快捷操作<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('快捷操作')">👁</span></div>
           <div class="ops">
             <button v-for="op in quickOps" :key="op.label" class="op-btn" @click="go(op.to)">
               <i :class="op.icon"></i>{{ op.label }}
@@ -330,9 +504,27 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- 最新看板 -->
+        <!-- 我的收藏 -->
         <div class="card">
-          <div class="card-title"><span class="bar"></span>最新看板
+          <div class="card-title"><span class="bar"></span>我的收藏
+            <span class="more" @click="go('/dashboard')">管理 ›</span>
+          </div>
+          <template v-if="favBoards.length">
+            <div v-for="d in favBoards" :key="d.id" class="row-item" @click="go(`/dashboard/${d.id}/viewer`)">
+              <span class="row-star star-filled">★</span>
+              <div class="grow">
+                <div class="row-name ellipsis">{{ d.name }}</div>
+                <div class="row-sub">看板</div>
+              </div>
+              <i class="pi pi-arrow-right row-arrow"></i>
+            </div>
+          </template>
+          <div v-else class="empty"><i class="pi pi-star"></i><span>在看板列表点击「收藏」后在此展示</span></div>
+        </div>
+
+        <!-- 最新看板 -->
+        <div v-show="cardVisible('最新看板')" class="card">
+          <div class="card-title"><span class="bar"></span>最新看板<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('最新看板')">👁</span>
             <span class="more" @click="go('/dashboard')">管理 ›</span>
           </div>
           <template v-if="latestDashboards.length">
@@ -357,9 +549,27 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 数据资产概览 -->
-        <div class="card">
-          <div class="card-title"><span class="bar"></span>数据资产概览</div>
+        <div v-show="cardVisible('数据资产概览')" class="card">
+          <div class="card-title"><span class="bar"></span>数据资产概览<span v-if="layoutEditing" class="wc-eye" title="隐藏该模块" @click="toggleCardHidden('数据资产概览')">👁</span></div>
           <div ref="donutEl" class="chart donut"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 角色化新手引导（5 步，可跳过） ===== -->
+    <div v-if="guideOpen" class="guide-mask">
+      <div class="guide-card">
+        <div class="g-step">STEP {{ guideStep + 1 }} / {{ GUIDE_STEPS.length }}</div>
+        <div class="g-title">{{ GUIDE_STEPS[guideStep].title }}</div>
+        <div class="g-body">{{ GUIDE_STEPS[guideStep].body }}</div>
+        <div class="g-dots">
+          <i v-for="(_s, gi) in GUIDE_STEPS" :key="gi" :class="{ on: gi <= guideStep }"></i>
+        </div>
+        <div class="g-ops">
+          <button class="btn ghost" type="button" @click="finishGuide">跳过引导</button>
+          <button class="btn primary" type="button" @click="guideNext">
+            {{ guideStep === GUIDE_STEPS.length - 1 ? '开始使用' : '下一步' }}
+          </button>
         </div>
       </div>
     </div>
@@ -368,6 +578,62 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* ============ 能源暗域 Energy Dark ============ */
+/* ===== 布局管理 / 新手引导 ===== */
+.layout-btn {
+  flex: none; align-self: center; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--tx-3); padding: 7px 14px; border-radius: 10px;
+  background: var(--bg-glass); border: 1px solid var(--line-2); cursor: pointer;
+}
+.layout-btn:hover, .layout-btn.on { color: var(--brand); border-color: var(--brand-line); background: var(--brand-soft); }
+.layout-tip {
+  padding: 9px 14px; border-radius: 10px; margin-bottom: 12px; font-size: 12px; color: var(--tx-2);
+  background: rgba(255, 138, 61, 0.08); border: 1px dashed var(--brand-line);
+}
+.wc-eye { cursor: pointer; opacity: 0.6; font-style: normal; margin-left: 6px; }
+.wc-eye:hover { opacity: 1; }
+.guide-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.guide-card { width: 460px; max-width: 92vw; background: #0d1420; border: 1px solid var(--brand-line); border-radius: 16px; padding: 24px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.g-step { font-size: 11px; font-weight: 700; color: var(--brand); letter-spacing: 1px; }
+.g-title { font-size: 18px; font-weight: 800; color: var(--tx-1); margin: 10px 0; }
+.g-body { font-size: 13px; color: var(--tx-2); line-height: 1.8; min-height: 84px; }
+.g-dots { display: flex; gap: 6px; margin: 14px 0; }
+.g-dots i { width: 18px; height: 4px; border-radius: 2px; background: var(--line-2); }
+.g-dots i.on { background: var(--brand); }
+.g-ops { display: flex; justify-content: space-between; }
+/* ===== 指标卡横滑区 ===== */
+.metric-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.h-metric {
+  padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line-1); background: var(--bg-glass);
+  cursor: pointer; transition: border-color 0.15s;
+}
+.h-metric:hover { border-color: var(--brand-line); }
+.hm-label { font-size: 12px; color: var(--tx-2); display: flex; gap: 6px; align-items: center; }
+.hm-value { font-size: 28px; font-weight: 700; color: var(--brand); margin: 6px 0 4px; }
+.hm-caliber { font-size: 11px; color: var(--tx-4); }
+/* ===== 行业模板库 ===== */
+.home-tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.home-tpl { border-radius: 12px; padding: 12px; min-height: 118px; display: flex; flex-direction: column; position: relative; border: 1px solid var(--line-1); }
+.ht-badge { position: absolute; top: 8px; right: 8px; font-size: 9.5px; padding: 2px 7px; border-radius: 6px; background: rgba(0,0,0,.4); color: #ffd9b8; }
+.ht-name { font-size: 13px; font-weight: 700; color: #fff; margin-top: auto; }
+.ht-desc { font-size: 10.5px; color: rgba(255,255,255,.75); margin: 3px 0 8px; }
+.ht-apply { align-self: flex-start; }
+/* ===== 待办与消息 ===== */
+.todo-list { display: flex; flex-direction: column; gap: 8px; }
+.todo-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line-1); cursor: pointer;
+}
+.todo-item:hover { background: var(--bg-glass-2); }
+.todo-item.lv-danger { border-left: 3px solid #f87171; }
+.todo-item.lv-warn { border-left: 3px solid #fbbf24; }
+.todo-item.lv-info { border-left: 3px solid #60a5fa; }
+.todo-item.lv-ok { border-left: 3px solid #34d399; }
+.td-icon { color: var(--tx-3); font-size: 13px; }
+.td-title { font-size: 12.5px; color: var(--tx-1); }
+.td-sub { font-size: 11px; color: var(--tx-4); margin-top: 2px; }
+.star-filled { color: #e8b33c; }
+.tag-danger { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
 .home-page {
   --bg-glass: rgba(255,255,255,.035);
   --bg-glass-2: rgba(255,255,255,.06);

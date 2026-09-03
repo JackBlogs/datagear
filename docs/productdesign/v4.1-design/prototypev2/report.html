@@ -32,6 +32,11 @@
   .sheet .total td { background: rgba(255,138,61,.12); font-weight: 700; color: var(--brand); }
   .sheet .bad { color: var(--danger); font-weight: 600; }
   .sheet .good { color: var(--ok); font-weight: 600; }
+  /* 深化轮：分组行折叠（FR-RPT-06） */
+  .sheet td.grp.collapsible { cursor: pointer; }
+  .sheet td.grp.collapsible:hover { color: var(--brand); }
+  .sheet td.grp .fold-ind { display: inline-block; margin-left: 6px; color: var(--tx-4); font-size: 10px; transition: transform var(--dur); }
+  .sheet tr.folded td.grp .fold-ind { transform: rotate(-90deg); }
   /* 斜线表头 */
   .sheet .slash {
     background-image: linear-gradient(to top right, transparent 49.4%, var(--line-3) 49.4%, var(--line-3) 50.6%, transparent 50.6%) !important;
@@ -195,9 +200,34 @@
     setTimeout(() => {
       stop();
       wrap.innerHTML = SHEETS[id] || SHEET_A;
+      bindSheetCollapse(wrap);
       document.getElementById('dsHint').textContent =
         `数据源：${id === 'RP-02' ? 'DS_管网输量 · 参数 \\${date}=2026-09-02' : 'DS_采油日报 · 参数 \\${month}=2026-08'} · 已按行级权限过滤`;
     }, 350);
+  }
+
+  /* ================= 分组行折叠展开（FR-RPT-06，深化轮） ================= */
+  function bindSheetCollapse(wrap) {
+    wrap.querySelectorAll('tbody tr').forEach(tr => {
+      const grpTd = tr.querySelector('td.grp');
+      if (!grpTd) return;
+      /* 收集该组随后的「其中」子行（.sub） */
+      const subs = [];
+      let nx = tr.nextElementSibling;
+      while (nx && nx.querySelector('td.sub')) { subs.push(nx); nx = nx.nextElementSibling; }
+      if (!subs.length) return;
+      grpTd.classList.add('collapsible');
+      grpTd.title = '点击折叠 / 展开子行';
+      const ind = document.createElement('span');
+      ind.className = 'fold-ind';
+      ind.textContent = '▾';
+      grpTd.appendChild(ind);
+      tr.addEventListener('click', () => {
+        const folded = tr.classList.toggle('folded');
+        subs.forEach(r => { r.style.display = folded ? 'none' : ''; });
+        grpTd.rowSpan = folded ? 1 : 1 + subs.length;
+      });
+    });
   }
 
   /* ================= 类型 chips 过滤 ================= */

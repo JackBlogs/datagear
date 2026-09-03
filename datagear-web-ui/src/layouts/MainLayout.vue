@@ -40,8 +40,10 @@ const menuGroups = computed(() => [
   {
     name: t('nav.group.analysis', '分析展示'),
     items: [
-      { path: '/chart', label: t('module.chart'), icon: 'pi pi-chart-line', badge: '' },
-      { path: '/dashboard', label: t('module.dashboard'), icon: 'pi pi-images', badge: '' },
+      { path: '/chart', label: t('module.chart', '图表'), icon: 'pi pi-chart-line', badge: '' },
+      { path: '/dashboard', label: t('module.dashboard', '看板'), icon: 'pi pi-images', badge: '' },
+      { path: '/dashboard/design', label: t('module.dashboardDesigner', '看板设计器'), icon: 'pi pi-pencil', badge: '' },
+      { path: '/screen/design', label: t('module.screenDesigner', '大屏设计器'), icon: 'pi pi-sliders-h', badge: '' },
       { path: '/screen', label: t('module.screen', '数据大屏'), icon: 'pi pi-desktop', badge: '' },
       { path: '/report', label: t('module.report', '统计报表'), icon: 'pi pi-file', badge: '' },
     ],
@@ -57,6 +59,7 @@ const menuGroups = computed(() => [
   {
     name: t('nav.group.platform', '平台管理'),
     items: [
+      { path: '/system', label: t('module.system', '系统管理'), icon: 'pi pi-cog', badge: '' },
       { path: '/dtbsSourceGuard', label: t('module.dtbsSourceGuard'), icon: 'pi pi-shield', badge: '' },
       { path: '/driverEntity', label: t('module.driverEntity'), icon: 'pi pi-cog', badge: '' },
       { path: '/chartPlugin', label: t('module.chartPlugin'), icon: 'pi pi-palette', badge: '' },
@@ -66,9 +69,21 @@ const menuGroups = computed(() => [
   },
 ])
 
-/** 首页精确匹配，其余模块子路由前缀高亮 */
+/** 最长前缀匹配高亮：/dashboard/design 只点亮「看板设计器」而非「看板」 */
 function isActive(path: string): boolean {
-  return path === '/' ? route.path === '/' : route.path.startsWith(path)
+  if (path === '/') return route.path === '/'
+  if (!route.path.startsWith(path)) return false
+  // 设计器菜单项同时接管 :id/design 编辑路由
+  if (path === '/dashboard/design')
+    return route.path === '/dashboard/design' || /^\/dashboard\/[^/]+\/design/.test(route.path)
+  if (path === '/screen/design')
+    return route.path === '/screen/design' || /^\/screen\/[^/]+\/design/.test(route.path)
+  // 若存在另一个更长前缀的菜单项命中当前路由，则本项不亮
+  const allPaths = menuGroups.value.flatMap((g) => g.items.map((i) => i.path))
+  const better = allPaths.some(
+    (p) => p !== path && p.startsWith(path) && route.path.startsWith(p) && p.length > path.length,
+  )
+  return !better
 }
 
 const userInitial = computed(() => {
@@ -123,6 +138,16 @@ interface SearchResult {
 }
 const moduleResults = ref<SearchResult[]>([])
 const assetResults = ref<SearchResult[]>([])
+/** 搜索结果按资源类型分组（指标 / 看板 / 图表 / 数据集） */
+const groupedAssetResults = computed(() => {
+  const order = ['指标', '看板', '图表', '数据集']
+  const groups: { type: string; rows: SearchResult[] }[] = []
+  for (const base of order) {
+    const rows = assetResults.value.filter((r) => r.type === base || r.type.startsWith(base + ' '))
+    if (rows.length) groups.push({ type: base, rows })
+  }
+  return groups
+})
 
 /** 模块快捷索引（本地匹配） */
 const MODULE_INDEX: SearchResult[] = [
@@ -167,12 +192,16 @@ async function queryAssets(kw: string) {
   searching.value = true
   try {
     const q = { page: 1, pageSize: 5, keyword: kw }
-    const [db, ch, dset] = await Promise.allSettled([
+    const [mt, db, ch, dset] = await Promise.allSettled([
+      metricPagingQueryData(q),
       dashboardPagingQueryData(q),
       chartPagingQueryData(q),
       dataSetPagingQueryData(q),
     ])
     const out: SearchResult[] = []
+    // 指标优先（v2 /search 契约：跨资源联想，指标第一组）
+    if (mt.status === 'fulfilled')
+      out.push(...mt.value.items.map((m) => ({ id: m.id, name: m.name, type: m.certified ? '指标 · 已认证' : '指标', icon: 'pi pi-chart-bar', to: '/metrics' })))
     if (db.status === 'fulfilled') out.push(...db.value.items.map((d) => ({ id: d.id, name: d.name, type: '看板', icon: 'pi pi-images', to: '/dashboard' })))
     if (ch.status === 'fulfilled') out.push(...ch.value.items.map((c) => ({ id: c.id, name: c.name, type: '图表', icon: 'pi pi-chart-line', to: '/chart' })))
     if (dset.status === 'fulfilled') out.push(...dset.value.items.map((d) => ({ id: d.id, name: d.name, type: '数据集', icon: 'pi pi-table', to: '/dataSet' })))
@@ -343,17 +372,14 @@ onBeforeUnmount(() => {
               </div>
             </div>
             <div v-if="assetResults.length" class="sd-group">
-              <div class="sd-group-title">数据资产（实时检索）</div>
-              <div
-                v-for="r in assetResults"
-                :key="r.type + r.id"
-                class="sd-item"
-                @click="goResult(r)"
-              >
-                <i :class="r.icon"></i>
-                <span class="sd-name">{{ r.name }}</span>
-                <span class="sd-type">{{ r.type }}</span>
-              </div>
+              <div class="sd-group-title">数据资产（跨资源实时检索）</div>
+              <template v-for="group in groupedAssetResults" :key="group.type">
+                <div class="sd-item" v-for="r in group.rows" :key="r.type + r.id" @click="goResult(r)">
+                  <i :class="r.icon"></i>
+                  <span class="sd-name">{{ r.name }}</span>
+                  <span class="sd-type">{{ r.type }}</span>
+                </div>
+              </template>
             </div>
             <div v-if="searching" class="sd-empty">检索中…</div>
             <div v-else-if="searchKw.trim() && !moduleResults.length && !assetResults.length" class="sd-empty">

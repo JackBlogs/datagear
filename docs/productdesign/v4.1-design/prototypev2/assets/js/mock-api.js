@@ -91,12 +91,12 @@
 
     /* ---- 看板 / 报表 ---- */
     dashboards: [
-      { id: 'DB-01', name: '华北油田生产日报', ind: 'oil', updated: '2 小时前', owner: '李明', share: '密码分享', widgets: 12 },
-      { id: 'DB-02', name: '西气东输管网监控', ind: 'gas', updated: '昨天', owner: '陈广', share: '签名Token嵌入', widgets: 18 },
-      { id: 'DB-03', name: '甲醇装置产销存', ind: 'chem', updated: '3 天前', owner: '周婷', share: '私有', widgets: 9 },
-      { id: 'DB-04', name: '煤矿安全双重预防', ind: 'coal', updated: '昨天', owner: '马志强', share: '组织内公开', widgets: 15 },
-      { id: 'DB-05', name: '集团经营日报', ind: 'oil', updated: '今天 08:00', owner: '李明', share: '签名Token嵌入', widgets: 21 },
-      { id: 'DB-06', name: '炼化装置实时监控', ind: 'chem', updated: '上周', owner: '张伟', share: '私有', widgets: 11 }
+      { id: 'DB-01', name: '华北油田生产日报', ind: 'oil', updated: '2 小时前', owner: '李明', share: '密码分享', widgets: 12, hot: 1243, fav: true, ts: 5 },
+      { id: 'DB-02', name: '西气东输管网监控', ind: 'gas', updated: '昨天', owner: '陈广', share: '签名Token嵌入', widgets: 18, hot: 986, fav: false, ts: 4 },
+      { id: 'DB-03', name: '甲醇装置产销存', ind: 'chem', updated: '3 天前', owner: '周婷', share: '私有', widgets: 9, hot: 322, fav: false, ts: 3 },
+      { id: 'DB-04', name: '煤矿安全双重预防', ind: 'coal', updated: '昨天', owner: '马志强', share: '组织内公开', widgets: 15, hot: 764, fav: true, ts: 4 },
+      { id: 'DB-05', name: '集团经营日报', ind: 'oil', updated: '今天 08:00', owner: '李明', share: '签名Token嵌入', widgets: 21, hot: 2101, fav: false, ts: 5 },
+      { id: 'DB-06', name: '炼化装置实时监控', ind: 'chem', updated: '上周', owner: '张伟', share: '私有', widgets: 11, hot: 158, fav: false, ts: 2 }
     ],
     reports: [
       { id: 'RP-01', name: '原油产量月报', type: '交叉报表', updated: '昨天 22:00', owner: '李明', subscribed: true },
@@ -309,12 +309,41 @@
   });
   route('POST', '/alert/rule/toggle', ({ body }) => { const r = db.alertRules.find(x => x.id === body.id); if (r) r.enabled = !r.enabled; return ok({ id: body.id, enabled: r && r.enabled }); });
   route('DELETE', '/alert/rule/:id', ({ pathParams }) => { db.alertRules = db.alertRules.filter(r => r.id !== pathParams.id); return ok(true); });
-  route('GET', '/alert/history/list', () => ok({ total: db.alertHistory.length, rows: db.alertHistory }));
+  route('GET', '/alert/history/list', ({ query }) => {
+    let rows = db.alertHistory.slice();
+    if (query.status === 'pending') rows = rows.filter(r => !r.handled);
+    else if (query.status === 'handled') rows = rows.filter(r => r.handled);
+    if (query.rule) rows = rows.filter(r => r.rule.includes(query.rule));
+    return ok({ total: rows.length, rows });
+  });
   route('POST', '/alert/history/handle', ({ body }) => { const r = db.alertHistory.find(x => x.id === body.id); if (r) { r.handled = 1; r.note = body.note || '已处理'; } return ok(true); });
   route('GET', '/subscribe/list', () => ok({ total: db.subscriptions.length, rows: db.subscriptions }));
   route('POST', '/subscribe/toggle', ({ body }) => { const r = db.subscriptions.find(x => x.id === body.id); if (r) r.enabled = !r.enabled; return ok({ enabled: r && r.enabled }); });
+  /* 表 B 补注册：新建/编辑订阅（IX-EV-ALT-11 / RPT-04） */
+  const FREQ_CRON = { '每天 08:00': '0 0 8 * * ?', '每天 07:30': '0 30 7 * * ?', '每周一 09:00': '0 0 9 ? * MON', '每月 1 日 10:00': '0 0 10 1 * ?' };
+  route('POST', '/subscribe/save', ({ body }) => {
+    if (!body.name || !body.receivers) return err(400, '订阅名称与接收人不能为空');
+    const id = body.id || 'SB-' + String(db.subscriptions.length + 1).padStart(2, '0');
+    const row = { id, name: body.name, resource: body.resource || '看板：集团经营日报', cron: FREQ_CRON[body.freqText] || body.cron || '0 0 8 * * ?', freqText: body.freqText || '每天 08:00', channels: body.channels || ['邮件'], receivers: body.receivers, format: body.format || '图片+PDF', enabled: true, last: '—' };
+    const i = db.subscriptions.findIndex(s => s.id === id);
+    if (i >= 0) db.subscriptions[i] = { ...db.subscriptions[i], ...row }; else db.subscriptions.push(row);
+    return ok(row);
+  });
   route('GET', '/job/list', () => ok({ total: db.jobs.length, rows: db.jobs }));
   route('POST', '/job/trigger', ({ body }) => ok({ fired: true, job: body.id, fireTime: new Date().toLocaleTimeString('zh-CN') }));
+  /* 表 B 补注册：调度执行日志（IX-EV-ALT-14） */
+  route('GET', '/job/log', ({ query }) => {
+    const j = db.jobs.find(x => x.id === query.jobId) || db.jobs[0];
+    return ok({ job: j.name, lines: [
+      `[${j.last}] 触发方式：${query.manual === '1' ? '手动执行（用户：李明）' : '定时调度（cron ' + j.cron + '）'}`,
+      `[${j.last}] 任务实例 ${j.id}-20260904 进入执行队列（executors: 2/8 空闲）`,
+      `[${j.last}] 加载任务上下文：目标「${j.name}」，超时阈值 300s`,
+      `[${j.last}] 开始执行主逻辑 ……`,
+      `[${j.last}] 数据处理完成：读取 12,842 行，写出 12,842 行`,
+      `[${j.last}] 执行结束：结果「${j.status}」，总耗时 4.2s`,
+      `[${j.last}] 下次计划执行：${j.next}`
+    ] });
+  });
   route('GET', '/channel/list', () => ok(db.channels));
   route('POST', '/channel/test', ({ body }) => ok({ channel: body.id, delivered: true, costMs: 340 }));
 
@@ -394,12 +423,62 @@
   route('GET', '/dashboard/list', ({ query }) => { let rows = db.dashboards.slice(); if (query.ind && query.ind !== 'all') rows = rows.filter(d => d.ind === query.ind); return ok({ total: rows.length, rows }); });
   route('POST', '/dashboard/copyFromTemplate', ({ body }) => ok({ id: 'DB-NEW-' + Date.now() % 1000, name: body.template + '（副本）', msg: '已生成可编辑副本，模板源未受影响' }));
   route('POST', '/dashboard/delete', ({ body }) => { db.dashboards = db.dashboards.filter(d => d.id !== body.id); return ok(true); });
+  /* ---- 看板深化轮（表 B 补注册，对应 05 规范 4.2） ---- */
+  route('POST', '/dashboard/copy', ({ body }) => {
+    const src = db.dashboards.find(d => d.id === body.id);
+    if (!src) return err(404, '看板不存在');
+    const row = { ...src, id: 'DB-NEW-' + Date.now() % 1000, name: src.name + '（副本）', updated: '刚刚', owner: '李明', share: '私有', hot: 0, fav: false };
+    db.dashboards.unshift(row);
+    return ok(row);
+  });
+  route('POST', '/dashboard/fav/toggle', ({ body }) => {
+    const d = db.dashboards.find(x => x.id === body.id);
+    if (d) d.fav = !d.fav;
+    return ok({ id: body.id, fav: d && d.fav });
+  });
+  const DRAFT_KEY = 'dg_draft_DB-01';
+  route('POST', '/dashboard/save', ({ body }) => {
+    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ time, widgets: body.widgets || [], name: body.name })); } catch (e) { /* 隐私模式忽略 */ }
+    return ok({ saved: true, time, widgets: (body.widgets || []).length });
+  });
+  route('GET', '/dashboard/draft', () => {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { d = null; }
+    return d ? ok(d) : ok(null);
+  });
+  route('POST', '/dashboard/publish', ({ body }) => {
+    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* noop */ }
+    return ok({ version: 'v1.5', cover: 'v1.4', time, widgets: (body.widgets || []).length, link: 'https://bi.energy.local/d/DB-01' });
+  });
+  route('POST', '/dashboard/restore', ({ body }) => {
+    const row = { id: body.id, name: body.name, ind: body.ind || 'oil', updated: '刚刚', owner: '李明', share: '私有', widgets: body.widgets || 8, hot: 0, fav: false };
+    db.dashboards.unshift(row);
+    return ok(true);
+  });
   route('GET', '/report/list', () => ok(db.reports));
   route('POST', '/report/export', ({ body }) => ok({ file: body.name + '.' + (body.format || 'xlsx'), size: '1.2 MB', watermark: true }));
 
   /* ---- 首页 / 全局搜索（FR-HOME） ---- */
   route('GET', '/home/todo', () => ok(db.todos));
   route('GET', '/home/favorite', () => ok(db.favorites));
+  /* 表 B 补注册：通知全部已读回写（IX-EV-GLB-05） */
+  route('POST', '/home/todo/readAll', () => ok(true));
+  /* 表 B 补注册：首页布局偏好（FR-HOME-19~22，localStorage 持久化模拟用户偏好存储） */
+  const LAYOUT_KEY = 'dg_home_layout';
+  route('GET', '/home/layout', () => {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null'); } catch (e) { d = null; }
+    return ok(d);
+  });
+  route('POST', '/home/layout', ({ body }) => {
+    try {
+      if (body.reset) localStorage.removeItem(LAYOUT_KEY);
+      else localStorage.setItem(LAYOUT_KEY, JSON.stringify({ main: body.main, side: body.side, hidden: body.hidden }));
+    } catch (e) { /* 隐私模式忽略 */ }
+    return ok(true);
+  });
   route('GET', '/search', ({ query }) => {
     const q = (query.q || '').trim();
     if (!q) return ok({ groups: ['指标', '看板', '数据集'], rows: db.searchIndex.slice(0, 6) });
@@ -417,6 +496,8 @@
     if (body.captcha && body.captcha.toUpperCase() !== '7K4D') return err(400, '验证码错误，请重新输入');
     return ok({ token: 'mock-session-' + Math.random().toString(36).slice(2, 10), user: { name: '李明', role: '数据分析师', org: '华北油田分公司' } });
   });
+  /* 表 B 补注册：退出登录、销毁会话（IX-EV-GLB-08） */
+  route('POST', '/auth/logout', () => ok(true));
 
   /* ================= 调用入口 ================= */
   async function request(method, path, opts) {

@@ -1,474 +1,506 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import {
+  alertRules,
+  alertHistory,
+  subscriptions,
+  jobs,
+  channels,
+  toggleRule,
+  saveRule,
+  deleteRule,
+  handleHistory,
+  toggleSub,
+  saveSub,
+  triggerJob,
+  jobLog,
+  testChannel,
+  type AlertRule,
+  type Subscription,
+} from '@/mock/alertData'
 import { useOperationMessage } from '@/composables/useOperationMessage'
-import DemoBadge from '@/components/DemoBadge.vue'
+import '@/styles/datasource-page.css'
 
-// 告警与订阅推送（能源暗域）：阈值告警规则 + 定时订阅 + 调度任务 + 多通道通知。
-// 注：后端尚无告警/订阅模块 API，当前为演示数据（参考 prototype/alert.html）。
-const { success } = useOperationMessage()
+/**
+ * 告警与订阅推送（对齐 prototypev2 alert.html）：
+ * 统计卡 + 5 tab（规则/历史/订阅/调度/渠道）+ 三步配置向导。
+ * 数据层为前端 mock（src/mock/alertData.ts），后端 alert 模块就绪后一键切换。
+ */
+const { success, fail } = useOperationMessage()
 
-/* ---------- 演示数据 ---------- */
-type PaneKey = 'rules' | 'subs' | 'jobs' | 'channels'
-const activePane = ref<PaneKey>('rules')
-const TABS: { key: PaneKey; name: string; cnt: number }[] = [
-  { key: 'rules', name: '告警规则', cnt: 28 },
-  { key: 'subs', name: '订阅推送', cnt: 15 },
-  { key: 'jobs', name: '调度任务', cnt: 46 },
-  { key: 'channels', name: '通知渠道', cnt: 5 },
-]
+const activeTab = ref<'rules' | 'history' | 'subs' | 'jobs' | 'channels'>('rules')
+const histFilter = ref<'all' | 'pending' | 'handled'>('all')
 
-interface Rule { n: string; m: string; c: string; f: string; ch: string[]; on: boolean; t: string; hot?: boolean }
-const rules = ref<Rule[]>([
-  { n: '日产油低于 100 万吨', m: '原油产量 M-OIL-001', c: '< 100 万吨', f: '每 5 分钟', ch: ['企业微信', '邮件'], on: true, t: '今天 08:12', hot: true },
-  { n: '瓦斯浓度超限', m: '瓦斯浓度 M-COAL-007', c: '> 1.0%', f: '每 1 分钟', ch: ['企业微信', '短信'], on: true, t: '今天 07:48', hot: true },
-  { n: '管网压力异常', m: '管输压力 M-GAS-012', c: '> 6.3 MPa', f: '每 5 分钟', ch: ['企业微信'], on: true, t: '昨天 21:33' },
-  { n: '甲醇装置非计划停车', m: '装置开工率 M-CHEM-003', c: '= 0%', f: '每 10 分钟', ch: ['企业微信', '钉钉', 'Webhook'], on: true, t: '08-28 14:05' },
-  { n: '含水率突升', m: '综合含水率 M-OIL-008', c: '环比 > 3%', f: '每小时', ch: ['邮件'], on: true, t: '08-30 09:00' },
-  { n: '原煤库存低于安全线', m: '库存量 M-COAL-011', c: '< 15 万吨', f: '每小时', ch: ['钉钉'], on: false, t: '—' },
-  { n: '数据调度失败', m: '调度成功率 M-SYS-002', c: '< 98%', f: '每 15 分钟', ch: ['企业微信', 'Webhook'], on: true, t: '今天 05:30' },
-  { n: '门站流量瞬时波动', m: '瞬时流量 M-GAS-021', c: '波动 > 20%', f: '每 5 分钟', ch: ['企业微信'], on: false, t: '—' },
-])
-function chTagCls(c: string): string {
-  return c === '企业微信' ? 'tag-info' : c === '短信' ? 'tag-warn' : c === 'Webhook' ? 'tag-brand' : ''
+const stats = computed(() => ({
+  total: alertRules.value.length,
+  enabled: alertRules.value.filter((r) => r.enabled).length,
+  today: alertRules.value.reduce((s, r) => s + r.today, 0),
+  subs: subscriptions.value.length,
+  receivers: 213,
+  channels: channels.value.length,
+}))
+
+const filteredHistory = computed(() => {
+  if (histFilter.value === 'pending') return alertHistory.value.filter((h) => !h.handled)
+  if (histFilter.value === 'handled') return alertHistory.value.filter((h) => h.handled)
+  return alertHistory.value
+})
+
+/* ---------- 规则编辑 ---------- */
+const ruleForm = ref<{ id?: string; name: string; metric: string; metricId: string; cond: string; freq: string; channels: string[]; receivers: string } | null>(null)
+const CHANNEL_OPTS = ['邮件', '企业微信', '钉钉', 'Webhook', '短信']
+const FREQ_OPTS = ['每5分钟', '实时', '每小时', '每天 08:00', '每天 09:00']
+
+function openRuleForm(rule?: AlertRule) {
+  ruleForm.value = rule
+    ? { id: rule.id, name: rule.name, metric: rule.metric, metricId: rule.metricId, cond: rule.cond, freq: rule.freq, channels: [...rule.channels], receivers: rule.receivers }
+    : { name: '', metric: '', metricId: '', cond: '', freq: '每5分钟', channels: ['邮件'], receivers: '' }
 }
 
-interface Sub { n: string; f: string; cron: string; ch: string; g: string; on: boolean }
-const subs = ref<Sub[]>([
-  { n: '经营日报看板', f: '每天 08:00', cron: '0 0 8 * * ?', ch: '企业微信', g: '经营分析组 · 58 人', on: true },
-  { n: '原油产量周报报表', f: '每周一 09:00', cron: '0 0 9 ? * MON', ch: '邮件', g: '生产管理部 · 24 人', on: true },
-  { n: '管输量日报（PDF）', f: '每天 07:30', cron: '0 30 7 * * ?', ch: '邮件', g: '管道分公司 · 41 人', on: true },
-  { n: '煤矿安全旬报', f: '每月 1/11/21 日', cron: '0 0 9 1,11,21 * ?', ch: '企业微信', g: '安监部 · 33 人', on: true },
-  { n: '化工品产销存月报', f: '每月 3 日 10:00', cron: '0 0 10 3 * ?', ch: '钉钉', g: '煤化工事业部 · 27 人', on: true },
-  { n: '集团经营驾驶舱截图', f: '工作日 08:30', cron: '0 30 8 ? * MON-FRI', ch: '企业微信', g: '集团领导 · 12 人', on: false },
-])
-
-type JobResult = 'ok' | 'warn' | 'err'
-interface Job { n: string; t: string; cron: string; last: string; next: string; r: JobResult }
-const jobs: Job[] = [
-  { n: '告警检测 · 高频指标', t: '告警检测', cron: '0 */5 * * * ?', last: '今天 08:15', next: '今天 08:20', r: 'ok' },
-  { n: '经营日报订阅推送', t: '订阅推送', cron: '0 0 8 * * ?', last: '今天 08:00', next: '明天 08:00', r: 'ok' },
-  { n: 'ODS 采油日报抽取', t: '数据抽取', cron: '0 30 2 * * ?', last: '今天 02:30', next: '明天 02:30', r: 'ok' },
-  { n: 'SCADA 实时流消费', t: '数据抽取', cron: '流式常驻', last: '持续运行', next: '—', r: 'ok' },
-  { n: '原油产量月报生成', t: '报表定时', cron: '0 0 6 1 * ?', last: '09-01 06:00', next: '10-01 06:00', r: 'ok' },
-  { n: '数据集缓存刷新', t: '数据抽取', cron: '0 */30 * * * ?', last: '今天 08:00', next: '今天 08:30', r: 'warn' },
-  { n: '元数据全量采集', t: '数据治理', cron: '0 0 2 * * ?', last: '今天 02:00', next: '明天 02:00', r: 'ok' },
-  { n: '历史井史归档同步', t: '数据抽取', cron: '0 0 23 ? * SUN', last: '08-31 23:00', next: '09-07 23:00', r: 'err' },
-]
-const JOB_TAG: Record<JobResult, { cls: string; text: string }> = {
-  ok: { cls: 'tag-ok', text: '成功' },
-  warn: { cls: 'tag-warn', text: '部分成功' },
-  err: { cls: 'tag-danger', text: '失败 · 已重试' },
-}
-function jobTypeCls(t: string): string {
-  return t === '告警检测' ? 'tag-danger' : t === '订阅推送' ? 'tag-info' : t === '报表定时' ? 'tag-brand' : ''
+function toggleChannelOpt(c: string) {
+  if (!ruleForm.value) return
+  const i = ruleForm.value.channels.indexOf(c)
+  if (i >= 0) ruleForm.value.channels.splice(i, 1)
+  else ruleForm.value.channels.push(c)
 }
 
-interface Channel { n: string; icon: string; col: string; bg: string; cfg: string; sent: string; rate: string; on: boolean }
-const channels = ref<Channel[]>([
-  { n: '邮件', icon: 'pi-envelope', col: 'var(--info)', bg: 'var(--info-soft)', cfg: 'smtp.****oil.com:465 · SSL', sent: '1,204', rate: '99.4%', on: true },
-  { n: '企业微信', icon: 'pi-comments', col: 'var(--ok)', bg: 'var(--ok-soft)', cfg: 'corp_id: ww8f3**** · 应用 12', sent: '2,862', rate: '99.6%', on: true },
-  { n: '钉钉', icon: 'pi-mobile', col: 'var(--info)', bg: 'var(--info-soft)', cfg: 'oapi.dingtalk.com · robot ****', sent: '936', rate: '99.3%', on: true },
-  { n: 'Webhook', icon: 'pi-link', col: 'var(--brand)', bg: 'var(--brand-soft)', cfg: 'https://bi.****.com/hooks/dg', sent: '5,410', rate: '99.7%', on: true },
-  { n: '短信', icon: 'pi-bell', col: 'var(--warn)', bg: 'var(--warn-soft)', cfg: '阿里云短信 · sign ****', sent: '86', rate: '99.5%', on: false },
-])
+function submitRule() {
+  const f = ruleForm.value
+  if (!f) return
+  if (!f.name || !f.metric || !f.cond) {
+    fail('请填写规则名称、监控指标与触发条件')
+    return
+  }
+  saveRule(f)
+  ruleForm.value = null
+  success('告警规则已保存并启用')
+}
 
-/* ---------- 交互 ---------- */
-const rulePaneEl = ref<HTMLElement>()
-function gotoRulePane() {
-  activePane.value = 'rules'
-  requestAnimationFrame(() => rulePaneEl.value?.scrollIntoView({ behavior: 'smooth' }))
+function onDelRule(r: AlertRule) {
+  if (!window.confirm(`确定删除规则「${r.name}」吗？`)) return
+  deleteRule(r.id)
+  success('已删除')
 }
-function toggleRule(r: Rule) {
-  success(`规则「${r.n}」已${r.on ? '启用' : '停用'}（演示）`)
+
+/* ---------- 订阅编辑 ---------- */
+const subForm = ref<{ id?: string; name: string; resource: string; freqText: string; channels: string[]; receivers: string; format: string } | null>(null)
+const FREQ_SUB_OPTS = ['每天 08:00', '每天 07:30', '每周一 09:00', '每月1日 10:00']
+
+function openSubForm(s?: Subscription) {
+  subForm.value = s
+    ? { id: s.id, name: s.name, resource: s.resource, freqText: s.freqText, channels: [...s.channels], receivers: s.receivers, format: s.format }
+    : { name: '', resource: '看板：集团经营日报', freqText: '每天 08:00', channels: ['邮件'], receivers: '', format: '图片+PDF' }
 }
-function toggleSub(s: Sub) {
-  success(`订阅「${s.n}」已${s.on ? '启用' : '停用'}（演示）`)
+
+function toggleSubChannel(c: string) {
+  if (!subForm.value) return
+  const i = subForm.value.channels.indexOf(c)
+  if (i >= 0) subForm.value.channels.splice(i, 1)
+  else subForm.value.channels.push(c)
 }
-function toggleChannel(c: Channel) {
-  success(`渠道「${c.n}」已${c.on ? '启用' : '停用'}（演示）`)
+
+function submitSub() {
+  const f = subForm.value
+  if (!f) return
+  if (!f.name || !f.receivers) {
+    fail('订阅名称与接收人不能为空')
+    return
+  }
+  saveSub(f)
+  subForm.value = null
+  success('订阅已保存')
+}
+
+/* ---------- 调度日志 ---------- */
+const logView = ref<{ job: string; lines: string[] } | null>(null)
+
+function openLog(id: string) {
+  logView.value = jobLog(id)
+}
+
+function doTrigger(id: string) {
+  const t = triggerJob(id)
+  success(`任务已手动触发（${t}）`)
+  openLog(id)
+}
+
+/* ---------- 历史处理 ---------- */
+function doHandle(id: string) {
+  handleHistory(id, '已确认处理')
+  success('已标记处理')
+}
+
+function doTestChannel(id: string, name: string) {
+  if (testChannel(id)) success(`${name} 测试消息已送达（340ms）`)
 }
 </script>
 
 <template>
-  <div class="alert-page">
+  <div class="ds-page">
     <!-- 页头 -->
     <div class="page-head">
       <div>
-        <div class="page-title">告警与订阅推送 <DemoBadge /></div>
+        <div class="page-title">告警与订阅推送</div>
         <div class="page-desc">基于语义指标的阈值告警、定时订阅推送与多通道通知（PRD 10.9）</div>
       </div>
       <div class="page-actions">
-        <button class="btn" @click="success('告警历史与静默管理功能规划中（演示）')">告警历史</button>
-        <button class="btn primary" @click="gotoRulePane"><i class="pi pi-plus"></i>新建告警规则</button>
+        <button class="btn primary" type="button" @click="openRuleForm()">＋ 新建告警规则</button>
       </div>
     </div>
 
-    <!-- 顶部统计 -->
+    <!-- 统计卡 -->
     <section class="stat-grid mb-3">
-      <div class="stat-card" style="--sc-glow:rgba(255,138,61,.13)">
+      <div class="stat-card">
         <div class="s-label">告警规则</div>
-        <div class="s-value">28<span class="unit">条</span></div>
-        <div class="s-foot"><span class="tag tag-ok">启用 24</span><span class="tx-3">停用 4</span></div>
+        <div class="s-value num">{{ stats.total }} <small>条</small></div>
+        <div class="s-sub"><span class="tag ok">启用 {{ stats.enabled }}</span> <span class="tag">停用 {{ stats.total - stats.enabled }}</span></div>
       </div>
-      <div class="stat-card" style="--sc-glow:rgba(248,113,113,.13)">
+      <div class="stat-card">
         <div class="s-label">今日触发</div>
-        <div class="s-value">3<span class="unit">次</span></div>
-        <div class="s-foot"><span class="trend down">▼ 40%</span><span>较昨日 5 次</span></div>
+        <div class="s-value num" style="color: #f87171">{{ stats.today }} <small>次</small></div>
+        <div class="s-sub">▼40% 较昨日 5 次</div>
       </div>
-      <div class="stat-card" style="--sc-glow:rgba(34,211,238,.12)">
+      <div class="stat-card">
         <div class="s-label">订阅任务</div>
-        <div class="s-value">15<span class="unit">个</span></div>
-        <div class="s-foot"><span class="tx-3">覆盖 6 个接收人组 · 213 人</span></div>
+        <div class="s-value num" style="color: #60a5fa">{{ stats.subs }} <small>个</small></div>
+        <div class="s-sub">覆盖 6 个接收人组 · {{ stats.receivers }} 人</div>
       </div>
-      <div class="stat-card" style="--sc-glow:rgba(167,139,250,.12)">
+      <div class="stat-card">
         <div class="s-label">通知渠道</div>
-        <div class="s-value">5<span class="unit">种</span></div>
-        <div class="s-foot"><span class="trend up">▲ 今日送达 386 条</span></div>
+        <div class="s-value num" style="color: #34d399">{{ stats.channels }} <small>种</small></div>
+        <div class="s-sub">▲ 今日送达 386 条</div>
       </div>
     </section>
 
     <!-- Tabs -->
-    <div class="tabs">
-      <div
-        v-for="t in TABS"
-        :key="t.key"
-        class="tab"
-        :class="{ active: activePane === t.key }"
-        @click="activePane = t.key"
-      >
-        {{ t.name }} <span class="cnt">{{ t.cnt }}</span>
-      </div>
+    <div class="tabs-row mb-2">
+      <div class="tab-item" :class="{ active: activeTab === 'rules' }" @click="activeTab = 'rules'">告警规则 <em>{{ alertRules.length }}</em></div>
+      <div class="tab-item" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">告警历史</div>
+      <div class="tab-item" :class="{ active: activeTab === 'subs' }" @click="activeTab = 'subs'">订阅推送 <em>{{ subscriptions.length }}</em></div>
+      <div class="tab-item" :class="{ active: activeTab === 'jobs' }" @click="activeTab = 'jobs'">调度任务 <em>{{ jobs.length }}</em></div>
+      <div class="tab-item" :class="{ active: activeTab === 'channels' }" @click="activeTab = 'channels'">通知渠道 <em>{{ channels.length }}</em></div>
     </div>
 
-    <!-- 告警规则 -->
-    <div v-show="activePane === 'rules'" class="tab-pane">
-      <div class="table-wrap mb-3">
+    <!-- ===== 告警规则 ===== -->
+    <template v-if="activeTab === 'rules'">
+      <div class="table-wrap">
         <table class="tbl">
-          <thead><tr>
-            <th>规则名称</th><th>监控指标</th><th>触发条件</th><th>检测频率</th><th>通知渠道</th><th>状态</th><th>最近触发</th><th style="width:150px">操作</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th>规则名称</th>
+              <th>监控指标</th>
+              <th>触发条件</th>
+              <th style="width: 100px">检测频率</th>
+              <th>通知渠道</th>
+              <th style="width: 70px">状态</th>
+              <th style="width: 110px">最近触发</th>
+              <th style="width: 190px">操作</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="r in rules" :key="r.n">
-              <td><span class="cell-main">{{ r.n }}</span><span v-if="r.hot" class="tag tag-danger" style="margin-left:4px">今日已触发</span></td>
-              <td class="sm">{{ r.m }}</td>
-              <td><span class="num" style="color:var(--warn)">{{ r.c }}</span></td>
-              <td class="sm">{{ r.f }}</td>
+            <tr v-if="!alertRules.length"><td colspan="8"><div class="empty">暂无规则，点击右上角「新建告警规则」</div></td></tr>
+            <tr v-for="r in alertRules" :key="r.id">
               <td>
-                <span v-for="c in r.ch" :key="c" class="tag" :class="chTagCls(c)" style="margin-right:4px">{{ c }}</span>
+                <span class="cell-main">{{ r.name }}</span>
+                <span v-if="r.today" class="tag danger" style="margin-left: 6px">今日已触发 {{ r.today }} 次</span>
               </td>
+              <td class="sm">{{ r.metric }} <span class="tx-4">{{ r.metricId }}</span></td>
+              <td><span class="cond">{{ r.cond }}</span></td>
+              <td class="sm">{{ r.freq }}</td>
+              <td><span v-for="c in r.channels" :key="c" class="tag info" style="margin-right: 4px">{{ c }}</span></td>
               <td>
-                <label class="switch"><input v-model="r.on" type="checkbox" @change="toggleRule(r)" /><i></i></label>
+                <label class="switch">
+                  <input type="checkbox" :checked="r.enabled" @change="toggleRule(r.id)" />
+                  <i></i>
+                </label>
               </td>
-              <td class="sm" :class="{ 'tx-3': !r.hot }" :style="r.hot ? 'color:var(--danger)' : ''">{{ r.t }}</td>
+              <td class="sm tx-3">{{ r.lastTrigger }}</td>
               <td>
-                <span class="op-link" @click="success(`编辑规则「${r.n}」功能规划中（演示）`)">编辑</span> ·
-                <span class="op-link" @click="success(`规则「${r.n}」触发历史功能规划中（演示）`)">历史</span>
+                <span class="link" @click="openRuleForm(r)">编辑</span> ·
+                <span class="link" @click="activeTab = 'history'">历史</span> ·
+                <span class="link danger" @click="onDelRule(r)">删除</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 新建规则三步 -->
-      <div ref="rulePaneEl" class="card">
-        <div class="card-title"><span class="bar"></span>新建告警规则 · 三步配置
-          <span class="more" @click="success('规则草稿已保存（演示）')">保存草稿 ›</span>
-        </div>
-        <div class="rule-steps">
-          <div class="rule-step">
-            <span class="rs-no">STEP 1</span>
-            <div class="rs-name"><i class="pi pi-chart-bar"></i>选择监控指标</div>
-            <div class="mini"><span class="m-tag">来源</span>指标中心</div>
-            <div class="mini"><span class="m-tag">指标</span><b>原油产量</b> <span class="tag tag-brand">M-OIL-001</span></div>
-            <div class="mini"><span class="m-tag">粒度</span>采油厂 · 日</div>
+      <!-- 三步配置向导 -->
+      <div class="card wizard" style="margin-top: 14px">
+        <div class="card-title"><i class="bar"></i>告警规则 · 三步配置说明 <span class="tx-4 sm" style="margin-left: auto">打开配置向导 ›</span></div>
+        <div class="wiz-grid">
+          <div class="wiz-step">
+            <span class="step-no">STEP 1</span>
+            <div class="step-t">⊕ 选择监控指标</div>
+            <div class="wiz-field"><span class="f-lbl">来源</span><span>指标中心（语义层统一口径）</span></div>
+            <div class="wiz-field"><span class="f-lbl">指标</span><span class="tag brand">原油产量</span><span class="tag">M-OIL-001</span></div>
+            <div class="wiz-field"><span class="f-lbl">粒度</span><span>采油厂 · 日</span></div>
           </div>
-          <div class="rule-step">
-            <span class="rs-no">STEP 2</span>
-            <div class="rs-name"><i class="pi pi-sliders-h"></i>设置阈值条件</div>
-            <div class="mini"><span class="m-tag">条件</span><span class="m-val">&lt; 100 万吨</span></div>
-            <div class="mini"><span class="m-tag">持续</span>连续 2 个检测周期</div>
-            <div class="mini"><span class="m-tag">级别</span><span class="tag tag-danger">严重</span> 同比偏离 &gt; 10% 升级</div>
+          <div class="wiz-step">
+            <span class="step-no">STEP 2</span>
+            <div class="step-t">⚙ 设置阈值条件</div>
+            <div class="wiz-field"><span class="f-lbl">条件</span><span class="cond">&lt; 100 万吨</span></div>
+            <div class="wiz-field"><span class="f-lbl">持续</span><span>连续 2 个检测周期</span></div>
+            <div class="wiz-field"><span class="f-lbl">级别</span><span class="tag danger">严重</span><span class="sm tx-3">同比偏离 &gt; 10% 升级</span></div>
           </div>
-          <div class="rule-step">
-            <span class="rs-no">STEP 3</span>
-            <div class="rs-name"><i class="pi pi-share-alt"></i>渠道与接收人</div>
-            <div class="mini"><span class="m-tag">渠道</span><span class="tag tag-info">企业微信</span> <span class="tag">邮件</span></div>
-            <div class="mini"><span class="m-tag">接收</span>生产调度组 · 32 人</div>
-            <button class="btn primary sm" style="width:100%;justify-content:center" @click="success('规则创建成功并启用（演示）')">创建并启用</button>
+          <div class="wiz-step">
+            <span class="step-no">STEP 3</span>
+            <div class="step-t">🜲 渠道与接收人</div>
+            <div class="wiz-field"><span class="f-lbl">渠道</span><span class="tag info">企业微信</span><span class="tag info">邮件</span></div>
+            <div class="wiz-field"><span class="f-lbl">接收</span><span>生产调度组 · 32 人</span></div>
+            <button class="btn primary w-full" type="button" @click="openRuleForm()">创建并启用</button>
           </div>
         </div>
       </div>
-    </div>
+    </template>
 
-    <!-- 订阅推送 -->
-    <div v-show="activePane === 'subs'" class="tab-pane">
+    <!-- ===== 告警历史 ===== -->
+    <template v-else-if="activeTab === 'history'">
+      <div class="flex mb-2" style="gap: 8px; align-items: center">
+        <div class="seg-row">
+          <span class="seg-item" :class="{ active: histFilter === 'all' }" @click="histFilter = 'all'">全部</span>
+          <span class="seg-item" :class="{ active: histFilter === 'pending' }" @click="histFilter = 'pending'">未处理</span>
+          <span class="seg-item" :class="{ active: histFilter === 'handled' }" @click="histFilter = 'handled'">已处理</span>
+        </div>
+        <span class="tx-3 sm" style="margin-left: auto">{{ filteredHistory.length }} 条</span>
+      </div>
       <div class="table-wrap">
         <table class="tbl">
-          <thead><tr>
-            <th>订阅内容</th><th>推送频率</th><th>Cron</th><th>渠道</th><th>接收人组</th><th>状态</th><th style="width:150px">操作</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th>触发规则</th>
+              <th>监控指标</th>
+              <th>触发值</th>
+              <th>阈值</th>
+              <th style="width: 120px">时间</th>
+              <th style="width: 90px">通知</th>
+              <th style="width: 240px">处理状态</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="s in subs" :key="s.n">
-              <td class="cell-main">{{ s.n }}</td>
-              <td>{{ s.f }}</td>
-              <td class="cron">{{ s.cron }}</td>
-              <td><span class="tag tag-info">{{ s.ch }}</span></td>
-              <td class="sm">{{ s.g }}</td>
+            <tr v-if="!filteredHistory.length"><td colspan="7"><div class="empty">暂无告警记录</div></td></tr>
+            <tr v-for="h in filteredHistory" :key="h.id">
+              <td><span class="cell-main">{{ h.rule }}</span></td>
+              <td class="sm">{{ h.metric }}</td>
+              <td><span class="cond" :class="{ danger: !h.handled }">{{ h.value }}</span></td>
+              <td class="sm tx-3">{{ h.threshold }}</td>
+              <td class="sm tx-3">{{ h.time }}</td>
+              <td><span class="tag ok">{{ h.notify }}</span></td>
               <td>
-                <label class="switch"><input v-model="s.on" type="checkbox" @change="toggleSub(s)" /><i></i></label>
-              </td>
-              <td>
-                <span class="op-link" @click="success(`编辑订阅「${s.n}」功能规划中（演示）`)">编辑</span> ·
-                <span class="op-link" @click="success(`已立即推送一次至 ${s.ch}（演示）`)">立即推送</span>
+                <template v-if="h.handled"><span class="tag">已处理</span> <span class="sm tx-3">{{ h.note }}</span></template>
+                <template v-else><span class="tag danger">未处理</span> <span class="link" @click="doHandle(h.id)">标记处理</span></template>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </template>
 
-    <!-- 调度任务 -->
-    <div v-show="activePane === 'jobs'" class="tab-pane">
+    <!-- ===== 订阅推送 ===== -->
+    <template v-else-if="activeTab === 'subs'">
+      <div class="flex mb-2">
+        <button class="btn primary sm" type="button" @click="openSubForm()">＋ 新建订阅</button>
+      </div>
       <div class="table-wrap">
         <table class="tbl">
-          <thead><tr>
-            <th>任务名称</th><th>类型</th><th>Cron 表达式</th><th>上次执行</th><th>下次执行</th><th>结果</th><th style="width:130px">操作</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th>订阅名称</th>
+              <th>资源</th>
+              <th style="width: 110px">频率</th>
+              <th>渠道</th>
+              <th>接收人</th>
+              <th style="width: 100px">格式</th>
+              <th style="width: 70px">状态</th>
+              <th style="width: 110px">最近推送</th>
+              <th style="width: 80px">操作</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="j in jobs" :key="j.n">
-              <td class="cell-main">{{ j.n }}</td>
-              <td><span class="tag" :class="jobTypeCls(j.t)">{{ j.t }}</span></td>
-              <td class="cron">{{ j.cron }}</td>
+            <tr v-if="!subscriptions.length"><td colspan="9"><div class="empty">暂无订阅</div></td></tr>
+            <tr v-for="s in subscriptions" :key="s.id">
+              <td><span class="cell-main">{{ s.name }}</span></td>
+              <td class="sm">{{ s.resource }}</td>
+              <td class="sm">{{ s.freqText }}</td>
+              <td><span v-for="c in s.channels" :key="c" class="tag info" style="margin-right: 4px">{{ c }}</span></td>
+              <td class="sm">{{ s.receivers }}</td>
+              <td><span class="tag">{{ s.format }}</span></td>
+              <td><label class="switch"><input type="checkbox" :checked="s.enabled" @change="toggleSub(s.id)" /><i></i></label></td>
+              <td class="sm tx-3">{{ s.last }}</td>
+              <td><span class="link" @click="openSubForm(s)">编辑</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <!-- ===== 调度任务 ===== -->
+    <template v-else-if="activeTab === 'jobs'">
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>任务名称</th>
+              <th style="width: 100px">类型</th>
+              <th>cron</th>
+              <th style="width: 110px">上次执行</th>
+              <th style="width: 110px">下次执行</th>
+              <th style="width: 120px">状态</th>
+              <th style="width: 160px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="j in jobs" :key="j.id">
+              <td><span class="cell-main">{{ j.name }}</span></td>
+              <td><span class="tag">{{ j.type }}</span></td>
+              <td class="sm tx-3">{{ j.cron }}</td>
               <td class="sm">{{ j.last }}</td>
               <td class="sm tx-3">{{ j.next }}</td>
-              <td><span class="tag" :class="JOB_TAG[j.r].cls">{{ JOB_TAG[j.r].text }}</span></td>
+              <td><span class="tag" :class="j.status.includes('失败') ? 'danger' : 'ok'">{{ j.status }}</span></td>
               <td>
-                <span class="op-link" @click="success(`任务「${j.n}」执行日志功能规划中（演示）`)">日志</span> ·
-                <span class="op-link" @click="success(`已触发「${j.n}」手动执行（演示）`)">执行</span>
+                <span class="link" @click="doTrigger(j.id)">立即触发</span> ·
+                <span class="link" @click="openLog(j.id)">执行日志</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </template>
 
-    <!-- 通知渠道 -->
-    <div v-show="activePane === 'channels'" class="tab-pane">
-      <div class="ch-grid">
-        <div v-for="c in channels" :key="c.n" class="ch-card">
-          <div class="ch-head">
-            <span class="ch-ico" :style="{ color: c.col, background: c.bg }"><i class="pi" :class="c.icon"></i></span>
-            <div><div class="ch-name">{{ c.n }}</div><div class="ch-cfg">{{ c.cfg }}</div></div>
-            <label class="switch" style="margin-left:auto"><input v-model="c.on" type="checkbox" @change="toggleChannel(c)" /><i></i></label>
-          </div>
-          <div class="ch-foot">
-            <span class="ch-stat">近 30 日发送<br /><b>{{ c.sent }}</b> 条</span>
-            <span class="ch-stat" style="text-align:right">送达率<br /><b style="color:var(--ok)">{{ c.rate }}</b></span>
-            <span class="op-link" @click="success(`渠道「${c.n}」测试发送成功（演示）`)">测试发送</span>
+    <!-- ===== 通知渠道 ===== -->
+    <template v-else>
+      <div class="tpl-grid">
+        <div v-for="c in channels" :key="c.id" class="db-card">
+          <div class="c-body">
+            <div class="mc-head">
+              <span class="c-name">{{ c.name }}</span>
+              <span class="tag" :class="c.enabled ? 'ok' : ''" style="margin-left: auto">{{ c.enabled ? '已启用' : '已停用' }}</span>
+            </div>
+            <div class="c-desc">{{ c.conf }}</div>
+            <div class="c-meta">
+              <span class="sm tx-3">近 30 天发送 <b class="num">{{ c.sent30d }}</b></span>
+              <span class="sm tx-3">送达率 <b class="num" style="color: #34d399">{{ c.rate }}</b></span>
+              <button class="btn sm" style="margin-left: auto" type="button" @click="doTestChannel(c.id, c.name)">发送测试</button>
+            </div>
           </div>
         </div>
       </div>
-      <div class="card mt-3" style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--tx-2)">
-        <i class="pi pi-info-circle" style="color:var(--info)"></i>
-        <span>渠道为插件化扩展点：可按 SPI 接入 <b>飞书、APP 推送、短信网关、声光报警</b> 等自定义通道。</span>
+    </template>
+
+    <!-- 规则编辑弹窗 -->
+    <div v-if="ruleForm" class="drawer-mask" @click="ruleForm = null">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">{{ ruleForm.id ? '编辑告警规则' : '新建告警规则' }}</div>
+          <button class="btn sm ghost" type="button" @click="ruleForm = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="form-item"><label class="form-label">规则名称 *</label><input v-model="ruleForm.name" class="input" placeholder="如：日产油低于阈值" /></div>
+          <div class="flex" style="gap: 12px">
+            <div class="form-item grow"><label class="form-label">监控指标 *</label><input v-model="ruleForm.metric" class="input" placeholder="如：原油产量" /></div>
+            <div class="form-item" style="width: 140px"><label class="form-label">指标 ID</label><input v-model="ruleForm.metricId" class="input" placeholder="M-OIL-001" /></div>
+          </div>
+          <div class="flex" style="gap: 12px">
+            <div class="form-item grow"><label class="form-label">触发条件 *</label><input v-model="ruleForm.cond" class="input" placeholder="如：< 100 万吨" /></div>
+            <div class="form-item" style="width: 150px"><label class="form-label">检测频率</label>
+              <select v-model="ruleForm.freq" class="input"><option v-for="f in FREQ_OPTS" :key="f" :value="f">{{ f }}</option></select>
+            </div>
+          </div>
+          <div class="form-item"><label class="form-label">通知渠道</label>
+            <div class="seg-row">
+              <span v-for="c in CHANNEL_OPTS" :key="c" class="seg-item" :class="{ active: ruleForm.channels.includes(c) }" @click="toggleChannelOpt(c)">{{ c }}</span>
+            </div>
+          </div>
+          <div class="form-item"><label class="form-label">接收人</label><input v-model="ruleForm.receivers" class="input" placeholder="如：生产调度组" /></div>
+          <div class="flex" style="gap: 10px; margin-top: 16px">
+            <button class="btn primary grow" type="button" @click="submitRule">保存并启用</button>
+            <button class="btn" type="button" @click="ruleForm = null">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 订阅编辑弹窗 -->
+    <div v-if="subForm" class="drawer-mask" @click="subForm = null">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">{{ subForm.id ? '编辑订阅' : '新建订阅' }}</div>
+          <button class="btn sm ghost" type="button" @click="subForm = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="form-item"><label class="form-label">订阅名称 *</label><input v-model="subForm.name" class="input" placeholder="如：经营日报（决策层）" /></div>
+          <div class="form-item"><label class="form-label">推送资源</label><input v-model="subForm.resource" class="input" placeholder="看板：集团经营日报" /></div>
+          <div class="flex" style="gap: 12px">
+            <div class="form-item grow"><label class="form-label">推送频率</label>
+              <select v-model="subForm.freqText" class="input"><option v-for="f in FREQ_SUB_OPTS" :key="f" :value="f">{{ f }}</option></select>
+            </div>
+            <div class="form-item" style="width: 150px"><label class="form-label">格式</label>
+              <select v-model="subForm.format" class="input"><option>图片+PDF</option><option>PDF</option><option>Excel</option><option>Excel+PDF</option></select>
+            </div>
+          </div>
+          <div class="form-item"><label class="form-label">通知渠道</label>
+            <div class="seg-row">
+              <span v-for="c in CHANNEL_OPTS" :key="c" class="seg-item" :class="{ active: subForm.channels.includes(c) }" @click="toggleSubChannel(c)">{{ c }}</span>
+            </div>
+          </div>
+          <div class="form-item"><label class="form-label">接收人 *</label><input v-model="subForm.receivers" class="input" placeholder="如：经营分析群" /></div>
+          <div class="flex" style="gap: 10px; margin-top: 16px">
+            <button class="btn primary grow" type="button" @click="submitSub">保存</button>
+            <button class="btn" type="button" @click="subForm = null">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 调度日志弹窗 -->
+    <div v-if="logView" class="drawer-mask" @click="logView = null">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">执行日志 · {{ logView.job }}</div>
+          <button class="btn sm ghost" type="button" @click="logView = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <pre class="sql-code">{{ logView.lines.join('\n') }}</pre>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ============ 能源暗域 Energy Dark ============ */
-.alert-page {
-  --bg-glass: rgba(255,255,255,.035);
-  --bg-glass-2: rgba(255,255,255,.06);
-  --bg-glass-3: rgba(255,255,255,.09);
-  --line-1: rgba(255,255,255,.07);
-  --line-2: rgba(255,255,255,.12);
-  --line-3: rgba(255,255,255,.18);
-  --tx-1: #F2F5FA;
-  --tx-2: #B9C2D4;
-  --tx-3: #7C88A0;
-  --tx-4: #525D75;
-  --brand: #FF8A3D;
-  --brand-grad: linear-gradient(135deg,#FFB25E 0%,#FF8A3D 45%,#F4633A 100%);
-  --brand-soft: rgba(255,138,61,.14);
-  --brand-line: rgba(255,138,61,.35);
-  --oil: #FF8A3D;  --oil-soft: rgba(255,138,61,.13);
-  --gas: #22D3EE;  --gas-soft: rgba(34,211,238,.12);
-  --chem: #A78BFA; --chem-soft: rgba(167,139,250,.13);
-  --coal: #E8B33C; --coal-soft: rgba(232,179,60,.13);
-  --ok: #34D399;   --warn: #FBBF24;  --danger: #F87171;  --info: #60A5FA;
-  --ok-soft: rgba(52,211,153,.12);
-  --info-soft: rgba(96,165,250,.12);
-  --warn-soft: rgba(251,191,36,.12);
-  --r-l: 12px;
-  --font-num: "Barlow","DIN Alternate","Bahnschrift","PingFang SC","Segoe UI",sans-serif;
-  --font-mono: "JetBrains Mono","SF Mono","Cascadia Code",Consolas,monospace;
-
-  position: relative;
-  min-height: 100%;
-  padding: 20px 24px 40px;
-  color: var(--tx-1);
-  font-size: 14px; line-height: 1.6;
-  background:
-    radial-gradient(900px 480px at 85% -10%, rgba(255,138,61,.10), transparent 60%),
-    radial-gradient(800px 500px at -10% 110%, rgba(34,211,238,.07), transparent 60%),
-    #0A0E17;
-}
-
-.mb-3 { margin-bottom: 16px; }
-.mt-3 { margin-top: 16px; }
-.tx-3 { color: var(--tx-3); }
-.num { font-family: var(--font-num); }
-.sm { font-size: 12.5px; }
-
-/* ---- 页头 ---- */
-.page-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
-.page-title { font-size: 20px; font-weight: 700; letter-spacing: .5px; display: flex; align-items: center; gap: 10px; }
-.page-desc { font-size: 13px; color: var(--tx-3); margin-top: 2px; }
-.page-actions { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-
-/* ---- 按钮 ---- */
-.btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 13px; font-family: inherit; font-weight: 500;
-  padding: 7px 16px; border-radius: 10px;
-  border: 1px solid var(--line-2); background: var(--bg-glass);
-  color: var(--tx-1); cursor: pointer; transition: all .18s;
-  white-space: nowrap;
-}
-.btn:hover { background: var(--bg-glass-3); border-color: var(--line-3); }
-.btn:active { transform: scale(.97); }
-.btn.primary {
-  background: var(--brand-grad); border: none; color: #241105; font-weight: 600;
-  box-shadow: 0 4px 16px rgba(244,99,58,.3);
-}
-.btn.primary:hover { filter: brightness(1.1); box-shadow: 0 6px 22px rgba(244,99,58,.42); }
-.btn.sm { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
-
-/* ---- 标签 ---- */
-.tag {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11.5px; padding: 1.5px 8px; border-radius: 6px;
-  background: var(--bg-glass-2); color: var(--tx-2); border: 1px solid var(--line-1);
-  white-space: nowrap;
-}
-.tag-brand { background: var(--brand-soft); color: var(--brand); border-color: var(--brand-line); }
-.tag-ok { background: rgba(52,211,153,.13); color: var(--ok); border-color: rgba(52,211,153,.3); }
-.tag-warn { background: rgba(251,191,36,.13); color: var(--warn); border-color: rgba(251,191,36,.3); }
-.tag-danger { background: rgba(248,113,113,.13); color: var(--danger); border-color: rgba(248,113,113,.3); }
-.tag-info { background: rgba(96,165,250,.13); color: var(--info); border-color: rgba(96,165,250,.3); }
-
-/* ---- 统计卡 ---- */
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-.stat-card {
-  position: relative; overflow: hidden;
-  background: var(--bg-glass); border: 1px solid var(--line-1);
-  border-radius: 14px; padding: 16px 18px;
-  transition: all .18s;
-}
-.stat-card:hover { border-color: var(--line-3); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,.45); }
-.stat-card::after {
-  content: ""; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px;
-  border-radius: 50%; filter: blur(8px); pointer-events: none;
-  background: var(--sc-glow, rgba(255,138,61,.13));
-}
-.s-label { font-size: 12.5px; color: var(--tx-3); }
-.s-value { font-family: var(--font-num); font-size: 30px; font-weight: 700; line-height: 1.25; margin-top: 4px; }
-.s-value .unit { font-size: 13px; color: var(--tx-3); font-weight: 400; margin-left: 4px; }
-.s-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--tx-3); }
-.trend { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-num); font-weight: 600; }
-.trend.up { color: var(--ok); }
-.trend.down { color: var(--danger); }
-
-/* ---- 卡片 ---- */
-.card {
-  background: var(--bg-glass); border: 1px solid var(--line-1);
-  border-radius: 14px; backdrop-filter: blur(10px); padding: 16px 18px;
-}
-.card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.card-title .bar { width: 3px; height: 14px; border-radius: 2px; background: var(--brand-grad); }
-.card-title .more { margin-left: auto; font-size: 12px; color: var(--tx-3); font-weight: 400; cursor: pointer; }
-.card-title .more:hover { color: var(--brand); }
-
-/* ---- Tabs ---- */
-.tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--line-1); }
-.tab {
-  padding: 9px 16px; font-size: 13.5px; color: var(--tx-2); cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s;
-  display: inline-flex; align-items: center; gap: 7px;
-}
-.tab:hover { color: var(--tx-1); }
-.tab.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
-.tab .cnt {
-  font-size: 11px; font-family: var(--font-num); padding: 0 7px; border-radius: 8px;
-  background: var(--bg-glass-2); color: var(--tx-3);
-}
-.tab.active .cnt { background: var(--brand-soft); color: var(--brand); }
-
-/* ---- 表格 ---- */
-.table-wrap {
-  background: var(--bg-glass); border: 1px solid var(--line-1);
-  border-radius: 14px; overflow: hidden; backdrop-filter: blur(10px);
-}
-.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tbl th {
-  text-align: left; padding: 10px 14px; font-size: 12px; font-weight: 500; color: var(--tx-3);
-  background: rgba(255,255,255,.025); border-bottom: 1px solid var(--line-1); white-space: nowrap;
-}
-.tbl td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--tx-2); }
-.tbl tbody tr:last-child td { border-bottom: none; }
-.tbl tbody tr:hover { background: rgba(255,255,255,.025); }
-.tbl .cell-main { color: var(--tx-1); font-weight: 600; }
-.op-link { color: var(--brand); cursor: pointer; font-size: 12.5px; }
-.op-link:hover { text-decoration: underline; }
-.cron { font-family: var(--font-mono); font-size: 12px; color: var(--gas); }
-
-/* ---- 开关 ---- */
-.switch { position: relative; display: inline-block; width: 36px; height: 20px; flex: none; }
-.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-.switch i {
-  position: absolute; inset: 0; border-radius: 99px; cursor: pointer;
-  background: rgba(255,255,255,.12); transition: all .18s;
-}
-.switch i::before {
-  content: ""; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px;
-  border-radius: 50%; background: #B9C2D4; transition: all .18s;
-}
-.switch input:checked + i { background: var(--brand-grad); box-shadow: 0 0 10px rgba(255,138,61,.4); }
-.switch input:checked + i::before { transform: translateX(16px); background: #FFF; }
-
-/* ---- 新建规则三步 ---- */
-.rule-steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
-.rule-step {
-  background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l);
-  padding: 16px; position: relative;
-}
-.rule-step .rs-no {
-  position: absolute; top: -10px; left: 14px; font-size: 11px; font-family: var(--font-num);
-  font-weight: 700; padding: 1px 10px; border-radius: 9px;
-  background: var(--brand-grad); color: #241105;
-}
-.rule-step .rs-name { font-size: 13.5px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
-.rule-step .rs-name i { font-size: 15px; color: var(--brand); }
-.rule-step .mini {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 7px;
-  background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 8px; font-size: 12px;
-}
-.rule-step .mini .m-tag { font-size: 10.5px; color: var(--tx-3); flex: none; }
-.rule-step .mini .m-val { font-family: var(--font-mono); color: var(--brand); font-weight: 600; }
-
-/* ---- 渠道卡 ---- */
-.ch-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 14px; }
-.ch-card { background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-l); padding: 16px; }
-.ch-card .ch-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.ch-card .ch-ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; font-size: 16px; }
-.ch-card .ch-name { font-size: 13.5px; font-weight: 600; }
-.ch-card .ch-cfg { font-size: 11.5px; color: var(--tx-3); font-family: var(--font-mono); margin-top: 2px; }
-.ch-card .ch-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-1); }
-.ch-card .ch-stat { font-size: 11.5px; color: var(--tx-3); }
-.ch-card .ch-stat b { font-family: var(--font-num); color: var(--tx-1); font-size: 14px; }
-
-/* ---- 响应式 ---- */
-@media (max-width: 1100px) { .rule-steps { grid-template-columns: 1fr; } }
+.tabs-row { display: flex; gap: 4px; border-bottom: 1px solid var(--line-1); }
+.tab-item { padding: 9px 18px; font-size: 13px; color: var(--tx-3); cursor: pointer; border-bottom: 2px solid transparent; display: inline-flex; gap: 6px; align-items: center; }
+.tab-item:hover { color: var(--tx-1); }
+.tab-item.active { color: var(--brand); border-bottom-color: var(--brand); }
+.tab-item em { font-style: normal; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; background: var(--bg-glass-2); color: var(--tx-3); }
+.seg-row { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--bg-glass); border: 1px solid var(--line-1); flex-wrap: wrap; }
+.seg-item { padding: 5px 14px; border-radius: 8px; font-size: 12.5px; color: var(--tx-3); cursor: pointer; white-space: nowrap; }
+.seg-item:hover { color: var(--tx-1); }
+.seg-item.active { background: var(--brand-soft); color: var(--brand); }
+.cond { font-family: var(--font-num, monospace); color: var(--tx-1); font-size: 12.5px; }
+.cond.danger { color: #f87171; }
+.wizard { padding: 14px; }
+.wiz-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px; }
+.wiz-step { border: 1px solid var(--line-1); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+.step-no { font-size: 10px; font-weight: 700; color: var(--brand); background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: 6px; padding: 2px 8px; width: fit-content; }
+.step-t { font-size: 13px; font-weight: 700; color: var(--tx-1); }
+.wiz-field { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--tx-2); flex-wrap: wrap; }
+.f-lbl { color: var(--tx-4); width: 36px; flex: none; }
+.w-full { width: 100%; justify-content: center; }
+.grow { flex: 1; min-width: 0; }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.db-card { border: 1px solid var(--line-1); border-radius: 14px; overflow: hidden; background: var(--bg-glass); }
+.c-body { padding: 14px 16px; }
+.mc-head { display: flex; align-items: center; gap: 8px; }
+.c-name { font-size: 14px; font-weight: 700; color: var(--tx-1); }
+.c-desc { font-size: 12px; color: var(--tx-3); margin: 6px 0 9px; }
+.c-meta { display: flex; align-items: center; gap: 12px; }
+.form-item { margin-bottom: 13px; }
+.form-label { font-size: 12px; color: var(--tx-2); margin-bottom: 5px; display: block; }
+.drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.modal { width: 560px; max-width: 92vw; max-height: 86vh; background: #0d1420; border: 1px solid var(--line-2); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+.drawer-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--line-1); }
+.drawer-title { font-size: 15px; font-weight: 700; color: var(--tx-1); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px 22px; }
+.sql-code { margin: 0; padding: 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line-1); font-family: monospace; font-size: 11.5px; color: #9ecbff; white-space: pre-wrap; }
 </style>

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getDashboard,
   getDashboardResourceContent,
+  saveDashboard,
   saveDashboardResourceContent,
   parseDesignFromResource,
   serializeDesignToResource,
@@ -23,13 +24,15 @@ import DesignToolbar from '@/components/dashboard/DesignToolbar.vue'
 import WidgetLibrary from '@/components/dashboard/WidgetLibrary.vue'
 import DesignCanvas from '@/components/dashboard/DesignCanvas.vue'
 import PropertyPanel from '@/components/dashboard/PropertyPanel.vue'
+import { metricPagingQueryData, type MetricEntity } from '@/api/metric'
 
 /**
  * 看板设计器（三栏可视化拖拽）。设计产物序列化为看板 index.html 资源内容持久化。
  */
 const route = useRoute()
 const router = useRouter()
-const dashboardId = route.params.id as string
+/** 无 id 时为「新建模式」：首次保存创建看板后原地接管（支持二级菜单直达 /dashboard/design） */
+const dashboardId = ref<string>(route.params.id as string)
 const { success, fail } = useOperationMessage()
 
 const name = ref('')
@@ -74,13 +77,38 @@ const selectedWidget = computed<DgWidget | null>(
   () => widgets.value.find((it) => it.id === selectedId.value) ?? null,
 )
 
+/* 语义指标 / 已有图表（部件库真实数据源） */
+const libMetrics = ref<MetricEntity[]>([])
+const libCharts = computed(() => charts.value.map((c) => ({ id: c.id, name: c.name })))
+/** 网格吸附开关（对齐原型「网格」toggle） */
+const snapOn = ref(true)
+
+/* ---------------- 部件库数据（已有图表 + 语义指标） ---------------- */
+async function loadLibData() {
+  try {
+    const cd = await chartPagingQueryData({ page: 1, pageSize: 500 })
+    charts.value = cd.items
+  } catch { /* 图表模块不可达时空态 */ }
+  try {
+    const md = await metricPagingQueryData({ page: 1, pageSize: 100 })
+    libMetrics.value = md.items
+  } catch { /* 语义层未就绪时空态 */ }
+}
+
 /* ---------------- 加载 ---------------- */
 async function load() {
+  // 新建模式（菜单直达，无看板 id）：从示例画布开始，首次保存时创建看板
+  if (!dashboardId.value) {
+    name.value = '未命名看板'
+    loadLibData()
+    addInitialDemo()
+    return
+  }
   loading.value = true
   try {
-    const d = await getDashboard(dashboardId)
+    const d = await getDashboard(dashboardId.value)
     name.value = d.name
-    const res = await getDashboardResourceContent(dashboardId, 'index.html')
+    const res = await getDashboardResourceContent(dashboardId.value, 'index.html')
     const raw = res.resourceContent ?? ''
     rawHtml.value = raw
     const parsed = parseDesignFromResource(raw)
@@ -101,6 +129,7 @@ async function load() {
     }
     const cd = await chartPagingQueryData({ page: 1, pageSize: 500 })
     charts.value = cd.items
+    await loadLibData()
     await nextTick()
   } catch (e) {
     fail((e as Error).message || '加载失败')
@@ -145,12 +174,56 @@ function onAddWidget(payload: { type: WidgetType; n: number }) {
 }
 
 /** 从「可拖入指标（语义层）」添加绑定该指标的指标卡部件 */
-function onAddMetric(payload: { metric: { code: string; name: string }; n: number }) {
+function onAddMetric(payload: { metric: { id?: string; code?: string; name: string }; n: number }) {
   pushSnapshot()
   const wgt = newWidget({ type: 'kpi', n: payload.n })
   wgt.name = payload.metric.name
-  wgt.style.title = `${payload.metric.name} · 昨日`
-  wgt.data.measures = [`${payload.metric.name}（${payload.metric.code}）`]
+  wgt.metricId = payload.metric.id
+  wgt.style!.title = `${payload.metric.name} · 实时`
+  wgt.data!.measures = [`${payload.metric.name}（${payload.metric.id || payload.metric.code}）`]
+  widgets.value.push(wgt)
+  selectedId.value = wgt.id
+  markDirty()
+}
+
+/** 从「我的图表」添加绑定已有图表的部件（看板消费图表模块） */
+function onAddChart(payload: { chart: { id: string; name: string }; n: number }) {
+  pushSnapshot()
+  const wgt = newWidget({ type: 'chart', n: payload.n })
+  wgt.name = payload.chart.name
+  wgt.chartId = payload.chart.id
+  wgt.style!.title = payload.chart.name
+  widgets.value.push(wgt)
+  selectedId.value = wgt.id
+  markDirty()
+}
+
+/** 组件库拖放到画布：按光标位置创建（部件中心对齐光标；8px 吸附已在画布侧完成） */
+function onDropAdd(payload: Record<string, unknown>, x: number, y: number) {
+  pushSnapshot()
+  let wgt: DgWidget
+  if (payload.kind === 'metric') {
+    wgt = newWidget({ type: 'kpi', n: Date.now() % 100000 })
+    wgt.name = String(payload.name ?? '指标卡')
+    wgt.metricId = payload.metricId as string
+    wgt.style!.title = `${payload.name} · 实时`
+    wgt.data!.measures = [`${payload.name}（${payload.metricId}）`]
+  } else if (payload.kind === 'chart') {
+    wgt = newWidget({ type: 'chart', n: Date.now() % 100000 })
+    wgt.name = String(payload.name ?? '图表')
+    wgt.chartId = payload.chartId as string
+    wgt.style!.title = String(payload.name ?? '')
+    if (typeof payload.w === 'number') wgt.w = payload.w
+    if (typeof payload.h === 'number') wgt.h = payload.h
+  } else {
+    const type = payload.type as WidgetType
+    wgt = newWidget({ type, n: Date.now() % 100000 })
+    if (payload.name) wgt.name = String(payload.name)
+    if (typeof payload.w === 'number') wgt.w = payload.w
+    if (typeof payload.h === 'number') wgt.h = payload.h
+  }
+  wgt.x = Math.max(0, x - Math.round(wgt.w / 2))
+  wgt.y = Math.max(0, y - Math.round(wgt.h / 2))
   widgets.value.push(wgt)
   selectedId.value = wgt.id
   markDirty()
@@ -230,7 +303,13 @@ function buildHtml(): string {
 }
 
 async function persistContent(html: string) {
-  await saveDashboardResourceContent(dashboardId, 'index.html', html)
+  // 新建模式：先创建看板拿到 id，再写设计资源，并原地接管路由
+  if (!dashboardId.value) {
+    const created = await saveDashboard({ id: undefined as unknown as string, name: name.value || '未命名看板', apiVersion: '2.0' })
+    dashboardId.value = created.id
+    router.replace(`/dashboard/${created.id}/design`)
+  }
+  await saveDashboardResourceContent(dashboardId.value, 'index.html', html)
 }
 
 async function saveDraft(quiet = false) {
@@ -257,6 +336,8 @@ watch(
   [widgets, name],
   () => {
     if (!dirty.value || loading.value) return
+    // 新建模式下不自动创建看板，由「保存草稿/发布」手动首次落库
+    if (!dashboardId.value) return
     if (autosaveTimer) clearTimeout(autosaveTimer)
     autosaveTimer = setTimeout(() => {
       autosaveTimer = null
@@ -274,7 +355,7 @@ async function publish() {
     rawHtml.value = html
     dirty.value = false
     success('发布成功：已生成看板链接')
-    router.push(`/dashboard/${dashboardId}/viewer`)
+    router.push(`/dashboard/${dashboardId.value}/viewer`)
   } catch (e) {
     fail((e as Error).message || '发布失败')
   } finally {
@@ -283,7 +364,16 @@ async function publish() {
 }
 
 function preview() {
-  router.push(`/dashboard/${dashboardId}/viewer`)
+  router.push(`/dashboard/${dashboardId.value}/viewer`)
+}
+
+/** 返回看板列表：有未保存改动时先确认 */
+function back() {
+  if (dirty.value) {
+    if (!window.confirm('当前看板有未保存的改动，返回后将丢失（自动保存仅在看板创建后生效）。确定返回吗？'))
+      return
+  }
+  router.push('/dashboard')
 }
 
 function toggleCode() {
@@ -360,12 +450,13 @@ onMounted(async () => {
       @save-draft="saveDraft()"
       @publish="publish"
       @toggle-code="toggleCode"
+      @back="back"
     />
 
     <div class="d-bench">
       <!-- 左：部件库 -->
       <div class="card d-lib">
-        <WidgetLibrary @add-widget="onAddWidget" @add-metric="onAddMetric" />
+        <WidgetLibrary :metrics="libMetrics" :charts="libCharts" @add-widget="onAddWidget" @add-metric="onAddMetric" @add-chart="onAddChart" />
       </div>
 
       <!-- 中：画布 -->
@@ -373,7 +464,12 @@ onMounted(async () => {
         <div class="d-modebar">
           <i class="pi pi-info-circle"></i>
           支持 <b>原生 HTML 模板</b> + <b>可视化拖拽</b> 双模式（FR-DS）· 当前：<span class="tag info">{{ codeMode ? '源码模式' : '可视化模式' }}</span>
-          <span class="bp-hint">栅格 12 列 · 吸附 8px · 断点 {{ breakpoint }}</span>
+          <span class="bp-hint">栅格 12 列 · 断点 {{ breakpoint }} · 已选 {{ selectedWidget ? 1 : 0 }} 部件</span>
+          <label class="snap-switch" title="拖拽时 8px 网格吸附">
+            网格吸附
+            <input v-model="snapOn" type="checkbox" />
+            <i></i>
+          </label>
         </div>
 
         <!-- 源码模式 -->
@@ -381,7 +477,7 @@ onMounted(async () => {
           <Textarea v-model="rawHtml" rows="18" class="code-textarea" />
           <div class="code-actions">
             <Button label="应用为可视化设计" size="small" @click="applyRawToDesign" />
-            <Button label="保存源码" size="small" @click="saveDraft" />
+            <Button label="保存源码" size="small" @click="saveDraft()" />
           </div>
         </div>
 
@@ -397,6 +493,8 @@ onMounted(async () => {
             @move="onMove"
             @resize="onResize"
             @remove="onRemove"
+            :snap-on="snapOn"
+            @drop-add="onDropAdd"
           />
         </template>
       </div>
@@ -469,7 +567,13 @@ onMounted(async () => {
 .d-modebar .pi { color: var(--info, #60A5FA); }
 .d-modebar b { color: var(--tx-1); }
 .d-modebar .tag { font-size: 10.5px; }
-.bp-hint { margin-left: auto; font-size: 11px; color: var(--tx-4); }
+.bp-hint { margin-left: auto; font-size: 11px; color: var(--tx-4); display: inline-flex; align-items: center; gap: 10px; }
+.snap-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--tx-3); cursor: pointer; user-select: none; }
+.snap-switch input { display: none; }
+.snap-switch i { width: 28px; height: 16px; border-radius: 99px; background: var(--line-2); position: relative; display: inline-block; transition: background .18s; }
+.snap-switch i::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #fff; position: absolute; left: 2px; top: 2px; transition: left .18s; }
+.snap-switch input:checked + i { background: var(--brand); }
+.snap-switch input:checked + i::after { left: 14px; }
 .code-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .code-textarea { flex: 1; font-family: monospace; font-size: 12px; }
 .code-actions { display: flex; gap: 8px; }

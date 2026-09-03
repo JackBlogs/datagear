@@ -53,6 +53,24 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '指标中心', keepAlive: false },
       },
       {
+        path: 'metric/add',
+        name: 'metricAdd',
+        component: () => import('@/views/metric/MetricFormView.vue'),
+        meta: { title: '新建指标' },
+      },
+      {
+        path: 'metric/:id/edit',
+        name: 'metricEdit',
+        component: () => import('@/views/metric/MetricFormView.vue'),
+        meta: { title: '编辑指标' },
+      },
+      {
+        path: 'metric/:id/view',
+        name: 'metricView',
+        component: () => import('@/views/metric/MetricFormView.vue'),
+        meta: { title: '查看指标' },
+      },
+      {
         path: 'chatbi',
         name: 'chatbi',
         component: () => import('@/views/ChatbiView.vue'),
@@ -99,6 +117,12 @@ const routes: RouteRecordRaw[] = [
         name: 'openApi',
         component: () => import('@/views/OpenApiView.vue'),
         meta: { title: '开放与嵌入', keepAlive: false },
+      },
+      {
+        path: 'system',
+        name: 'system',
+        component: () => import('@/views/system/SystemView.vue'),
+        meta: { title: '系统管理', keepAlive: false },
       },
       {
         path: 'mobile',
@@ -203,6 +227,18 @@ const routes: RouteRecordRaw[] = [
     name: 'dashboardView',
     component: () => import('@/views/dashboard/DashboardFormView.vue'),
     meta: { title: '查看看板' },
+  },
+  {
+    path: '/dashboard/design',
+    name: 'dashboardDesignerNew',
+    component: () => import('@/views/dashboard/DashboardDesignerView.vue'),
+    meta: { title: '新建看板设计' },
+  },
+  {
+    path: '/screen/design',
+    name: 'bigScreenDesignerNew',
+    component: () => import('@/views/bigScreen/BigScreenDesignerView.vue'),
+    meta: { title: '新建大屏设计' },
   },
   {
     path: '/dashboard/:id/design',

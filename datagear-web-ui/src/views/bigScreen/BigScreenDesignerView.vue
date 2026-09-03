@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getBigScreen, getBigScreenDesign, saveBigScreenDesign } from '@/api/bigScreen'
+import { getBigScreen, getBigScreenDesign, saveBigScreenDesign, saveBigScreen } from '@/api/bigScreen'
 import { chartPagingQueryData, type ChartEntity } from '@/api/chart'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import {
@@ -12,6 +12,7 @@ import {
   type WidgetType,
 } from '@/types/dashboardDesign'
 import WidgetLibrary from '@/components/dashboard/WidgetLibrary.vue'
+import { metricPagingQueryData, type MetricEntity } from '@/api/metric'
 import DesignCanvas from '@/components/dashboard/DesignCanvas.vue'
 import PropertyPanel from '@/components/dashboard/PropertyPanel.vue'
 
@@ -21,7 +22,8 @@ import PropertyPanel from '@/components/dashboard/PropertyPanel.vue'
  */
 const route = useRoute()
 const router = useRouter()
-const screenId = route.params.id as string
+/** 无 id 时为「新建模式」：首次保存创建大屏后原地接管（支持二级菜单直达 /screen/design） */
+const screenId = ref<string>(route.params.id as string)
 const { success, fail } = useOperationMessage()
 
 const name = ref('')
@@ -29,6 +31,8 @@ const widgets = ref<DgWidget[]>([])
 const canvasConfig = ref(newScreenDesign().canvas)
 const selectedId = ref<string | null>(null)
 const charts = ref<ChartEntity[]>([])
+const libMetrics = ref<MetricEntity[]>([])
+const libCharts = computed(() => charts.value.map((c) => ({ id: c.id, name: c.name })))
 const loading = ref(false)
 const saving = ref(false)
 const dirty = ref(false)
@@ -71,11 +75,22 @@ function parseDesignJson(json: string): DashboardDesign | null {
 }
 
 async function load() {
+  // 新建模式（菜单直达，无大屏 id）：从示例画布开始，首次保存时创建大屏
+  if (!screenId.value) {
+    name.value = '未命名大屏'
+    try {
+      const cd = await chartPagingQueryData({ page: 1, pageSize: 500 })
+      charts.value = cd.items
+      metricPagingQueryData({ page: 1, pageSize: 100 }).then((md) => { libMetrics.value = md.items }).catch(() => {})
+    } catch { /* ignore */ }
+    addDemo()
+    return
+  }
   loading.value = true
   try {
-    const d = await getBigScreen(screenId)
+    const d = await getBigScreen(screenId.value)
     name.value = d.name
-    const json = await getBigScreenDesign(screenId)
+    const json = await getBigScreenDesign(screenId.value)
     const parsed = parseDesignJson(json)
     if (parsed) {
       widgets.value = parsed.widgets
@@ -87,6 +102,9 @@ async function load() {
     }
     const cd = await chartPagingQueryData({ page: 1, pageSize: 500 })
     charts.value = cd.items
+    metricPagingQueryData({ page: 1, pageSize: 100 })
+      .then((md) => { libMetrics.value = md.items })
+      .catch(() => { /* 语义层未就绪时空态 */ })
     await nextTick()
   } catch (e) {
     fail((e as Error).message || '加载失败')
@@ -124,6 +142,54 @@ function newWidget(payload: { type: WidgetType; n: number }): DgWidget {
 function onAddWidget(payload: { type: WidgetType; n: number }) {
   pushSnapshot()
   const wgt = newWidget(payload)
+  widgets.value.push(wgt)
+  selectedId.value = wgt.id
+  markDirty()
+}
+
+/** 从「可拖入指标（语义层）」添加绑定该指标的指标卡部件 */
+function onAddMetric(payload: { metric: { id?: string; code?: string; name: string }; n: number }) {
+  pushSnapshot()
+  const wgt = newWidget({ type: 'kpi', n: payload.n })
+  wgt.name = payload.metric.name
+  wgt.metricId = payload.metric.id
+  wgt.style!.title = `${payload.metric.name} · 实时`
+  wgt.data!.measures = [`${payload.metric.name}（${payload.metric.id || payload.metric.code}）`]
+  widgets.value.push(wgt)
+  selectedId.value = wgt.id
+  markDirty()
+}
+
+/** 组件库拖放到画布：按光标位置创建（部件中心对齐光标；8px 吸附已在画布侧完成） */
+function onDropAdd(payload: Record<string, unknown>, x: number, y: number) {
+  pushSnapshot()
+  let wgt: DgWidget
+  if (payload.kind === 'metric') {
+    wgt = newWidget({ type: 'kpi', n: Date.now() % 100000 })
+    wgt.name = String(payload.name ?? '指标卡')
+    wgt.metricId = payload.metricId as string
+    wgt.style!.title = `${payload.name} · 实时`
+    wgt.data!.measures = [`${payload.name}（${payload.metricId}）`]
+  } else {
+    const type = payload.type as WidgetType
+    wgt = newWidget({ type, n: Date.now() % 100000 })
+    if (payload.name) wgt.name = String(payload.name)
+    if (typeof payload.w === 'number') wgt.w = payload.w
+    if (typeof payload.h === 'number') wgt.h = payload.h
+  }
+  wgt.x = Math.max(0, x - Math.round(wgt.w / 2))
+  wgt.y = Math.max(0, y - Math.round(wgt.h / 2))
+  widgets.value.push(wgt)
+  selectedId.value = wgt.id
+  markDirty()
+}
+/** 从「我的图表」添加绑定已有图表的部件 */
+function onAddChart(payload: { chart: { id: string; name: string }; n: number }) {
+  pushSnapshot()
+  const wgt = newWidget({ type: 'chart', n: payload.n })
+  wgt.name = payload.chart.name
+  wgt.chartId = payload.chart.id
+  wgt.style!.title = payload.chart.name
   widgets.value.push(wgt)
   selectedId.value = wgt.id
   markDirty()
@@ -180,24 +246,38 @@ const canRedo = computed(() => redoStack.value.length > 0)
 function addDemo() {
   if (widgets.value.length) return
   pushSnapshot()
+  // 示例布局对齐原型 screen.html「集团能源生产运营驾驶舱」：
+  // 顶部标题 + 四大产业 KPI 行 + 产量趋势/完成率（左） + 产区地图（中） + 告警/场站/能耗（右）
+  // 大屏名称由展示页头部大标题承担（scr-head），画布不再放标题部件
   const items: DgWidget[] = [
-    { ...newWidget({ type: 'title', n: 1 }), name: '大屏标题', text: '集团能源生产运营驾驶舱', style: { fontSize: 'large', color: '#FF8A3D' }, w: 720, h: 70 },
-    { ...newWidget({ type: 'kpi', n: 2 }), name: '原油产量', value: '12.86', unit: '万吨', trend: 5.1, style: { color: '#FF8A3D', showTrend: true }, x: 60, y: 130, w: 300, h: 170 },
-    { ...newWidget({ type: 'kpi', n: 3 }), name: '天然气', value: '4.32', unit: '亿方', trend: 8.6, style: { color: '#22D3EE', showTrend: true }, x: 380, y: 130, w: 300, h: 170 },
-    { ...newWidget({ type: 'kpi', n: 4 }), name: '化工品', value: '3.15', unit: '万吨', trend: 3.2, style: { color: '#A78BFA', showTrend: true }, x: 700, y: 130, w: 300, h: 170 },
-    { ...newWidget({ type: 'chart', n: 5 }), name: '产量趋势', x: 60, y: 330, w: 940, h: 340 },
-    { ...newWidget({ type: 'chart', n: 6 }), name: '能耗分布', x: 1020, y: 330, w: 840, h: 340 },
+    // 四大产业 KPI 行
+    { ...newWidget({ type: 'kpi', n: 2 }), name: '原油产量', value: '12.86', unit: '万吨', trend: 5.1, x: 40, y: 120, w: 300, h: 160, style: { color: '#FF8A3D', showTrend: true, title: '原油产量 · 昨日' } },
+    { ...newWidget({ type: 'kpi', n: 3 }), name: '天然气产量', value: '4.32', unit: '亿方', trend: 8.6, x: 360, y: 120, w: 300, h: 160, style: { color: '#22D3EE', showTrend: true, title: '天然气产量 · 昨日' } },
+    { ...newWidget({ type: 'kpi', n: 4 }), name: '化工品产量', value: '3.15', unit: '万吨', trend: 3.2, x: 680, y: 120, w: 300, h: 160, style: { color: '#A78BFA', showTrend: true, title: '化工品产量 · 昨日' } },
+    { ...newWidget({ type: 'kpi', n: 5 }), name: '原煤产量', value: '28.4', unit: '万吨', trend: 0.6, x: 1000, y: 120, w: 300, h: 160, style: { color: '#E8B33C', showTrend: true, title: '原煤产量 · 昨日' } },
+    // 左侧：近30日产量趋势（绑定真实图表）
+    { ...newWidget({ type: 'chart', n: 6 }), name: '近30日产量趋势', x: 40, y: 310, w: 620, h: 380, style: { title: '近30日产量趋势（万吨 / 亿方）' } },
+    // 左下：月度生产完成率（进度环）
+    { ...newWidget({ type: 'progress', n: 7 }), name: '月度生产完成率', x: 40, y: 710, w: 620, h: 320, style: { title: '月度生产完成率 · 截至昨日' } },
+    // 中部：主力产区分布地图（绑定真实地图图表）
+    { ...newWidget({ type: 'chart', n: 8 }), name: '主力产区分布与管网输送', x: 690, y: 310, w: 620, h: 720, style: { title: '主力产区分布与管网输送（气泡 = 日产量）' } },
+    // 右侧：实时告警 / 场站状态 / 能耗排放
+    { ...newWidget({ type: 'text', n: 9 }), name: '实时告警', x: 1340, y: 120, w: 540, h: 180, style: { title: '实时告警（3 未处理）' }, text: '【告警】长庆区块日产油量低于阈值 100 万吨 · 08:12\n【订阅】经营日报已推送至企业微信 · 08:00\n【质量】ODS_采油日报表 质量校验通过 98.6% · 昨日 22:00' },
+    { ...newWidget({ type: 'table', n: 10 }), name: '场站 / 装置运行状态', x: 1340, y: 320, w: 540, h: 400, style: { title: '场站 / 装置运行状态（共 24 座）' } },
+    { ...newWidget({ type: 'chart', n: 11 }), name: '能耗与排放', x: 1340, y: 740, w: 540, h: 290, style: { title: '能耗与排放（本月累计）' } },
   ]
   // 示例图表部件绑定真实图表，画布立即呈现真实取数效果
-  items
-    .filter((it) => it.type === 'chart')
-    .forEach((cw, i) => {
-      const c = charts.value[i]
-      if (c) {
-        cw.chartId = c.id
-        cw.name = c.name
-      }
-    })
+  const realCharts = charts.value
+  const bindMap: Record<string, number> = { '近30日产量趋势': 0, '主力产区分布与管网输送': 2, 能耗与排放: 1 }
+  for (const it of items) {
+    if (it.type !== 'chart') continue
+    const idx = bindMap[it.name]
+    const c = idx !== undefined ? realCharts[idx] : undefined
+    if (c) {
+      it.chartId = c.id
+      it.name = it.style!.title || it.name
+    }
+  }
   widgets.value = items
   selectedId.value = items[1]?.id ?? null
   markDirty()
@@ -207,7 +287,13 @@ function addDemo() {
 async function saveDraft() {
   saving.value = true
   try {
-    await saveBigScreenDesign(screenId, JSON.stringify(design.value))
+    // 新建模式：先创建大屏实体再写设计 JSON，并原地接管路由
+    if (!screenId.value) {
+      const created = await saveBigScreen({ id: undefined as unknown as string, name: name.value || '未命名大屏' })
+      screenId.value = created.id
+      router.replace(`/screen/${created.id}/design`)
+    }
+    await saveBigScreenDesign(screenId.value, JSON.stringify(design.value))
     dirty.value = false
     success('大屏已保存')
   } catch (e) {
@@ -217,7 +303,7 @@ async function saveDraft() {
   }
 }
 function preview() {
-  router.push(`/screen/${screenId}/viewer`)
+  router.push(`/screen/${screenId.value}/viewer`)
 }
 function back() {
   router.push('/screen')
@@ -247,14 +333,14 @@ onMounted(async () => {
 
     <div class="d-bench">
       <div class="card d-lib">
-        <WidgetLibrary @add-widget="onAddWidget" />
+        <WidgetLibrary :metrics="libMetrics" :charts="libCharts" @add-widget="onAddWidget" @add-metric="onAddMetric" @add-chart="onAddChart" />
       </div>
 
       <div class="d-canvas-wrap">
         <div class="d-modebar">
           <i class="pi pi-info-circle"></i>
-          可视化拖拽模式 · 当前：<span class="tag info">大屏设计</span>
-          <span class="bp-hint">同步生成 1920×1080 全屏展示</span>
+          可视化拖拽模式（FR-SCREEN）· 当前：<span class="tag info">大屏设计</span>
+          <span class="bp-hint">固定舞台 1920×1080 · 展示页等比缩放适配任意大屏</span>
         </div>
         <div v-if="loading" class="p-4 text-color-secondary">加载中…</div>
         <DesignCanvas
@@ -266,6 +352,7 @@ onMounted(async () => {
           @move="onMove"
           @resize="onResize"
           @remove="onRemove"
+          @drop-add="onDropAdd"
         />
       </div>
 

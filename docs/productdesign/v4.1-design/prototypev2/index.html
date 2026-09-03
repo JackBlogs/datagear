@@ -21,8 +21,9 @@
     background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .welcome .w-sub { color: var(--tx-3); font-size: 13px; margin-top: 4px; }
+  .welcome .w-right { display: flex; align-items: center; gap: 12px; flex: 1; justify-content: flex-end; min-width: 380px; }
   .quick-ask {
-    display: flex; align-items: center; gap: 10px; min-width: 380px; flex: 1; max-width: 560px;
+    display: flex; align-items: center; gap: 10px; flex: 1; max-width: 520px;
     background: rgba(7,10,18,.55); border: 1px solid var(--brand-line);
     border-radius: 26px; padding: 11px 18px; cursor: pointer;
     transition: all var(--dur);
@@ -67,27 +68,95 @@
   .tpl-card .t-bg { position: absolute; inset: 0; opacity: .9; }
   .tpl-card .t-name { position: relative; font-size: 14px; font-weight: 700; }
   .tpl-card .t-sub { position: relative; font-size: 11px; color: var(--tx-2); }
+
+  /* ---- 深化轮：布局管理（FR-HOME-19~22） ---- */
+  .layout-bar {
+    display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 18px; margin-bottom: 14px;
+    background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: var(--r-l);
+    font-size: 13px; color: var(--tx-2);
+  }
+  .layout-bar b { color: var(--brand); }
+  body.layout-editing .layout-bar { display: flex; }
+  body.layout-editing .wc-card { outline: 1.5px dashed var(--brand-line); outline-offset: 3px; border-radius: var(--r-l); }
+  body.layout-editing .wc-card .card-title { cursor: grab; }
+  body.layout-editing .wc-card.drag-src { opacity: .35; outline-style: solid; }
+  .wc-eye {
+    display: none; align-items: center; gap: 4px; margin-left: 8px; padding: 2px 8px;
+    background: var(--bg-glass-2); border: 1px solid var(--line-2); border-radius: 7px;
+    color: var(--tx-3); font-size: 11px; cursor: pointer; transition: all var(--dur);
+  }
+  .wc-eye:hover { color: var(--danger); border-color: rgba(248,113,113,.4); }
+  .wc-eye svg { width: 12px; height: 12px; }
+  body.layout-editing .wc-eye { display: inline-flex; }
+  .hidden-bar { display: none; padding: 12px 18px; font-size: 12.5px; color: var(--tx-3); }
+  .hidden-bar .h-chip {
+    display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 6px 0; padding: 4px 12px;
+    background: var(--bg-glass-2); border: 1px dashed var(--line-2); border-radius: 8px;
+    color: var(--tx-2); cursor: pointer; transition: all var(--dur);
+  }
+  .hidden-bar .h-chip:hover { border-color: var(--brand-line); color: var(--brand); }
+  .hidden-bar.has { display: block; }
+  body:not(.layout-editing) .hidden-bar { display: none; }
+
+  /* ---- 深化轮：角色化新手引导（FR-HOME-23） ---- */
+  .tour-mask { position: fixed; inset: 0; z-index: 340; }
+  .tour-spot {
+    position: fixed; z-index: 341; pointer-events: none; border-radius: 12px;
+    border: 1px solid var(--brand);
+    box-shadow: 0 0 0 100000px rgba(4,6,10,.74), var(--shadow-glow-brand);
+    transition: all .3s var(--ease);
+  }
+  .tour-tip {
+    position: fixed; z-index: 342; width: 340px; max-width: calc(100vw - 32px);
+    background: rgba(13,20,32,.97); border: 1px solid var(--line-2); border-radius: var(--r-l);
+    box-shadow: var(--shadow-2); backdrop-filter: blur(12px); padding: 16px 18px 14px;
+  }
+  .tour-tip .tt-step { font-size: 10.5px; letter-spacing: 1.5px; color: var(--brand); font-family: var(--font-num); font-weight: 700; }
+  .tour-tip h4 { font-size: 15px; font-weight: 700; margin: 4px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .tour-tip h4 svg { width: 16px; height: 16px; color: var(--brand); flex: none; }
+  .tour-tip .tt-desc { font-size: 12.5px; color: var(--tx-2); line-height: 1.75; }
+  .tour-tip .tt-desc b { color: var(--tx-1); }
+  .tour-tip .tt-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+  .tour-dot { width: 6px; height: 6px; border-radius: 3px; background: var(--line-3); transition: all var(--dur); }
+  .tour-dot.on { width: 16px; background: var(--brand); }
+  .tour-tip .tt-skip { margin-left: auto; color: var(--tx-3); font-size: 12px; cursor: pointer; }
+  .tour-tip .tt-skip:hover { color: var(--tx-1); }
+
   @media (max-width: 1200px) { .portal-grid { grid-template-columns: 1fr; } .tpl-strip { grid-template-columns: repeat(2,1fr); } }
 </style>
 </head>
 <body data-page="home">
 <div id="page-content" style="display:none">
 
-  <!-- 欢迎横幅 + AI 问数入口（FR-HOME 数据门户/工作台） -->
+  <!-- 布局管理工具条（进入布局管理态显示，FR-HOME-19~22） -->
+  <div class="layout-bar" id="layoutBar">
+    <b>布局管理中</b>
+    <span>拖拽卡片调序 · 点击卡片标题右侧 <b>隐藏</b> 按钮显隐卡片，布局将保存为个人偏好</span>
+    <span style="margin-left:auto;display:flex;gap:10px">
+      <button class="btn sm danger ghost" id="btnLayoutReset">恢复默认</button>
+      <button class="btn sm primary" id="btnLayoutDone">完成</button>
+    </span>
+  </div>
+
+  <!-- 欢迎横幅 + AI 问数入口 + 布局管理入口（FR-HOME 数据门户/工作台） -->
   <section class="welcome">
     <div>
       <h1>早上好，李明 —— <em>今日全集团生产运行平稳</em></h1>
       <div class="w-sub">2026年9月3日 星期四 · 华北油田分公司 · 数据更新于 06:30（调度准时率 99.2%）</div>
     </div>
-    <div class="quick-ask" onclick="location.href='chatbi.html'">
-      <span class="qa-icon" id="qa-icon"></span>
-      <span>试试问数：「上月各采油厂原油产量的同比变化？」</span>
-      <span class="qa-btn">问 AI</span>
+    <div class="w-right">
+      <button class="btn ghost" id="btnLayout" title="卡片拖拽调序与显隐（FR-HOME-19~22）"><span style="width:14px;height:14px;display:flex" id="ic-layout"></span>布局管理</button>
+      <div class="quick-ask" id="quickAsk">
+        <span class="qa-icon" id="qa-icon"></span>
+        <span>试试问数：「上月各采油厂原油产量的同比变化？」</span>
+        <span class="qa-btn">问 AI</span>
+      </div>
     </div>
   </section>
 
   <!-- 核心 KPI 指标卡（语义层指标消费：FR-SEM-07 个性化指标卡） -->
-  <section class="stat-grid mb-3">
+  <section class="stat-grid mb-3" id="statGrid">
     <div class="stat-card" style="--sc-glow:rgba(255,138,61,.14)">
       <div class="s-label"><span class="ind oil"><i></i>石油</span> 原油产量 · 昨日</div>
       <div class="s-value"><span data-count="12.86">0</span><span class="unit">万吨</span></div>
@@ -123,9 +192,9 @@
   </section>
 
   <div class="portal-grid">
-    <div class="flex-col" style="gap:14px">
+    <div class="flex-col" style="gap:14px" id="mainCol">
       <!-- 生产运营趋势 -->
-      <div class="card">
+      <div class="card wc-card" data-wc="trend">
         <div class="card-title"><span class="bar"></span>生产运营趋势
           <span class="more" style="display:flex;gap:4px" id="trendSeg"></span>
         </div>
@@ -133,7 +202,7 @@
       </div>
 
       <!-- 行业看板模板库（FR-HOME-25：≥5套行业模板一键套用） -->
-      <div class="card">
+      <div class="card wc-card" data-wc="tpl">
         <div class="card-title"><span class="bar"></span>行业看板模板库 <span class="tag brand">一键套用</span>
           <span class="more" onclick="location.href='dashboards.html'">全部模板 ›</span>
         </div>
@@ -158,25 +227,28 @@
       </div>
 
       <!-- 最近访问 -->
-      <div class="card">
+      <div class="card wc-card" data-wc="recent">
         <div class="card-title"><span class="bar"></span>最近访问 <span class="more">更多 ›</span></div>
         <div class="fav-grid" id="recentGrid"></div>
       </div>
+
+      <!-- 已隐藏卡片恢复条（仅布局管理态显示） -->
+      <div class="card hidden-bar" id="hiddenBar"></div>
     </div>
 
     <!-- 右侧：待办 / 告警 / 收藏 -->
-    <div class="flex-col" style="gap:14px">
-      <div class="card">
+    <div class="flex-col" style="gap:14px" id="sideCol">
+      <div class="card wc-card" data-wc="todo">
         <div class="card-title"><span class="bar"></span>待办与消息
           <span class="tag danger" style="margin-left:auto">3 条告警</span>
         </div>
         <div id="todoList"></div>
       </div>
-      <div class="card">
+      <div class="card wc-card" data-wc="fav">
         <div class="card-title"><span class="bar"></span>我的收藏 <span class="more">管理 ›</span></div>
         <div id="favList"></div>
       </div>
-      <div class="card">
+      <div class="card wc-card" data-wc="asset">
         <div class="card-title"><span class="bar"></span>数据资产概览</div>
         <div class="chart" style="height:170px" data-chart="assetDonut"></div>
       </div>
@@ -190,6 +262,8 @@
 <script src="assets/js/mock-api.js"></script>
 <script>
 document.getElementById('qa-icon').innerHTML = DG.ICONS.spark;
+document.getElementById('ic-layout').innerHTML = DG.ICONS.board;
+const esc = DG.ui.esc;
 
 /* KPI 指标卡点击 → 指标中心详情（FR-SEM-07 个性化指标卡） */
 document.querySelectorAll('.stat-card').forEach(c => {
@@ -198,7 +272,7 @@ document.querySelectorAll('.stat-card').forEach(c => {
 });
 
 /* 快速问数：携带问题跳转 ChatBI（FR-AI-01） */
-document.querySelector('.quick-ask').onclick = () =>
+document.getElementById('quickAsk').onclick = () =>
   location.href = 'chatbi.html?q=' + encodeURIComponent('上月各采油厂原油产量的同比变化？');
 
 /* 最近访问 */
@@ -293,6 +367,192 @@ DG.autoCharts({
     }]
   })
 });
+
+/* ============================================================
+   深化轮：首页布局管理（FR-HOME-19~22）
+   卡片拖拽调序 + 显隐配置 + 恢复默认（二次确认）+ 个人偏好持久化
+   ============================================================ */
+const DEFAULT_LAYOUT = { main: ['trend', 'tpl', 'recent'], side: ['todo', 'fav', 'asset'], hidden: [] };
+const WC_NAMES = { trend: '生产运营趋势', tpl: '行业看板模板库', recent: '最近访问', todo: '待办与消息', fav: '我的收藏', asset: '数据资产概览' };
+const mainCol = document.getElementById('mainCol');
+const sideCol = document.getElementById('sideCol');
+const hiddenBar = document.getElementById('hiddenBar');
+let editing = false;
+let layout = { main: [...DEFAULT_LAYOUT.main], side: [...DEFAULT_LAYOUT.side], hidden: [] };
+
+function wcEl(id) { return document.querySelector(`.wc-card[data-wc="${id}"]`); }
+function applyLayout(l) {
+  if (!l) return;
+  layout = { main: l.main || [...DEFAULT_LAYOUT.main], side: l.side || [...DEFAULT_LAYOUT.side], hidden: l.hidden || [] };
+  layout.main.forEach(id => { const el = wcEl(id); if (el) mainCol.appendChild(el); });
+  layout.side.forEach(id => { const el = wcEl(id); if (el) sideCol.appendChild(el); });
+  layout.hidden.forEach(id => { const el = wcEl(id); if (el) el.style.display = 'none'; });
+  renderHiddenBar();
+}
+function currentLayout() {
+  const order = col => [...col.querySelectorAll('.wc-card')].map(c => c.dataset.wc);
+  const hidden = [...document.querySelectorAll('.wc-card')].filter(c => c.style.display === 'none').map(c => c.dataset.wc);
+  return { main: order(mainCol), side: order(sideCol), hidden };
+}
+function renderHiddenBar() {
+  const hs = currentLayout().hidden;
+  hiddenBar.className = 'card hidden-bar' + (hs.length ? ' has' : '');
+  hiddenBar.innerHTML = hs.length
+    ? `已隐藏卡片（点击恢复显示）：${hs.map(id => `<span class="h-chip" data-restore="${id}">${WC_NAMES[id] || id} ↩</span>`).join('')}`
+    : '';
+  hiddenBar.querySelectorAll('[data-restore]').forEach(ch => ch.onclick = () => {
+    const el = wcEl(ch.dataset.restore);
+    if (el) el.style.display = '';
+    renderHiddenBar();
+    DG.ui.toast(`「${WC_NAMES[ch.dataset.restore]}」已恢复显示`, 'ok');
+  });
+}
+/* 隐藏按钮（仅布局管理态可见） */
+const EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>';
+document.querySelectorAll('.wc-card .card-title').forEach(t => {
+  const eye = document.createElement('span');
+  eye.className = 'wc-eye';
+  eye.innerHTML = EYE_SVG + '隐藏';
+  eye.onclick = e => {
+    e.stopPropagation();
+    const card = e.target.closest('.wc-card');
+    card.style.display = 'none';
+    renderHiddenBar();
+    DG.ui.toast(`「${WC_NAMES[card.dataset.wc]}」已隐藏（完成布局后保存）`);
+  };
+  t.insertBefore(eye, t.querySelector('.more') || null);
+});
+/* 拖拽调序（HTML5 DnD，仅布局管理态生效） */
+let dragEl = null;
+document.querySelectorAll('.wc-card').forEach(card => {
+  card.addEventListener('dragstart', e => { if (!editing) { e.preventDefault(); return; } dragEl = card; card.classList.add('drag-src'); });
+  card.addEventListener('dragend', () => { card.classList.remove('drag-src'); dragEl = null; });
+});
+[mainCol, sideCol].forEach(col => {
+  col.addEventListener('dragover', e => {
+    if (!editing || !dragEl) return;
+    e.preventDefault();
+    const cards = [...col.querySelectorAll('.wc-card:not(.drag-src)')];
+    const after = cards.find(el => {
+      const r = el.getBoundingClientRect();
+      return e.clientY < r.top + r.height / 2;
+    });
+    if (after) col.insertBefore(dragEl, after); else col.appendChild(dragEl);
+  });
+  col.addEventListener('drop', e => e.preventDefault());
+});
+/* 进入 / 退出布局管理 */
+function setEditing(on) {
+  editing = on;
+  document.body.classList.toggle('layout-editing', on);
+  document.getElementById('btnLayout').textContent = on ? '布局管理中…' : '布局管理';
+  document.querySelectorAll('.wc-card').forEach(c => { c.draggable = !!on; });
+  if (!on) saveLayout();
+  if (on) renderHiddenBar();
+}
+async function saveLayout(silent) {
+  const r = await DG.api.post('/home/layout', currentLayout());
+  if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+  if (!silent) DG.ui.toast('布局已保存为个人偏好（FR-HOME-22）', 'ok');
+}
+document.getElementById('btnLayout').onclick = () => {
+  setEditing(!editing);
+  if (editing) DG.ui.toast('布局管理：拖拽卡片调序，标题栏「隐藏」按钮显隐卡片', 'info');
+};
+document.getElementById('btnLayoutDone').onclick = () => setEditing(false);
+document.getElementById('btnLayoutReset').onclick = async () => {
+  const ok = await DG.ui.confirm({
+    danger: true, title: '恢复默认布局', okLabel: '恢复默认',
+    content: '将清除个人布局偏好，恢复系统默认的卡片顺序与显隐。确认继续？'
+  });
+  if (!ok) return;
+  await DG.api.post('/home/layout', { reset: true });
+  document.querySelectorAll('.wc-card').forEach(c => { c.style.display = ''; });
+  applyLayout(DEFAULT_LAYOUT);
+  DG.ui.toast('已恢复默认布局', 'ok');
+};
+/* 初始化：加载个人布局偏好（GET /home/layout） */
+DG.api.get('/home/layout').then(r => { if (r.code === 0 && r.data) applyLayout(r.data); });
+
+/* ============================================================
+   深化轮：角色化新手引导（FR-HOME-23）
+   首次登录自动展示 · 可跳过 · 顶栏「帮助」随时重开（shell.js 派发 dg:tour）
+   ============================================================ */
+const TOUR_STEPS = [
+  { sel: '#quickAsk', icon: 'chat', title: 'AI 快速问数', place: 'bottom',
+    desc: '用自然语言直接取数，无需写 SQL。输入如「<b>上月各采油厂原油产量的同比变化？</b>」，回答含图表 + 数据 + 结论，取数逻辑全程透明。' },
+  { sel: '#statGrid', icon: 'metric', title: '关注指标卡', place: 'bottom',
+    desc: '四产业务核心指标来自<b>指标中心统一口径</b>（FR-SEM-07）。点击卡片可下钻指标详情，关注后在首页常驻。' },
+  { sel: '[data-wc="trend"]', icon: 'board', title: '趋势 · 模板 · 布局', place: 'bottom',
+    desc: '分段器切换时间粒度；下方<b>行业模板一键套用</b>（FR-HOME-25）。卡片支持拖拽调序与显隐（布局管理）。' },
+  { sel: '[data-wc="todo"]', icon: 'bell', title: '待办与消息', place: 'left',
+    desc: '告警 / 审批 / 质量 / 订阅统一入口，点击直达处理页，告警可一键<b>查看归因</b>（S-04 闭环）。' },
+  { sel: '.sidebar', icon: 'home', title: '五大分组导航', place: 'right',
+    desc: '概览 → 数据资产 → 分析展示 → 运营协同 → 平台。任意页面按 <b>⌘K</b> 唤起全局搜索，找不到可直接问 AI。' }
+];
+function startTour() {
+  if (document.getElementById('tourMask')) return;
+  const mask = document.createElement('div');
+  mask.className = 'tour-mask'; mask.id = 'tourMask';
+  const spot = document.createElement('div');
+  spot.className = 'tour-spot';
+  const tip = document.createElement('div');
+  tip.className = 'tour-tip';
+  document.body.append(mask, spot, tip);
+  let cur = 0;
+  function position() {
+    const st = TOUR_STEPS[cur];
+    const el = document.querySelector(st.sel);
+    if (!el) { next(); return; }
+    const r = el.getBoundingClientRect();
+    const pad = 6;
+    spot.style.cssText += `;left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px`;
+    /* 提示卡定位：优先 step 声明方向，越界自动翻转 */
+    const tw = 340, th = tip.offsetHeight || 180;
+    let left, top;
+    if (st.place === 'right') { left = r.right + 14; top = Math.max(12, r.top + r.height / 2 - th / 2); }
+    else if (st.place === 'left') { left = r.left - tw - 14; top = Math.max(12, r.top + r.height / 2 - th / 2); }
+    else { left = Math.max(12, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 12)); top = r.bottom + 14; }
+    if (left < 12) left = 12;
+    if (top + th > window.innerHeight - 12 && st.place !== 'right' && st.place !== 'left') top = r.top - th - 14;
+    if (top < 12) top = 12;
+    tip.style.left = left + 'px';
+    tip.style.top = Math.max(12, top) + 'px';
+  }
+  function render() {
+    const st = TOUR_STEPS[cur];
+    tip.innerHTML = `
+      <div class="tt-step">STEP ${cur + 1} / ${TOUR_STEPS.length} · 数据分析师</div>
+      <h4>${DG.ICONS[st.icon] || ''}${st.title}</h4>
+      <div class="tt-desc">${st.desc}</div>
+      <div class="tt-foot">
+        ${TOUR_STEPS.map((_, i) => `<span class="tour-dot ${i === cur ? 'on' : ''}"></span>`).join('')}
+        <span class="tt-skip" data-skip>跳过引导</span>
+        ${cur > 0 ? '<button class="btn sm" data-prev>上一步</button>' : ''}
+        <button class="btn sm primary" data-next>${cur === TOUR_STEPS.length - 1 ? '开始使用' : '下一步'}</button>
+      </div>`;
+    tip.querySelector('[data-prev]') && (tip.querySelector('[data-prev]').onclick = () => { cur--; render(); position(); });
+    tip.querySelector('[data-next]').onclick = () => { if (cur === TOUR_STEPS.length - 1) finish(); else { cur++; render(); position(); } };
+    tip.querySelector('[data-skip]').onclick = finish;
+    position();
+  }
+  function finish() {
+    try { localStorage.setItem('dg_tour_done', '1'); } catch (e) { /* noop */ }
+    mask.remove(); spot.remove(); tip.remove();
+    window.removeEventListener('resize', position);
+    DG.ui.toast('引导完成。可随时点击顶栏「帮助」重新打开（FR-HOME-23）', 'ok');
+  }
+  window.addEventListener('resize', position);
+  render();
+}
+window.addEventListener('dg:tour', startTour);                  // shell.js 顶栏帮助按钮派发
+if (new URLSearchParams(location.search).get('tour') === '1') {
+  setTimeout(startTour, 600);
+} else {
+  let done = false;
+  try { done = !!localStorage.getItem('dg_tour_done'); } catch (e) { /* noop */ }
+  if (!done) setTimeout(startTour, 900);                        // 首次登录自动展示
+}
 </script>
 </body>
 </html>

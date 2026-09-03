@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.datagear.management.domain.MetricEntity">
+
+	<insert id="insert">
+		INSERT INTO DATAGEAR_METRIC
+			(
+			METRIC_ID, METRIC_NAME, METRIC_CALIBER, METRIC_TYPE,
+			METRIC_SOURCE_ID, METRIC_TABLE_NAME, METRIC_VALUE_FIELD, METRIC_AGG_TYPE,
+			METRIC_DIMENSIONS, METRIC_TIME_FIELD, METRIC_BIZ_DOMAIN, METRIC_OWNER,
+			METRIC_CERTIFIED, METRIC_CREATE_TIME, METRIC_CREATE_USER_ID
+			)
+		VALUES
+			(
+			#{entity.id}, #{entity.name}, #{entity.caliber}, #{entity.metricType},
+			#{entity.sourceId}, #{entity.tableName}, #{entity.valueField}, #{entity.aggType},
+			#{entity.dimensionsJson}, #{entity.timeField}, #{entity.bizDomain}, #{entity.owner},
+			#{entity.certified}, #{entity.createTime}, #{entity.createUserId}
+			)
+	</insert>
+
+	<update id="update">
+		UPDATE DATAGEAR_METRIC SET
+			METRIC_NAME = #{entity.name},
+			METRIC_CALIBER = #{entity.caliber},
+			METRIC_TYPE = #{entity.metricType},
+			METRIC_SOURCE_ID = #{entity.sourceId},
+			METRIC_TABLE_NAME = #{entity.tableName},
+			METRIC_VALUE_FIELD = #{entity.valueField},
+			METRIC_AGG_TYPE = #{entity.aggType},
+			METRIC_DIMENSIONS = #{entity.dimensionsJson},
+			METRIC_TIME_FIELD = #{entity.timeField},
+			METRIC_BIZ_DOMAIN = #{entity.bizDomain},
+			METRIC_OWNER = #{entity.owner},
+			METRIC_CERTIFIED = #{entity.certified}
+		WHERE
+			METRIC_ID = #{entity.id}
+	</update>
+
+	<update id="updateCertified">
+		UPDATE DATAGEAR_METRIC SET
+			METRIC_CERTIFIED = #{certified}
+		WHERE
+			METRIC_ID = #{id}
+	</update>
+
+	<delete id="deleteById">
+		DELETE FROM DATAGEAR_METRIC
+		WHERE
+			METRIC_ID = #{id}
+	</delete>
+
+	<select id="getById" resultType="org.datagear.management.domain.MetricEntity">
+		SELECT
+			T.*
+		FROM
+			(<include refid="queryView" />) T
+		WHERE
+			T.${_iq_}id${_iq_} = #{id}
+	</select>
+
+	<select id="query" resultType="org.datagear.management.domain.MetricEntity">
+		SELECT
+			T.*
+		FROM
+			(<include refid="queryView" />) T
+		WHERE
+			<include refid="queryCondition" />
+		<include refid="common.queryOrder" />
+	</select>
+
+	<select id="pagingQueryCount" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			(<include refid="queryView" />) T
+		WHERE
+			<include refid="queryCondition" />
+	</select>
+
+	<select id="pagingQuery" resultType="org.datagear.management.domain.MetricEntity">
+		<include refid="common.pagingQueryHead" />
+			SELECT
+				T.*
+			FROM
+				(<include refid="queryView" />) T
+			WHERE
+				<include refid="queryCondition" />
+			<include refid="common.queryOrder" />
+		<include refid="common.pagingQueryFoot" />
+	</select>
+
+	<sql id="queryView">
+		SELECT
+			A.METRIC_ID AS ${_iq_}id${_iq_},
+			A.METRIC_NAME AS ${_iq_}name${_iq_},
+			A.METRIC_CALIBER AS ${_iq_}caliber${_iq_},
+			A.METRIC_TYPE AS ${_iq_}metricType${_iq_},
+			A.METRIC_SOURCE_ID AS ${_iq_}sourceId${_iq_},
+			A.METRIC_TABLE_NAME AS ${_iq_}tableName${_iq_},
+			A.METRIC_VALUE_FIELD AS ${_iq_}valueField${_iq_},
+			A.METRIC_AGG_TYPE AS ${_iq_}aggType${_iq_},
+			A.METRIC_DIMENSIONS AS ${_iq_}dimensionsJson${_iq_},
+			A.METRIC_TIME_FIELD AS ${_iq_}timeField${_iq_},
+			A.METRIC_BIZ_DOMAIN AS ${_iq_}bizDomain${_iq_},
+			A.METRIC_OWNER AS ${_iq_}owner${_iq_},
+			A.METRIC_CERTIFIED AS ${_iq_}certified${_iq_},
+			A.METRIC_CREATE_TIME AS ${_iq_}createTime${_iq_},
+			A.METRIC_CREATE_USER_ID AS ${_iq_}createUserId${_iq_}
+		FROM
+			DATAGEAR_METRIC A
+	</sql>
+
+	<sql id="queryCondition">
+		1 = 1
+		<if test="queryKeyword != null">
+		AND
+		(
+			${_iq_}name${_iq_} LIKE #{queryKeyword} OR
+			${_iq_}caliber${_iq_} LIKE #{queryKeyword} OR
+			${_iq_}bizDomain${_iq_} LIKE #{queryKeyword}
+		)
+		</if>
+	</sql>
+
+	<!-- ==================== 指标版本（FR-SEM-05） ==================== -->
+
+	<insert id="insertVersion">
+		INSERT INTO DATAGEAR_METRIC_VERSION
+			(
+			MV_ID, MV_METRIC_ID, MV_VERSION_NO, MV_SNAPSHOT,
+			MV_CHANGE_NOTE, MV_CREATE_TIME, MV_CREATE_USER_ID
+			)
+		VALUES
+			(
+			#{version.id}, #{version.metricId}, #{version.versionNo}, #{version.snapshot},
+			#{version.changeNote}, #{version.createTime}, #{version.createUserId}
+			)
+	</insert>
+
+	<select id="maxVersionNo" resultType="int">
+		SELECT
+			MAX(MV_VERSION_NO)
+		FROM
+			DATAGEAR_METRIC_VERSION
+		WHERE
+			MV_METRIC_ID = #{metricId}
+	</select>
+
+	<select id="listVersions" resultType="org.datagear.management.domain.MetricVersion">
+		SELECT
+			A.MV_ID AS ${_iq_}id${_iq_},
+			A.MV_METRIC_ID AS ${_iq_}metricId${_iq_},
+			A.MV_VERSION_NO AS ${_iq_}versionNo${_iq_},
+			A.MV_SNAPSHOT AS ${_iq_}snapshot${_iq_},
+			A.MV_CHANGE_NOTE AS ${_iq_}changeNote${_iq_},
+			A.MV_CREATE_TIME AS ${_iq_}createTime${_iq_},
+			A.MV_CREATE_USER_ID AS ${_iq_}createUserId${_iq_}
+		FROM
+			DATAGEAR_METRIC_VERSION A
+		WHERE
+			A.MV_METRIC_ID = #{metricId}
+		ORDER BY
+			A.MV_VERSION_NO DESC
+	</select>
+
+	<delete id="deleteVersionsByMetricId">
+		DELETE FROM DATAGEAR_METRIC_VERSION
+		WHERE
+			MV_METRIC_ID = #{metricId}
+	</delete>
+</mapper>

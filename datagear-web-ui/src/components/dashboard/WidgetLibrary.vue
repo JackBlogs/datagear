@@ -3,12 +3,26 @@ import { ref } from 'vue'
 import type { WidgetType } from '@/types/dashboardDesign'
 
 /**
- * 设计器左侧部件库（对齐原型 designer.html）：图表 / 组件 / 文本 三 Tab + 「可拖入指标（语义层）」列表。
- * 点击部件即添加画布；点击语义指标添加绑定该指标的指标卡部件（指标中心真实化后自动切真实 API）。
+ * 设计器左侧部件库（对齐原型 designer.html）：图表 / 组件 / 文本 三 Tab
+ * + 「我的图表」（原有图表模块，点击/拖入即绑定 chartId）
+ * + 「可拖入指标（语义层）」（/api/metric 真实指标，拖入生成指标卡并实时取数）。
  */
+export interface LibMetric {
+  id: string
+  name: string
+  certified?: number
+}
+export interface LibChart {
+  id: string
+  name: string
+}
+
+const props = defineProps<{ metrics?: LibMetric[]; charts?: LibChart[] }>()
+
 const emit = defineEmits<{
   (e: 'addWidget', payload: { type: WidgetType; n: number }): void
-  (e: 'addMetric', payload: { metric: SemanticMetric; n: number }): void
+  (e: 'addMetric', payload: { metric: LibMetric; n: number }): void
+  (e: 'addChart', payload: { chart: LibChart; n: number }): void
 }>()
 
 type Kind = 'chart' | 'comp' | 'text'
@@ -57,28 +71,40 @@ const tabs: { key: Kind; label: string }[] = [
   { key: 'text', label: '文本' },
 ]
 
-/** 可拖入指标（语义层）：指标中心真实化后从 /api/metric 拉取 */
-interface SemanticMetric {
-  code: string
-  name: string
-  ind: 'oil' | 'gas' | 'chem' | 'coal'
-}
-const METRICS: SemanticMetric[] = [
-  { code: 'M-OIL-001', name: '原油产量', ind: 'oil' },
-  { code: 'M-OIL-014', name: '吨油完全成本', ind: 'oil' },
-  { code: 'M-OIL-027', name: '井口综合含水率', ind: 'oil' },
-  { code: 'M-GAS-002', name: '管输量', ind: 'gas' },
-  { code: 'M-CHEM-011', name: '甲醇优级品率', ind: 'chem' },
-  { code: 'M-COAL-001', name: '原煤产量', ind: 'coal' },
-]
-
 function add(item: LibItem) {
   seq++
   emit('addWidget', { type: item.type, n: seq })
 }
-function addMetric(m: SemanticMetric) {
+function addMetric(m: LibMetric) {
   seq++
   emit('addMetric', { metric: m, n: seq })
+}
+function addChart(c: LibChart) {
+  seq++
+  emit('addChart', { chart: c, n: seq })
+}
+
+/** HTML5 拖拽：dragstart 写入拖拽数据，画布 drop 时按光标位置创建部件 */
+function onItemDragStart(e: DragEvent, item: LibItem) {
+  e.dataTransfer?.setData(
+    'application/x-dg-widget',
+    JSON.stringify({ kind: 'widget', type: item.type, name: item.name, w: item.w, h: item.h }),
+  )
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'
+}
+function onMetricDragStart(e: DragEvent, m: LibMetric) {
+  e.dataTransfer?.setData(
+    'application/x-dg-widget',
+    JSON.stringify({ kind: 'metric', metricId: m.id, name: m.name, w: 300, h: 140 }),
+  )
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'
+}
+function onChartDragStart(e: DragEvent, c: LibChart) {
+  e.dataTransfer?.setData(
+    'application/x-dg-widget',
+    JSON.stringify({ kind: 'chart', chartId: c.id, name: c.name, w: 460, h: 300 }),
+  )
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'
 }
 </script>
 
@@ -101,7 +127,9 @@ function addMetric(m: SemanticMetric) {
           v-for="item in LIB[kind]"
           :key="item.name"
           class="wt-item"
-          :title="`拖入「${item.name}」`"
+          :title="`拖拽或点击添加「${item.name}」`"
+          draggable="true"
+          @dragstart="onItemDragStart($event, item)"
           @click="add(item)"
         >
           <i class="pi" :class="item.icon"></i>
@@ -110,14 +138,42 @@ function addMetric(m: SemanticMetric) {
         </div>
       </div>
 
-      <!-- 可拖入指标（语义层） -->
+      <!-- 我的图表（原有图表模块）：绑定 chartId，画布内真实取数 -->
+      <div class="lib-sec-t">我的图表（图表模块）</div>
+      <div class="m-list">
+        <div
+          v-for="c in props.charts || []"
+          :key="c.id"
+          class="m-item"
+          :title="`拖拽或点击添加绑定「${c.name}」的图表部件`"
+          draggable="true"
+          @dragstart="onChartDragStart($event, c)"
+          @click="addChart(c)"
+        >
+          <span class="m-ind chart"></span>
+          <span class="m-name">{{ c.name }}</span>
+          <span class="m-code">已发布</span>
+        </div>
+        <div v-if="!(props.charts || []).length" class="lib-empty">图表模块暂无已创建图表</div>
+      </div>
+
+      <!-- 可拖入指标（语义层，真实 /api/metric） -->
       <div class="lib-sec-t">可拖入指标（语义层）</div>
       <div class="m-list">
-        <div v-for="m in METRICS" :key="m.code" class="m-item" :title="`添加绑定「${m.name}」的指标卡`" @click="addMetric(m)">
-          <span class="m-ind" :class="m.ind"></span>
+        <div
+          v-for="m in props.metrics || []"
+          :key="m.id"
+          class="m-item"
+          :title="`拖拽或点击添加绑定「${m.name}」的指标卡`"
+          draggable="true"
+          @dragstart="onMetricDragStart($event, m)"
+          @click="addMetric(m)"
+        >
+          <span class="m-ind oil"></span>
           <span class="m-name">{{ m.name }}</span>
-          <span class="m-code">{{ m.code }}</span>
+          <span v-if="m.certified" class="m-code ok">已认证</span>
         </div>
+        <div v-if="!(props.metrics || []).length" class="lib-empty">指标中心暂无指标</div>
       </div>
     </div>
   </div>
@@ -142,6 +198,7 @@ function addMetric(m: SemanticMetric) {
 .wt-size { position: absolute; right: 5px; top: 5px; font-size: 8.5px; font-family: var(--font-num, monospace); color: var(--tx-4); font-style: normal; }
 
 .lib-sec-t { margin: 14px 0 8px; font-size: 11px; color: var(--tx-4); letter-spacing: 0.5px; }
+.lib-empty { font-size: 11px; color: var(--tx-4); padding: 4px 2px; }
 .m-list { display: flex; flex-direction: column; gap: 5px; }
 .m-item {
   display: flex; align-items: center; gap: 7px; padding: 6px 9px; font-size: 11.5px; color: var(--tx-2);
@@ -151,9 +208,7 @@ function addMetric(m: SemanticMetric) {
 .m-item:hover { border-color: var(--brand-line); color: var(--tx-1); background: var(--brand-soft); }
 .m-ind { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .m-ind.oil { background: #ff8a3d; }
-.m-ind.gas { background: #22d3ee; }
-.m-ind.chem { background: #a78bfa; }
-.m-ind.coal { background: #e8b33c; }
-.m-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-ind.chart { background: #22d3ee; border-radius: 2px; }
 .m-code { font-size: 9.5px; font-family: var(--font-num, monospace); color: var(--tx-4); }
+.m-code.ok { color: #34d399; }
 </style>

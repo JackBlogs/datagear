@@ -146,6 +146,11 @@
 
   <!-- 告警历史 -->
   <div class="tab-pane" data-pane="history">
+    <div class="flex wrap mb-2" style="gap:8px" id="hisFilter">
+      <span class="seg-item active" data-st="all" style="border:1px solid var(--line-2)">全部</span>
+      <span class="seg-item" data-st="pending" style="border:1px solid var(--line-1)">待处理</span>
+      <span class="seg-item" data-st="handled" style="border:1px solid var(--line-1)">已处理</span>
+    </div>
     <div class="table-wrap" id="hisWrap">
       <table class="tbl">
         <thead><tr>
@@ -359,17 +364,27 @@
   document.getElementById('btnWizard2').onclick = () => openRuleWizard(null);
   document.getElementById('btnWizard3').onclick = () => openRuleWizard(null);
 
-  /* ================= 告警历史（GET /alert/history/list） ================= */
-  let HIS = [];
-  async function loadHis() {
-    const wrap = document.getElementById('hisWrap');
-    const stop = DG.ui.blockLoading(wrap);
-    const r = await DG.api.get('/alert/history/list');
-    stop();
-    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadHis)); return; }
-    HIS = r.data.rows;
-    renderHis();
-  }
+/* ================= 告警历史（GET /alert/history/list?status=） ================= */
+let HIS = [];
+let hisStatus = 'all';
+async function loadHis() {
+  const wrap = document.getElementById('hisWrap');
+  const stop = DG.ui.blockLoading(wrap);
+  const r = await DG.api.get('/alert/history/list', { status: hisStatus });
+  stop();
+  if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadHis)); return; }
+  HIS = r.data.rows;
+  renderHis();
+}
+/* 状态筛选 chips（全部/待处理/已处理，服务端过滤） */
+document.querySelectorAll('#hisFilter .seg-item').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('#hisFilter .seg-item').forEach(x => { x.classList.remove('active'); x.style.borderColor = 'var(--line-1)'; });
+    c.classList.add('active'); c.style.borderColor = 'var(--line-2)';
+    hisStatus = c.dataset.st;
+    loadHis();
+  });
+});
   function renderHis() {
     const tb = document.getElementById('hisTbody');
     DG.ui.renderRows(tb, HIS, h => `
@@ -466,10 +481,16 @@
           if (!recv) { body.querySelector('#eSbRecv').textContent = '接收人不能为空'; body.querySelector('#eSbRecv').classList.remove('hidden'); ok = false; }
           if (!ok) return false;
           const fmts = [...body.querySelectorAll('.chk-row input:checked')].map(x => x.value).join('+') || '图片';
-          const row = { id: 'SB-NEW', name, resource: body.querySelector('#sbRes').value, cron: '0 0 8 * * ?', freqText: body.querySelector('#sbFreq').value, channels: [body.querySelector('#sbCh').value], receivers: recv, format: fmts, enabled: true, last: '—' };
-          SUBS.push(row); renderSubs();
+          DG.ui.btnLoading(btn, true);
+          const r = await DG.api.post('/subscribe/save', {
+            name, resource: body.querySelector('#sbRes').value, freqText: body.querySelector('#sbFreq').value,
+            channels: [body.querySelector('#sbCh').value], receivers: recv, format: fmts
+          });
+          DG.ui.btnLoading(btn, false);
+          if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+          SUBS.push(r.data); renderSubs();
           api.close();
-          DG.ui.toast(`订阅「${name}」已创建，${row.freqText} 推送`, 'ok');
+          DG.ui.toast(`订阅「${name}」已创建，${r.data.freqText} 推送（cron ${r.data.cron}）`, 'ok');
         }
       }]
     });
@@ -509,16 +530,12 @@
         if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
         DG.ui.toast(`已触发手动执行「${j.name}」· ${r.data.fireTime}`, 'ok');
       };
-      tr.querySelector('[data-act="log"]').onclick = () => {
+      tr.querySelector('[data-act="log"]').onclick = async () => {
+        const r = await DG.api.get('/job/log', { jobId: j.id });
+        const lines = r.code === 0 ? r.data.lines : ['日志加载失败：' + r.message];
         DG.ui.modal({
           title: `执行日志 · ${j.name}`, width: 640,
-          body: `<div class="mono-block">[${j.last}] 触发方式：定时调度（cron ${j.cron}）
-[${j.last}] 任务实例 ${j.id}-20260903 进入执行队列（executors: 2/8 空闲）
-[${j.last}] 加载任务上下文：目标「${j.name}」，超时阈值 300s
-[${j.last}] 开始执行主逻辑 ……
-[${j.last}] 数据处理完成：读取 12,842 行，写出 12,842 行
-[${j.last}] 执行结束：结果「${j.status}」，总耗时 4.2s
-[${j.last}] 下次计划执行：${j.next}</div>`,
+          body: `<div class="mono-block">${lines.map(l => DG.ui.esc(l)).join('\n')}</div>`,
           buttons: [{ label: '关 闭', primary: true }]
         });
       };

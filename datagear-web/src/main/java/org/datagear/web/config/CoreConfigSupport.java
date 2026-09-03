@@ -75,6 +75,7 @@ import org.datagear.management.service.HtmlChartWidgetEntityService;
 import org.datagear.management.service.HtmlTplDashboardWidgetEntityService;
 import org.datagear.management.service.RoleService;
 import org.datagear.management.service.BigScreenService;
+import org.datagear.management.service.MetricService;
 import org.datagear.management.service.SqlHistoryService;
 import org.datagear.management.service.UserService;
 import org.datagear.management.service.impl.AbstractMybatisDataPermissionEntityService;
@@ -82,6 +83,8 @@ import org.datagear.management.service.impl.AbstractMybatisEntityService;
 import org.datagear.management.service.impl.AnalysisProjectAuthorizationListenerAware;
 import org.datagear.management.service.impl.AnalysisProjectServiceImpl;
 import org.datagear.management.service.impl.AuthorizationListenerAware;
+import org.datagear.management.service.impl.MetricServiceImpl;
+import org.datagear.web.metric.MetricQueryEngine;
 import org.datagear.management.service.impl.AuthorizationServiceImpl;
 import org.datagear.management.service.impl.BundleAnalysisProjectAuthorizationListener;
 import org.datagear.management.service.impl.BundleAuthorizationListener;
@@ -776,6 +779,23 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	public BigScreenService bigScreenService()
 	{
 		BigScreenServiceImpl bean = new BigScreenServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public MetricService metricService()
+	{
+		MetricServiceImpl bean = new MetricServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public MetricQueryEngine metricQueryEngine()
+	{
+		MetricQueryEngine bean = new MetricQueryEngine();
+		bean.setConnectionSource(this.connectionSource());
 
 		return bean;
 	}
