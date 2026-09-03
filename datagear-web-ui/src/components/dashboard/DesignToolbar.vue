@@ -12,6 +12,8 @@ defineProps<{
   breakpoint: Breakpoint
   dirty: boolean
   saving: boolean
+  /** 最近一次草稿自动保存时间（HH:mm:ss），空则不显示 */
+  savedAt?: string
 }>()
 
 const emit = defineEmits<{
@@ -36,6 +38,7 @@ const bpIcon: Record<Breakpoint, string> = {
   <div class="d-toolbar">
     <div class="d-name">
       {{ name }} <span class="tag warn">{{ dirty ? '编辑中' : '已保存' }}</span>
+      <span v-if="savedAt" class="sm tx-3 saved-at">草稿已自动保存 {{ savedAt }}</span>
     </div>
     <div class="d-divider"></div>
 
@@ -80,6 +83,9 @@ const bpIcon: Record<Breakpoint, string> = {
 }
 .d-name { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .d-name .tag { font-weight: 400; font-size: 10.5px; }
+.saved-at { font-weight: 400; font-size: 11px; }
+.tx-3 { color: var(--tx-3); }
+.sm { font-size: 11.5px; }
 .d-divider { width: 1px; height: 20px; background: var(--line-2); }
 .t-icon-btn {
   width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent;

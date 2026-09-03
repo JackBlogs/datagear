@@ -22,6 +22,9 @@ export type WidgetType =
   | 'funnel'
   | 'tab'
   | 'map'
+  | '3d'
+  | 'video'
+  | 'marquee'
 
 /** 画布断点 */
 export type Breakpoint = 'desktop' | 'tablet' | 'mobile'
@@ -124,9 +127,9 @@ export function breakpointSize(bp: Breakpoint): [number, number] {
 /** 断点显示名 */
 export function breakpointLabel(bp: Breakpoint): string {
   const map: Record<Breakpoint, string> = {
-    desktop: '桌面端',
-    tablet: '平板端',
-    mobile: '手机端',
+    desktop: '桌面端 1440',
+    tablet: '平板端 768',
+    mobile: '手机端 375',
   }
   return map[bp] ?? bp
 }

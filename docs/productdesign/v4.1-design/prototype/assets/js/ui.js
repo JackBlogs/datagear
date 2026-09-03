@@ -10,8 +10,10 @@
   function el(html) { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-  /* ---------- Toast（类型化：ok / err / warn / info） ---------- */
-  function toast(msg, type) {
+  /* ---------- Toast（类型化：ok / err / warn / info）
+     opt: { duration:毫秒(默认3000), action:{label, onClick} 可撤销动作（IX-FB-07 五秒撤销窗口） } ---------- */
+  function toast(msg, type, opt) {
+    opt = opt || {};
     let box = document.getElementById('dg-toast');
     if (!box) {
       box = document.createElement('div'); box.id = 'dg-toast';
@@ -20,10 +22,97 @@
     }
     const item = document.createElement('div');
     item.className = type ? 't-' + type : '';
-    item.style.cssText = 'background:rgba(17,26,42,.96);border:1px solid rgba(255,138,61,.35);color:#F2F5FA;padding:9px 18px;border-radius:10px;font-size:13px;box-shadow:0 8px 30px rgba(0,0,0,.45);backdrop-filter:blur(10px);transition:all .3s';
-    item.textContent = msg;
+    item.style.cssText = 'background:rgba(17,26,42,.96);border:1px solid rgba(255,138,61,.35);color:#F2F5FA;padding:9px 18px;border-radius:10px;font-size:13px;box-shadow:0 8px 30px rgba(0,0,0,.45);backdrop-filter:blur(10px);transition:all .3s;display:flex;align-items:center;gap:12px;pointer-events:auto';
+    const txt = document.createElement('span');
+    txt.textContent = msg;
+    item.appendChild(txt);
+    if (opt.action) {
+      const act = document.createElement('span');
+      act.textContent = opt.action.label || '撤销';
+      act.style.cssText = 'color:var(--brand);cursor:pointer;font-weight:600;text-decoration:underline;text-underline-offset:3px;flex:none';
+      act.onclick = () => { try { opt.action.onClick(); } catch (e) { /* noop */ } dismiss(); };
+      item.appendChild(act);
+    }
     box.appendChild(item);
-    setTimeout(() => { item.style.opacity = '0'; item.style.transform = 'translateY(-8px)'; setTimeout(() => item.remove(), 300); }, 3000);
+    let done = false;
+    function dismiss() {
+      if (done) return; done = true;
+      item.style.opacity = '0'; item.style.transform = 'translateY(-8px)';
+      setTimeout(() => item.remove(), 300);
+    }
+    setTimeout(dismiss, opt.duration || 3000);
+  }
+
+  /* ---------- 右键菜单（对齐 02 规范 IX-FB 拖拽/右键模式；组件对照 DgContextMenu）
+     items: [{label, icon(SVG字符串), danger, disabled, onClick}]
+            {divider:true} 分隔线 ---------- */
+  let ctxStyleInjected = false;
+  function ensureCtxStyle() {
+    if (ctxStyleInjected) return; ctxStyleInjected = true;
+    const s = document.createElement('style');
+    s.textContent = `
+      .dg-ctx{position:fixed;z-index:400;min-width:172px;background:rgba(17,26,42,.97);border:1px solid var(--line-2);
+        border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);backdrop-filter:blur(12px);padding:5px;
+        animation:dgCtxIn .12s ease-out}
+      @keyframes dgCtxIn{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
+      .dg-ctx-item{display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:7px;font-size:12.5px;
+        color:var(--tx-2);cursor:pointer;transition:background var(--dur),color var(--dur)}
+      .dg-ctx-item:hover{background:var(--brand-soft);color:var(--tx-1)}
+      .dg-ctx-item.danger{color:var(--danger)}
+      .dg-ctx-item.danger:hover{background:rgba(248,113,113,.13)}
+      .dg-ctx-item.disabled{opacity:.4;cursor:not-allowed}
+      .dg-ctx-item.disabled:hover{background:none;color:var(--tx-2)}
+      .dg-ctx-item .c-ico{display:flex;flex:none;color:var(--tx-3)}
+      .dg-ctx-item:hover .c-ico{color:inherit}
+      .dg-ctx-item .c-ico svg{width:14px;height:14px}
+      .dg-ctx-item .c-key{margin-left:auto;font-size:10.5px;color:var(--tx-4);font-family:var(--font-mono)}
+      .dg-ctx-divider{height:1px;background:var(--line-1);margin:5px 8px}`;
+    document.head.appendChild(s);
+  }
+  function contextMenu(x, y, items) {
+    closeContextMenu();
+    ensureCtxStyle();
+    const menu = document.createElement('div');
+    menu.className = 'dg-ctx';
+    menu.innerHTML = items.map(it => it.divider
+      ? '<div class="dg-ctx-divider"></div>'
+      : `<div class="dg-ctx-item ${it.danger ? 'danger' : ''} ${it.disabled ? 'disabled' : ''}">${it.icon ? `<span class="c-ico">${it.icon}</span>` : ''}<span class="grow">${esc(it.label)}</span>${it.key ? `<span class="c-key">${esc(it.key)}</span>` : ''}</div>`).join('');
+    document.body.appendChild(menu);
+    const rect = menu.getBoundingClientRect();
+    const px = Math.min(x, window.innerWidth - rect.width - 8);
+    const py = Math.min(y, window.innerHeight - rect.height - 8);
+    menu.style.left = Math.max(8, px) + 'px';
+    menu.style.top = Math.max(8, py) + 'px';
+    menu.querySelectorAll('.dg-ctx-item').forEach((el, i) => {
+      const it = items.filter(t => !t.divider)[i];
+      if (!it || it.disabled) return;
+      el.onclick = () => { closeContextMenu(); it.onClick && it.onClick(); };
+    });
+    setTimeout(() => {
+      document.addEventListener('pointerdown', outside, true);
+      document.addEventListener('keydown', onKey, true);
+      window.addEventListener('scroll', closeContextMenu, true);
+      window.addEventListener('resize', closeContextMenu, true);
+    }, 0);
+    function outside(e) { if (!menu.contains(e.target)) closeContextMenu(); }
+    function onKey(e) { if (e.key === 'Escape') closeContextMenu(); }
+    function close() {
+      menu.remove();
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('scroll', closeContextMenu, true);
+      window.removeEventListener('resize', closeContextMenu, true);
+    }
+    return { close };
+  }
+  function closeContextMenu() { document.querySelectorAll('.dg-ctx').forEach(m => m.remove()); }
+  /* 便捷绑定：元素上直接挂 contextmenu */
+  function bindContextMenu(el, itemsProvider) {
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault(); e.stopPropagation();
+      const items = typeof itemsProvider === 'function' ? itemsProvider(e) : itemsProvider;
+      if (items && items.length) contextMenu(e.clientX, e.clientY, items);
+    });
   }
 
   /* ---------- 模态 ---------- */
@@ -192,6 +281,6 @@
     tbody.innerHTML = rows.length ? rows.map(rowHtml).join('') : `<tr><td colspan="20" style="padding:0">${emptyBlock('没有符合条件的记录')}</td></tr>`;
   }
 
-  DG.ui = { el, esc, toast, modal, drawer, confirm, formModal, btnLoading, blockLoading, emptyBlock, errorBlock, pager, renderRows };
+  DG.ui = { el, esc, toast, modal, drawer, confirm, formModal, btnLoading, blockLoading, emptyBlock, errorBlock, pager, renderRows, contextMenu, closeContextMenu, bindContextMenu };
   if (!DG.toast || DG.toast.length < 2) DG.toast = toast; // 覆盖 shell.js 旧版，统一类型化
 })();

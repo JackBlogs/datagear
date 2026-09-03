@@ -43,6 +43,9 @@ const saving = ref(false)
 const dirty = ref(false)
 const codeMode = ref(false)
 const rawHtml = ref('')
+/** 最近一次草稿自动保存时间（对齐原型「草稿已自动保存 hh:mm:ss」） */
+const savedAt = ref('')
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 
 /* 撤销 / 重做快照 */
 const undoStack = ref<DgWidget[][]>([])
@@ -141,6 +144,18 @@ function onAddWidget(payload: { type: WidgetType; n: number }) {
   markDirty()
 }
 
+/** 从「可拖入指标（语义层）」添加绑定该指标的指标卡部件 */
+function onAddMetric(payload: { metric: { code: string; name: string }; n: number }) {
+  pushSnapshot()
+  const wgt = newWidget({ type: 'kpi', n: payload.n })
+  wgt.name = payload.metric.name
+  wgt.style.title = `${payload.metric.name} · 昨日`
+  wgt.data.measures = [`${payload.metric.name}（${payload.metric.code}）`]
+  widgets.value.push(wgt)
+  selectedId.value = wgt.id
+  markDirty()
+}
+
 function onSelect(id: string | null) {
   selectedId.value = id
 }
@@ -218,20 +233,38 @@ async function persistContent(html: string) {
   await saveDashboardResourceContent(dashboardId, 'index.html', html)
 }
 
-async function saveDraft() {
+async function saveDraft(quiet = false) {
   saving.value = true
   try {
     const html = buildHtml()
     await persistContent(html)
     rawHtml.value = html
     dirty.value = false
-    success('草稿已保存')
+    const now = new Date()
+    savedAt.value = [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map((n) => String(n).padStart(2, '0'))
+      .join(':')
+    if (!quiet) success('草稿已保存')
   } catch (e) {
     fail((e as Error).message || '保存失败')
   } finally {
     saving.value = false
   }
 }
+
+/* ---------------- 草稿自动保存（编辑停顿 2.5s 后静默保存） ---------------- */
+watch(
+  [widgets, name],
+  () => {
+    if (!dirty.value || loading.value) return
+    if (autosaveTimer) clearTimeout(autosaveTimer)
+    autosaveTimer = setTimeout(() => {
+      autosaveTimer = null
+      if (dirty.value && !saving.value) saveDraft(true)
+    }, 2500)
+  },
+  { deep: true },
+)
 
 async function publish() {
   saving.value = true
@@ -319,11 +352,12 @@ onMounted(async () => {
       :breakpoint="breakpoint"
       :dirty="dirty"
       :saving="saving"
+      :saved-at="savedAt"
       @undo="undo"
       @redo="redo"
       @breakpoint="onBreakpoint"
       @preview="preview"
-      @save-draft="saveDraft"
+      @save-draft="saveDraft()"
       @publish="publish"
       @toggle-code="toggleCode"
     />
@@ -331,14 +365,14 @@ onMounted(async () => {
     <div class="d-bench">
       <!-- 左：部件库 -->
       <div class="card d-lib">
-        <WidgetLibrary @add-widget="onAddWidget" />
+        <WidgetLibrary @add-widget="onAddWidget" @add-metric="onAddMetric" />
       </div>
 
       <!-- 中：画布 -->
       <div class="d-canvas-wrap">
         <div class="d-modebar">
           <i class="pi pi-info-circle"></i>
-          支持 <b>可视化拖拽</b> 模式 · 当前：<span class="tag info">{{ codeMode ? '源码模式' : '可视化模式' }}</span>
+          支持 <b>原生 HTML 模板</b> + <b>可视化拖拽</b> 双模式（FR-DS）· 当前：<span class="tag info">{{ codeMode ? '源码模式' : '可视化模式' }}</span>
           <span class="bp-hint">栅格 12 列 · 吸附 8px · 断点 {{ breakpoint }}</span>
         </div>
 
