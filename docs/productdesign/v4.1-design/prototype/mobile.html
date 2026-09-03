@@ -40,7 +40,7 @@
   .p-search {
     display: flex; align-items: center; gap: 7px; padding: 8px 12px; margin-bottom: 12px;
     background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 16px;
-    color: var(--tx-4); font-size: 11.5px;
+    color: var(--tx-4); font-size: 11.5px; cursor: pointer;
   }
   .p-search svg { width: 13px; height: 13px; }
   .p-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 12px; }
@@ -55,13 +55,17 @@
   .p-kpi .k-t { font-size: 10px; font-family: var(--font-num); margin-top: 2px; }
   .p-card { background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: 14px; padding: 12px; margin-bottom: 12px; }
   .p-card .pc-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  .p-card .pc-title .more { font-size: 10.5px; color: var(--tx-3); font-weight: 400; }
-  .p-db-item { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .p-card .pc-title .more { font-size: 10.5px; color: var(--tx-3); font-weight: 400; cursor: pointer; }
+  .p-db-item { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; }
   .p-db-item:last-child { border-bottom: none; }
   .p-db-item .d-ico { width: 30px; height: 30px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; }
   .p-db-item .d-ico svg { width: 15px; height: 15px; }
   .p-db-item .d-n { font-size: 12px; font-weight: 600; }
   .p-db-item .d-s { font-size: 10px; color: var(--tx-3); }
+  /* 看板详情视图 */
+  .p-backbar { display: flex; align-items: center; gap: 8px; padding: 4px 0 10px; font-size: 13px; font-weight: 600; }
+  .p-backbar .bk { display: inline-flex; align-items: center; gap: 4px; color: var(--tx-3); cursor: pointer; font-size: 11px; font-weight: 400; }
+  .p-backbar .bk svg { width: 14px; height: 14px; transform: rotate(180deg); }
   /* 问数视图 */
   .p-chat-q { display: flex; justify-content: flex-end; margin-bottom: 10px; }
   .p-chat-q .q-b { background: var(--brand-grad); color: #241105; font-size: 12px; font-weight: 600; padding: 8px 12px; border-radius: 14px 14px 4px 14px; max-width: 82%; }
@@ -70,14 +74,17 @@
   .p-chat-a .a-ava svg { width: 14px; height: 14px; }
   .p-chat-a .a-b { background: var(--bg-glass-2); border: 1px solid var(--line-1); font-size: 11.5px; color: var(--tx-2); padding: 9px 11px; border-radius: 4px 14px 14px 14px; max-width: 86%; line-height: 1.6; }
   .p-input { display: flex; gap: 8px; margin-top: 4px; }
-  .p-input .in { flex: 1; background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 16px; padding: 8px 12px; font-size: 11.5px; color: var(--tx-4); }
-  .p-input .send { width: 34px; height: 34px; border-radius: 50%; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; color: #241105; flex: none; }
+  .p-input .in { flex: 1; background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 16px; padding: 8px 12px; font-size: 11.5px; color: var(--tx-1); outline: none; font-family: var(--font); }
+  .p-input .in::placeholder { color: var(--tx-4); }
+  .p-input .send { width: 34px; height: 34px; border-radius: 50%; background: var(--brand-grad); display: flex; align-items: center; justify-content: center; color: #241105; flex: none; cursor: pointer; }
   .p-input .send svg { width: 15px; height: 15px; }
   /* 消息视图 */
-  .p-msg { display: flex; gap: 10px; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .p-msg { display: flex; gap: 10px; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; }
   .p-msg .m-ico { width: 32px; height: 32px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; }
   .p-msg .m-ico svg { width: 16px; height: 16px; }
-  .p-msg .m-t { font-size: 12px; font-weight: 600; color: var(--tx-1); }
+  .p-msg .m-t { font-size: 12px; font-weight: 600; color: var(--tx-1); display: flex; align-items: center; gap: 6px; }
+  .p-msg .m-t .udot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); flex: none; }
+  .p-msg.read .m-t { color: var(--tx-3); font-weight: 400; }
   .p-msg .m-s { font-size: 10.5px; color: var(--tx-3); margin-top: 1px; }
   /* 底部 Tab 栏 */
   .p-tabbar {
@@ -102,6 +109,10 @@
   }
   .h5-bar svg { width: 15px; height: 15px; color: var(--brand); flex: none; }
   .h5-bar b { color: var(--brand); }
+  /* 二维码占位 */
+  .qr-box { display: grid; gap: 1px; width: 190px; height: 190px; margin: 10px auto; padding: 10px; background: #fff; border-radius: 10px; }
+  .qr-box i { background: #111A2A; border-radius: 1px; }
+  .qr-box i.w { background: #fff; }
   @media (max-width: 1100px) { .m-layout { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -114,8 +125,8 @@
       <div class="page-desc">H5 深化策略 · 不做原生 App：一套 H5 嵌入微信 / 企微 / 钉钉轻应用（PRD 10.11）</div>
     </div>
     <div class="page-actions">
-      <button class="btn" onclick="DG.toast('原型演示：生成体验二维码')">体验二维码</button>
-      <button class="btn primary" onclick="DG.toast('原型演示：发布到企业微信工作台')">发布轻应用</button>
+      <button class="btn" id="btnQr">体验二维码</button>
+      <button class="btn primary" id="btnPubApp">发布轻应用</button>
     </div>
   </div>
 
@@ -160,11 +171,11 @@
                 </div>
               </div>
               <div class="p-card">
-                <div class="pc-title">近 7 日产量趋势 <span class="more">详情 ›</span></div>
+                <div class="pc-title">近 7 日产量趋势 <span class="more" onclick="DG.ui.toast('原型演示：趋势详情页','ok')">详情 ›</span></div>
                 <div class="chart" style="height:130px;min-height:130px" id="mTrend"></div>
               </div>
               <div class="p-card">
-                <div class="pc-title">我的看板 <span class="more">全部 ›</span></div>
+                <div class="pc-title">我的看板 <span class="more" id="pAllBoards">全部 ›</span></div>
                 <div id="pDbList"></div>
               </div>
             </div>
@@ -175,20 +186,50 @@
               <div id="pBoardList"></div>
             </div>
 
-            <!-- 问数视图 -->
-            <div class="p-view" data-view="chat">
-              <div class="p-chat-q"><div class="q-b">上月各采油厂原油产量排名？</div></div>
-              <div class="p-chat-a">
-                <span class="a-ava" id="aiAva"></span>
-                <div class="a-b">已按语义指标「原油产量 M-OIL-001」查询 2026-08 各采油厂产量，长庆油田以 <b style="color:var(--brand)">39.12 万吨</b> 居首，华北油田 28.94 万吨列第三。结果已按您的行级权限过滤。</div>
+            <!-- 看板详情视图（第 5 视图） -->
+            <div class="p-view" data-view="boardDetail">
+              <div class="p-backbar">
+                <span class="bk" id="bdBack"></span>
+                <span id="bdName" class="ellipsis">看板详情</span>
+              </div>
+              <div class="p-kpis">
+                <div class="p-kpi" style="--k-glow:rgba(255,138,61,.16)">
+                  <div class="k-l">原油产量 · 昨日</div>
+                  <div class="k-v">12.86<small> 万吨</small></div>
+                  <div class="k-t" style="color:var(--ok)">▲ 2.4% 日环比</div>
+                </div>
+                <div class="p-kpi" style="--k-glow:rgba(232,179,60,.15)">
+                  <div class="k-l">综合含水率</div>
+                  <div class="k-v">87.4<small> %</small></div>
+                  <div class="k-t" style="color:var(--warn)">▲ 0.6pct 同比</div>
+                </div>
+              </div>
+              <div class="p-card">
+                <div class="pc-title">近 7 日产量趋势</div>
+                <div class="chart" style="height:130px;min-height:130px" id="bdChart1"></div>
               </div>
               <div class="p-card">
                 <div class="pc-title">各采油厂产量（万吨）</div>
-                <div class="chart" style="height:150px;min-height:150px" id="mChatChart"></div>
+                <div class="chart" style="height:150px;min-height:150px" id="bdChart2"></div>
+              </div>
+            </div>
+
+            <!-- 问数视图 -->
+            <div class="p-view" data-view="chat">
+              <div id="chatBox">
+                <div class="p-chat-q"><div class="q-b">上月各采油厂原油产量排名？</div></div>
+                <div class="p-chat-a">
+                  <span class="a-ava" id="aiAva"></span>
+                  <div class="a-b">已按语义指标「原油产量 M-OIL-001」查询 2026-08 各采油厂产量，长庆油田以 <b style="color:var(--brand)">39.12 万吨</b> 居首，华北油田 28.94 万吨列第三。结果已按您的行级权限过滤。</div>
+                </div>
+                <div class="p-card">
+                  <div class="pc-title">各采油厂产量（万吨）</div>
+                  <div class="chart" style="height:150px;min-height:150px" id="mChatChart"></div>
+                </div>
               </div>
               <div class="p-input">
-                <div class="in">继续提问，如「同比去年如何？」</div>
-                <div class="send" id="sendIco" onclick="DG.toast('原型演示：发送问题')"></div>
+                <input class="in" id="chatIn" placeholder="继续提问，如「同比去年如何？」"/>
+                <div class="send" id="sendBtn"></div>
               </div>
             </div>
 
@@ -221,29 +262,74 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
   /* 状态栏 / 搜索图标 */
   document.getElementById('statusIco').innerHTML = DG.ICONS.dot + DG.ICONS.mobile;
   document.getElementById('pSearchIco').insertAdjacentHTML('afterbegin', DG.ICONS.search);
   document.getElementById('pSearch2').insertAdjacentHTML('afterbegin', DG.ICONS.search);
   document.getElementById('aiAva').innerHTML = DG.ICONS.spark;
-  document.getElementById('sendIco').innerHTML = DG.ICONS.arrowR;
+  document.getElementById('sendBtn').innerHTML = DG.ICONS.arrowR;
   document.getElementById('h5Ico').innerHTML = DG.ICONS.mobile;
+  document.getElementById('bdBack').innerHTML = DG.ICONS.arrowR + '返回';
 
-  /* 手机内看板列表 */
+  /* ================= 视图切换（分段器 + 底部 Tab 联动） ================= */
+  let chatChartInited = false, bdInited = false, curView = 'home', fromView = 'home';
+  function switchView(v) {
+    if (v === 'mine') { DG.ui.toast('我的 · 个人中心属 Phase 2 能力，见 PRD 10.11 · FR-MOB-06', 'warn'); return; }
+    curView = v;
+    document.querySelectorAll('.p-view').forEach(x => x.classList.toggle('show', x.dataset.view === v));
+    const segV = v === 'boardDetail' ? 'board' : v;
+    document.querySelectorAll('#viewSeg .seg-item').forEach(x => x.classList.toggle('active', x.dataset.view === segV));
+    document.querySelectorAll('.p-tab').forEach(x => x.classList.toggle('active', x.dataset.view === segV));
+    if (v === 'chat' && !chatChartInited) { chatChartInited = true; initChatChart(); }
+    if (v === 'chat' && chatChartInited) setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
+    if (v === 'boardDetail' && !bdInited) { bdInited = true; setTimeout(initBdCharts, 60); }
+    if (v === 'boardDetail' && bdInited) setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
+  }
+
+  /* ================= 我的看板 → 看板详情（第 5 视图） ================= */
   const DBS = [
     { n: '华北油田生产日报', s: '看板 · 12 图表', c: 'var(--oil)', bg: 'var(--oil-soft)' },
     { n: '西气东输管网监控', s: '大屏 · 实时', c: 'var(--gas)', bg: 'var(--gas-soft)' },
     { n: '煤矿安全监控', s: '看板 · 8 图表', c: 'var(--coal)', bg: 'var(--coal-soft)' },
   ];
+  function openBoardDetail(name, from) {
+    fromView = from || curView;
+    document.getElementById('bdName').textContent = name;
+    switchView('boardDetail');
+  }
   document.getElementById('pDbList').innerHTML = DBS.map(d => `
-    <div class="p-db-item">
+    <div class="p-db-item" data-n="${d.n}">
       <span class="d-ico" style="color:${d.c};background:${d.bg}">${DG.ICONS.board}</span>
       <div style="flex:1;min-width:0"><div class="d-n">${d.n}</div><div class="d-s">${d.s}</div></div>
       <span style="width:13px;height:13px;display:flex;color:var(--tx-4)">${DG.ICONS.arrowR}</span>
     </div>`).join('');
+  document.querySelectorAll('#pDbList .p-db-item').forEach(el => el.onclick = () => openBoardDetail(el.dataset.n, 'home'));
+  document.getElementById('pAllBoards').onclick = () => switchView('board');
+  document.getElementById('bdBack').onclick = () => switchView(fromView === 'boardDetail' ? 'home' : fromView);
+  function initBdCharts() {
+    DG.makeChart(document.getElementById('bdChart1'), {
+      grid: { left: 2, right: 6, top: 8, bottom: 2, containLabel: true },
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: DG.WEEK, axisLabel: { fontSize: 9 } },
+      yAxis: { type: 'value', axisLabel: { fontSize: 9 } },
+      series: [{ name: '原油产量', type: 'line', smooth: true, symbol: 'none', data: DG.series(7, 12.8, .5, 1), lineStyle: { width: 2 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.3)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } } }]
+    });
+    DG.makeChart(document.getElementById('bdChart2'), {
+      grid: { left: 2, right: 20, top: 8, bottom: 2, containLabel: true },
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'value', axisLabel: { fontSize: 9 } },
+      yAxis: { type: 'category', data: ['大庆', '华北', '塔里木', '长庆'], axisLabel: { fontSize: 10 } },
+      series: [{ type: 'bar', barWidth: 12, data: [23.86, 28.94, 27.35, 39.12],
+        itemStyle: { borderRadius: [0, 6, 6, 0], color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#F4633A' }, { offset: 1, color: '#FFB25E' }] } },
+        label: { show: true, position: 'right', color: '#B9C2D4', fontSize: 9.5, fontFamily: 'Barlow' } }]
+    });
+  }
 
-  /* 看板视图 */
+  /* ================= 看板视图列表 ================= */
   const BOARDS = [
     { n: '华北油田生产日报', s: '产量 / 含水 / 注采 · 更新 06:30', c: 'var(--oil)', bg: 'var(--oil-soft)', t: 'oil' },
     { n: '集团经营驾驶舱', s: '四行业总览 · 决策层专享', c: 'var(--brand)', bg: 'var(--brand-soft)', t: 'brand' },
@@ -252,26 +338,84 @@
     { n: '煤矿安全监控', s: '瓦斯 / 顶板 / 人员定位', c: 'var(--coal)', bg: 'var(--coal-soft)', t: 'coal' },
   ];
   document.getElementById('pBoardList').innerHTML = BOARDS.map(b => `
-    <div class="p-card" style="display:flex;align-items:center;gap:10px;margin-bottom:9px" onclick="DG.toast('原型演示：打开看板 ${b.n}')">
+    <div class="p-card" style="display:flex;align-items:center;gap:10px;margin-bottom:9px;cursor:pointer" data-n="${b.n}">
       <span class="d-ico" style="width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:${b.c};background:${b.bg};flex:none">${DG.ICONS.board}</span>
       <div style="flex:1;min-width:0"><div class="d-n" style="font-size:12.5px;font-weight:600">${b.n}</div><div class="d-s" style="font-size:10px;color:var(--tx-3)">${b.s}</div></div>
       <span class="tag ${b.t}" style="font-size:9.5px">打开</span>
     </div>`).join('');
+  document.querySelectorAll('#pBoardList .p-card').forEach(el => el.onclick = () => openBoardDetail(el.dataset.n, 'board'));
 
-  /* 消息视图 */
+  /* ================= 消息视图（点击已读） ================= */
   const MSGS = [
-    { c: 'var(--danger)', bg: 'var(--danger-soft)', i: 'alert', t: '【告警】长庆区块日产油量低于 100 万吨阈值', s: '08:12 · 深链直达归因看板 ›' },
-    { c: 'var(--warn)', bg: 'var(--warn-soft)', i: 'clock', t: '【订阅】经营日报已推送，点击查看', s: '08:00 · 企业微信同步' },
-    { c: 'var(--info)', bg: 'var(--info-soft)', i: 'safe', t: '【审批】您的「井口含水率」指标权限已通过', s: '昨天 17:42' },
-    { c: 'var(--ok)', bg: 'var(--ok-soft)', i: 'govern', t: '【质量】ODS_采油日报表校验通过 98.6%', s: '昨天 22:00' },
+    { c: 'var(--danger)', bg: 'var(--danger-soft)', i: 'alert', t: '【告警】长庆区块日产油量低于 100 万吨阈值', s: '08:12 · 深链直达归因看板 ›', unread: true },
+    { c: 'var(--warn)', bg: 'var(--warn-soft)', i: 'clock', t: '【订阅】经营日报已推送，点击查看', s: '08:00 · 企业微信同步', unread: true },
+    { c: 'var(--info)', bg: 'var(--info-soft)', i: 'safe', t: '【审批】您的「井口含水率」指标权限已通过', s: '昨天 17:42', unread: true },
+    { c: 'var(--ok)', bg: 'var(--ok-soft)', i: 'govern', t: '【质量】ODS_采油日报表校验通过 98.6%', s: '昨天 22:00', unread: false },
   ];
-  document.getElementById('pMsgList').innerHTML = MSGS.map(m => `
-    <div class="p-msg" onclick="DG.toast('原型演示：深链跳转对应页面')">
+  document.getElementById('pMsgList').innerHTML = MSGS.map((m, i) => `
+    <div class="p-msg ${m.unread ? '' : 'read'}" data-i="${i}">
       <span class="m-ico" style="color:${m.c};background:${m.bg}">${DG.ICONS[m.i]}</span>
-      <div style="flex:1;min-width:0"><div class="m-t">${m.t}</div><div class="m-s">${m.s}</div></div>
+      <div style="flex:1;min-width:0">
+        <div class="m-t">${m.unread ? '<span class="udot"></span>' : ''}${m.t}</div>
+        <div class="m-s">${m.s}</div>
+      </div>
     </div>`).join('');
+  document.querySelectorAll('#pMsgList .p-msg').forEach(el => el.onclick = () => {
+    const m = MSGS[+el.dataset.i];
+    if (m.unread) {
+      m.unread = false;
+      el.classList.add('read');
+      el.querySelector('.udot') && el.querySelector('.udot').remove();
+      const badge = document.querySelector('.p-tab[data-view="msg"] .badge');
+      const left = MSGS.filter(x => x.unread).length;
+      if (badge) { if (left) badge.textContent = left; else badge.remove(); }
+    }
+    if (m.i === 'alert') { openBoardDetail('长庆区块归因看板', 'msg'); }
+  });
 
-  /* 底部 Tab 栏 */
+  /* ================= 问数（POST /ai/chat/ask） ================= */
+  async function sendChat() {
+    const inp = document.getElementById('chatIn');
+    const q = inp.value.trim();
+    if (!q) { DG.ui.toast('请输入问题', 'warn'); return; }
+    inp.value = '';
+    const box = document.getElementById('chatBox');
+    box.insertAdjacentHTML('beforeend', `<div class="p-chat-q"><div class="q-b">${DG.ui.esc(q)}</div></div>`);
+    const aId = 'ans' + Date.now();
+    box.insertAdjacentHTML('beforeend', `<div class="p-chat-a" id="${aId}">
+      <span class="a-ava">${DG.ICONS.spark}</span>
+      <div class="a-b"><span class="spin" style="width:12px;height:12px"></span> 正在按语义层口径查询…</div></div>`);
+    box.parentElement.scrollTop = box.parentElement.scrollHeight;
+    const r = await DG.api.post('/ai/chat/ask', { question: q });
+    const aEl = document.getElementById(aId);
+    if (r.code !== 0) { aEl.querySelector('.a-b').innerHTML = `<span style="color:var(--danger)">${DG.ui.esc(r.message)}</span>`; return; }
+    const d = r.data;
+    if (d.type === 'clarify') {
+      aEl.querySelector('.a-b').innerHTML = DG.ui.esc(d.message) +
+        d.options.map(o => `<div style="margin-top:6px"><span class="tag brand" style="cursor:pointer" onclick="document.getElementById('chatIn').value='${o}';document.getElementById('sendBtn').click()">${o}</span></div>`).join('');
+    } else {
+      aEl.querySelector('.a-b').innerHTML = d.conclusion;
+      const chartId = aId + 'c';
+      box.insertAdjacentHTML('beforeend', `<div class="p-card"><div class="pc-title">${DG.ui.esc(d.title)}</div><div class="chart" style="height:130px;min-height:130px" id="${chartId}"></div></div>`);
+      setTimeout(() => {
+        DG.makeChart(document.getElementById(chartId), {
+          grid: { left: 2, right: 24, top: 8, bottom: 2, containLabel: true },
+          tooltip: { trigger: 'axis' },
+          xAxis: { type: 'value', axisLabel: { fontSize: 9 } },
+          yAxis: { type: 'category', data: d.dims.slice(0, 5).reverse(), axisLabel: { fontSize: 9.5 } },
+          series: [{ type: 'bar', barWidth: 10, data: d.values.slice(0, 5).reverse(),
+            itemStyle: { borderRadius: [0, 6, 6, 0], color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#F4633A' }, { offset: 1, color: '#FFB25E' }] } },
+            label: { show: true, position: 'right', color: '#B9C2D4', fontSize: 9, fontFamily: 'Barlow' } }]
+        });
+        box.parentElement.scrollTop = box.parentElement.scrollHeight;
+      }, 60);
+    }
+  }
+  document.getElementById('sendBtn').onclick = sendChat;
+  document.getElementById('chatIn').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+  document.getElementById('pSearchIco').onclick = () => switchView('chat');
+
+  /* ================= 底部 Tab 栏 ================= */
   const TABS = [
     { id: 'home', n: '首页', i: 'home' }, { id: 'board', n: '看板', i: 'board' },
     { id: 'chat', n: '问数', i: 'chat' }, { id: 'msg', n: '消息', i: 'bell', b: 3 },
@@ -279,22 +423,10 @@
   ];
   document.getElementById('pTabbar').innerHTML = TABS.map((t, i) => `
     <div class="p-tab ${i === 0 ? 'active' : ''}" data-view="${t.id}">${DG.ICONS[t.i]}<span>${t.n}</span>${t.b ? `<span class="badge">${t.b}</span>` : ''}</div>`).join('');
-
-  /* 视图切换（分段器 + 底部 Tab 联动） */
-  let chatChartInited = false;
-  function switchView(v) {
-    if (v === 'mine') { DG.toast('原型演示：我的 · 个人中心'); return; }
-    document.querySelectorAll('.p-view').forEach(x => x.classList.remove('show'));
-    document.querySelector(`.p-view[data-view="${v}"]`).classList.add('show');
-    document.querySelectorAll('#viewSeg .seg-item').forEach(x => x.classList.toggle('active', x.dataset.view === v));
-    document.querySelectorAll('.p-tab').forEach(x => x.classList.toggle('active', x.dataset.view === v));
-    if (v === 'chat' && !chatChartInited) { chatChartInited = true; initChatChart(); }
-    if (v === 'chat' && chatChartInited) setTimeout(() => window.dispatchEvent(new Event('resize')), 30);
-  }
   document.querySelectorAll('#viewSeg .seg-item').forEach(s => s.addEventListener('click', () => switchView(s.dataset.view)));
   document.querySelectorAll('.p-tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
-  /* 首页迷你趋势图 */
+  /* ================= 首页迷你趋势图 ================= */
   DG.makeChart(document.getElementById('mTrend'), {
     grid: { left: 2, right: 6, top: 22, bottom: 2, containLabel: true },
     legend: { data: ['原油', '天然气'], textStyle: { fontSize: 10 }, itemWidth: 10, itemHeight: 6 },
@@ -308,7 +440,7 @@
     ]
   });
 
-  /* 问数结果图 */
+  /* 问数预置结果图 */
   function initChatChart() {
     DG.makeChart(document.getElementById('mChatChart'), {
       grid: { left: 2, right: 6, top: 8, bottom: 2, containLabel: true },
@@ -323,7 +455,7 @@
     });
   }
 
-  /* 特性清单 */
+  /* ================= 特性清单 ================= */
   const FEATS = [
     { i: 'mobile', c: 'var(--brand)', bg: 'var(--brand-soft)', n: '底部 Tab 五入口', d: '首页 / 看板 / 问数 / 消息 / 我的，消息角标实时提醒', tag: '信息架构' },
     { i: 'drill', c: 'var(--gas)', bg: 'var(--gas-soft)', n: '手势交互', d: '点按钻取 · 双指缩放图表 · 滑动翻页 · 长按看明细 · 下拉刷新', tag: '交互' },
@@ -342,6 +474,44 @@
         <div class="f-d">${f.d}</div>
       </div>
     </div>`).join('');
+
+  /* ================= 体验二维码（CSS 占位矩阵） ================= */
+  document.getElementById('btnQr').onclick = () => {
+    const N = 21;
+    const finder = (x, y) => (x < 7 && y < 7) || (x >= N - 7 && y < 7) || (x < 7 && y >= N - 7);
+    const inFinderCore = (x, y) => {
+      const f = (ox, oy) => x >= ox && x < ox + 7 && y >= oy && y < oy + 7;
+      const core = (ox, oy) => (x === ox || x === ox + 6 || y === oy || y === oy + 6) || (x >= ox + 2 && x <= ox + 4 && y >= oy + 2 && y <= oy + 4);
+      return (f(0, 0) && core(0, 0)) || (f(N - 7, 0) && core(N - 7, 0)) || (f(0, N - 7) && core(0, N - 7));
+    };
+    let cells = '';
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const dark = finder(x, y) ? inFinderCore(x, y) : ((x * 7 + y * 13 + x * y) % 3 !== 0);
+      cells += `<i class="${dark ? '' : 'w'}"></i>`;
+    }
+    DG.ui.modal({
+      title: '扫码体验移动端 H5', width: 380,
+      body: `<div class="qr-box" style="grid-template-columns:repeat(${N},1fr)">${cells}</div>
+        <div style="text-align:center;font-size:12.5px;color:var(--tx-2)">微信 / 企业微信扫码体验 H5 移动端</div>
+        <div style="text-align:center" class="sm tx-3 mt-1">演示环境地址：m.datagear.demo/energy · 免登 token 15 分钟有效</div>`,
+      buttons: [{ label: '关 闭', primary: true }]
+    });
+  };
+
+  /* ================= 发布轻应用 ================= */
+  document.getElementById('btnPubApp').onclick = () => {
+    DG.ui.formModal({
+      title: '发布轻应用',
+      fields: [
+        { key: 'platform', label: '目标平台', type: 'select', options: ['企业微信', '微信小程序', '钉钉'].map(v => ({ v, t: v })) },
+        { key: 'name', label: '应用名称', required: true, value: '能源BI 移动工作台' }
+      ],
+      onSubmit: v => DG.ui.toast(`已提交「${v.name}」至${v.platform}工作台审核（免登配置自动生效）`, 'ok')
+    });
+  };
+
+  /* #demo：打开手机内看板详情第 5 视图 */
+  if (location.hash === '#demo') setTimeout(() => openBoardDetail('华北油田生产日报', 'home'), 500);
 </script>
 </body>
 </html>

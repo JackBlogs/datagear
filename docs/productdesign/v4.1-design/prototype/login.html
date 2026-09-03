@@ -21,7 +21,6 @@
       linear-gradient(160deg, #0B1220 0%, #070A12 70%);
     border-right: 1px solid var(--line-1);
   }
-  /* 网格纹理 */
   .brand-pane::before {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background-image:
@@ -81,10 +80,18 @@
   .login-card .lc-sub { font-size: 12.5px; color: var(--tx-3); margin: 4px 0 24px; }
   .login-card .form-label { font-size: 12.5px; }
   .login-card .input { padding: 11px 14px; font-size: 13.5px; }
+  .pwd-wrap { position: relative; }
+  .pwd-eye {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; border: none; background: none; cursor: pointer;
+    color: var(--tx-4); display: flex; align-items: center; justify-content: center; border-radius: 6px;
+  }
+  .pwd-eye:hover { color: var(--tx-1); }
+  .pwd-eye svg { width: 16px; height: 16px; }
   .captcha-row { display: flex; gap: 10px; }
   .captcha-row .input { flex: 1; }
   .captcha-box {
-    width: 128px; height: 60px; flex: none; border-radius: var(--r-m); cursor: pointer;
+    width: 128px; height: 46px; flex: none; border-radius: var(--r-m); cursor: pointer;
     border: 1px solid var(--line-2); position: relative; overflow: hidden;
     background:
       radial-gradient(60px 30px at 20% 30%, rgba(255,138,61,.35), transparent 70%),
@@ -93,10 +100,9 @@
     display: flex; align-items: center; justify-content: center;
   }
   .captcha-box span {
-    font-family: var(--font-mono); font-size: 21px; font-weight: 700;
+    font-family: var(--font-mono); font-size: 20px; font-weight: 700;
     letter-spacing: 5px; color: var(--tx-1);
     text-shadow: 1px 0 0 rgba(34,211,238,.6), -1px 0 0 rgba(255,138,61,.6);
-    transform: rotate(-3deg);
   }
   .captcha-box i { position: absolute; left: -10%; right: -10%; height: 1px; background: rgba(255,255,255,.22); }
   .login-opts { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 18px; }
@@ -160,44 +166,50 @@
   <div class="form-pane">
     <div class="login-card">
       <h2>欢迎回来</h2>
-      <div class="lc-sub">登录 DataGear 能源BI 工作台（演示原型 · 任意账号可登录）</div>
+      <div class="lc-sub">登录 DataGear 能源BI 工作台（演示原型 · 任意账号 + 正确验证码可登录）</div>
 
       <div class="form-item">
         <label class="form-label">账号</label>
-        <input class="input" value="liming@huabei.oil" placeholder="请输入账号 / 手机号" />
+        <input class="input" id="inAcc" value="liming@huabei.oil" placeholder="请输入账号 / 手机号" />
+        <div class="field-error hidden" id="errAcc"></div>
       </div>
       <div class="form-item">
         <label class="form-label">密码</label>
-        <input class="input" type="password" value="datagear2026" placeholder="请输入密码" />
+        <div class="pwd-wrap">
+          <input class="input" id="inPwd" type="password" value="datagear2026" placeholder="请输入密码" style="padding-right:40px" />
+          <button type="button" class="pwd-eye" id="eyeBtn" title="显示 / 隐藏密码"></button>
+        </div>
+        <div class="field-error hidden" id="errPwd"></div>
       </div>
       <div class="form-item">
         <label class="form-label">验证码</label>
         <div class="captcha-row">
-          <input class="input" placeholder="输入右侧字符" />
-          <div class="captcha-box" onclick="DG.toast('原型演示：刷新验证码')">
-            <i style="top:30%;transform:rotate(8deg)"></i>
-            <i style="top:64%;transform:rotate(-6deg)"></i>
-            <span>7K4D</span>
+          <input class="input" id="inCap" placeholder="输入右侧字符（不区分大小写）" autocomplete="off" />
+          <div class="captcha-box" id="capBox" title="点击刷新">
+            <i id="capL1"></i>
+            <i id="capL2"></i>
+            <span id="capTxt"></span>
           </div>
         </div>
+        <div class="field-error hidden" id="errCap"></div>
       </div>
 
       <div class="login-opts">
         <label class="remember"><label class="switch"><input type="checkbox" checked /><i></i></label>记住我</label>
-        <a href="javascript:void(0)" onclick="DG.toast('原型演示：跳转忘记密码流程')">忘记密码？</a>
+        <a href="javascript:void(0)" onclick="DG.ui.toast('忘记密码：请联系组织管理员或走邮件找回（FR-AUTH-01）','ok')">忘记密码？</a>
       </div>
 
-      <button class="btn primary lg login-btn" onclick="location.href='index.html'">登 录</button>
+      <button class="btn primary lg login-btn" id="btnLogin">登 录</button>
 
       <div class="sso-row"><span class="line"></span><span>其他登录方式</span><span class="line"></span></div>
       <div class="sso-btns">
-        <button class="btn" onclick="DG.toast('原型演示：企业微信扫码登录')">企业微信</button>
-        <button class="btn" onclick="DG.toast('原型演示：钉钉扫码登录')">钉钉</button>
-        <button class="btn" onclick="DG.toast('原型演示：LDAP / OA 单点登录')">SSO</button>
+        <button class="btn" data-sso="企业微信">企业微信</button>
+        <button class="btn" data-sso="钉钉">钉钉</button>
+        <button class="btn" data-sso="SSO">SSO</button>
       </div>
 
       <div class="login-links">
-        <a href="javascript:void(0)" onclick="DG.toast('原型演示：注册需企业管理员审核')">注册账号</a>
+        <a href="javascript:void(0)" onclick="DG.ui.toast('注册需企业管理员审核（FR-AUTH-02）','warn')">注册账号</a>
         <a href="https://datagear.tech" target="_blank" rel="noopener">访问官网文档</a>
       </div>
     </div>
@@ -215,6 +227,8 @@
 </div>
 
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
   const feats = [
     ['safe', '开源免费 · LGPL 协议'],
@@ -224,6 +238,83 @@
   feats.forEach((f, i) => {
     document.getElementById('feat' + (i + 1)).innerHTML = DG.ICONS[f[0]] + f[1];
   });
+
+  /* ================= 验证码（随机 4 字符 + 干扰线，点击刷新） ================= */
+  const CAP_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let capCode = '';
+  function drawCaptcha() {
+    capCode = Array.from({ length: 4 }, () => CAP_CHARS[Math.floor(Math.random() * CAP_CHARS.length)]).join('');
+    const txt = document.getElementById('capTxt');
+    txt.textContent = capCode;
+    txt.style.transform = `rotate(${(Math.random() * 10 - 5).toFixed(1)}deg)`;
+    const l1 = document.getElementById('capL1'), l2 = document.getElementById('capL2');
+    l1.style.cssText = `top:${22 + Math.random() * 20}%;transform:rotate(${Math.random() * 14 - 7}deg)`;
+    l2.style.cssText = `top:${55 + Math.random() * 22}%;transform:rotate(${Math.random() * 14 - 7}deg)`;
+  }
+  drawCaptcha();
+  document.getElementById('capBox').onclick = () => { drawCaptcha(); document.getElementById('inCap').value = ''; hideErr('errCap', 'inCap'); };
+
+  /* ================= 密码明文 / 密文切换 ================= */
+  const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.9 3.9M6.1 6.1A16.6 16.6 0 0 0 2 12s3.5 7 10 7a9.8 9.8 0 0 0 4.3-1"/></svg>';
+  const eyeBtn = document.getElementById('eyeBtn');
+  eyeBtn.innerHTML = EYE_OFF;
+  eyeBtn.onclick = () => {
+    const pwd = document.getElementById('inPwd');
+    const show = pwd.type === 'password';
+    pwd.type = show ? 'text' : 'password';
+    eyeBtn.innerHTML = show ? EYE_ON : EYE_OFF;
+  };
+
+  /* ================= 登录校验 + 提交（POST /auth/login） ================= */
+  function showErr(errId, inId, msg) {
+    const e = document.getElementById(errId);
+    e.textContent = msg; e.classList.remove('hidden');
+    document.getElementById(inId).classList.add('err');
+  }
+  function hideErr(errId, inId) {
+    document.getElementById(errId).classList.add('hidden');
+    document.getElementById(inId).classList.remove('err');
+  }
+  ['inAcc', 'inPwd', 'inCap'].forEach((id, i) => {
+    document.getElementById(id).addEventListener('input', () => hideErr(['errAcc', 'errPwd', 'errCap'][i], id));
+  });
+  async function doLogin() {
+    const acc = document.getElementById('inAcc').value.trim();
+    const pwd = document.getElementById('inPwd').value;
+    const cap = document.getElementById('inCap').value.trim();
+    let ok = true;
+    if (!acc) { showErr('errAcc', 'inAcc', '账号不能为空'); ok = false; }
+    if (!pwd) { showErr('errPwd', 'inPwd', '密码不能为空'); ok = false; }
+    if (!cap) { showErr('errCap', 'inCap', '请输入验证码'); ok = false; }
+    else if (cap.toUpperCase() !== capCode) { showErr('errCap', 'inCap', `验证码错误，请重新输入（当前为 ${capCode}）`); ok = false; }
+    if (!ok) return;
+    const btn = document.getElementById('btnLogin');
+    DG.ui.btnLoading(btn, true);
+    /* 说明：验证码为前端本地校验（占位图字符），后端 /auth/login 仅校验账号与密码 */
+    const r = await DG.api.post('/auth/login', { account: acc, password: pwd });
+    DG.ui.btnLoading(btn, false);
+    if (r.code === 0) {
+      DG.ui.toast(`登录成功，欢迎回来 ${r.data.user.name}（${r.data.user.role}）`, 'ok');
+      setTimeout(() => location.href = 'index.html', 700);
+    } else {
+      DG.ui.toast(r.message, 'err');
+      drawCaptcha();
+      document.getElementById('inCap').value = '';
+    }
+  }
+  document.getElementById('btnLogin').onclick = doLogin;
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  /* ================= 扫码免登入口 ================= */
+  document.querySelectorAll('[data-sso]').forEach(b => b.onclick = () =>
+    DG.ui.toast(`${b.dataset.sso} 扫码免登演示（FR-MOB 轻应用免登）`, 'ok'));
+
+  /* #demo：演示校验失败态（填入错误验证码并触发登录） */
+  if (location.hash === '#demo') setTimeout(() => {
+    document.getElementById('inCap').value = '0000';
+    doLogin();
+  }, 400);
 </script>
 </body>
 </html>

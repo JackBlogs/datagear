@@ -49,27 +49,31 @@
       <div class="page-desc">可视化看板的创建、管理与分享 —— 行业模板一键套用，生成可编辑副本不污染模板源</div>
     </div>
     <div class="page-actions">
-      <div class="seg">
-        <span class="seg-item active">全部</span>
-        <span class="seg-item" onclick="DG.toast('原型演示：按石油行业筛选')">石油</span>
-        <span class="seg-item" onclick="DG.toast('原型演示：按天然气行业筛选')">天然气</span>
-        <span class="seg-item" onclick="DG.toast('原型演示：按化工行业筛选')">化工</span>
-        <span class="seg-item" onclick="DG.toast('原型演示：按煤矿行业筛选')">煤矿</span>
+      <span class="top-search" style="min-width:200px;max-width:250px;cursor:text;padding:6px 14px">
+        <span style="width:15px;height:15px;display:flex;flex:none" id="ic-search"></span>
+        <input id="dbSearch" placeholder="搜索看板 / 模板…" autocomplete="off" style="cursor:text" />
+      </span>
+      <div class="seg" id="indSeg">
+        <span class="seg-item active" data-ind="all">全部</span>
+        <span class="seg-item" data-ind="oil">石油</span>
+        <span class="seg-item" data-ind="gas">天然气</span>
+        <span class="seg-item" data-ind="chem">化工</span>
+        <span class="seg-item" data-ind="coal">煤矿</span>
       </div>
       <button class="btn primary" onclick="location.href='designer.html'"><span style="width:15px;height:15px;display:flex" id="ic-plus"></span>新建看板</button>
     </div>
   </div>
 
   <div class="tabs" id="dbTabs">
-    <div class="tab" data-tab="mine">我的看板 <span class="cnt">24</span></div>
+    <div class="tab" data-tab="mine">我的看板 <span class="cnt" id="cntMine">·</span></div>
     <div class="tab active" data-tab="tpl">行业模板库 <span class="cnt">6</span></div>
-    <div class="tab" data-tab="trash">回收站</div>
+    <div class="tab" data-tab="trash">回收站 <span class="cnt" id="cntTrash">·</span></div>
   </div>
 
-  <!-- 行业模板库（默认展示，FR-HOME-25 ≥5套行业模板） -->
+  <!-- 行业模板库（默认展示，FR-HOME-25 ≥5套行业模板；封面点击→预览，按钮→一键套用） -->
   <section id="pane-tpl">
     <div class="tpl-grid">
-      <div class="tpl2-card" onclick="DG.toast('已生成可编辑副本「油田生产驾驶舱-副本」，模板源不受影响')">
+      <div class="tpl2-card" data-tpl="油田生产驾驶舱" data-ind="oil">
         <div class="tpl2-cover" style="background:linear-gradient(160deg,rgba(255,138,61,.34),rgba(244,99,58,.06) 65%),radial-gradient(260px 130px at 82% 12%,rgba(255,178,94,.4),transparent),linear-gradient(200deg,#1A1208,#0A0E17)">
           <span class="c-badge">官方推荐</span>
           <div class="mini-grid"><i></i><i></i><i></i><i></i><i style="grid-column:span 2"></i></div>
@@ -79,11 +83,11 @@
         <div class="tpl2-foot">
           <span class="ind oil"><i></i>石油</span>
           <span class="f-meta">12 部件 · 被套用 38 次</span>
-          <button class="btn sm primary" style="margin-left:auto" onclick="event.stopPropagation();DG.toast('已生成可编辑副本「油田生产驾驶舱-副本」，模板源不受影响')">一键套用</button>
+          <button class="btn sm primary tpl-use" style="margin-left:auto">一键套用</button>
         </div>
       </div>
 
-      <div class="tpl2-card" onclick="DG.toast('已生成可编辑副本「天然气管网运行监控-副本」，模板源不受影响')">
+      <div class="tpl2-card" data-tpl="天然气管网运行监控" data-ind="gas">
         <div class="tpl2-cover" style="background:linear-gradient(160deg,rgba(34,211,238,.3),rgba(34,211,238,.05) 65%),radial-gradient(260px 130px at 82% 12%,rgba(34,211,238,.35),transparent),linear-gradient(200deg,#08161A,#0A0E17)">
           <div class="mini-grid"><i></i><i></i><i></i><i style="grid-column:span 2"></i><i></i></div>
           <div class="c-name">天然气管网运行监控</div>
@@ -92,11 +96,11 @@
         <div class="tpl2-foot">
           <span class="ind gas"><i></i>天然气</span>
           <span class="f-meta">10 部件 · 被套用 21 次</span>
-          <button class="btn sm primary" style="margin-left:auto" onclick="event.stopPropagation();DG.toast('已生成可编辑副本「天然气管网运行监控-副本」，模板源不受影响')">一键套用</button>
+          <button class="btn sm primary tpl-use" style="margin-left:auto">一键套用</button>
         </div>
       </div>
 
-      <div class="tpl2-card" onclick="DG.toast('已生成可编辑副本「煤化工经营分析-副本」，模板源不受影响')">
+      <div class="tpl2-card" data-tpl="煤化工经营分析" data-ind="chem">
         <div class="tpl2-cover" style="background:linear-gradient(160deg,rgba(167,139,250,.3),rgba(167,139,250,.05) 65%),radial-gradient(260px 130px at 82% 12%,rgba(167,139,250,.35),transparent),linear-gradient(200deg,#120E1E,#0A0E17)">
           <div class="mini-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <div class="c-name">煤化工经营分析</div>
@@ -105,11 +109,11 @@
         <div class="tpl2-foot">
           <span class="ind chem"><i></i>化工</span>
           <span class="f-meta">14 部件 · 被套用 16 次</span>
-          <button class="btn sm primary" style="margin-left:auto" onclick="event.stopPropagation();DG.toast('已生成可编辑副本「煤化工经营分析-副本」，模板源不受影响')">一键套用</button>
+          <button class="btn sm primary tpl-use" style="margin-left:auto">一键套用</button>
         </div>
       </div>
 
-      <div class="tpl2-card" onclick="DG.toast('已生成可编辑副本「煤矿安全双重预防-副本」，模板源不受影响')">
+      <div class="tpl2-card" data-tpl="煤矿安全双重预防" data-ind="coal">
         <div class="tpl2-cover" style="background:linear-gradient(160deg,rgba(232,179,60,.3),rgba(232,179,60,.05) 65%),radial-gradient(260px 130px at 82% 12%,rgba(232,179,60,.35),transparent),linear-gradient(200deg,#181206,#0A0E17)">
           <span class="c-badge">安全合规</span>
           <div class="mini-grid"><i></i><i style="grid-column:span 2"></i><i></i><i></i><i></i></div>
@@ -119,11 +123,11 @@
         <div class="tpl2-foot">
           <span class="ind coal"><i></i>煤矿</span>
           <span class="f-meta">11 部件 · 被套用 29 次</span>
-          <button class="btn sm primary" style="margin-left:auto" onclick="event.stopPropagation();DG.toast('已生成可编辑副本「煤矿安全双重预防-副本」，模板源不受影响')">一键套用</button>
+          <button class="btn sm primary tpl-use" style="margin-left:auto">一键套用</button>
         </div>
       </div>
 
-      <div class="tpl2-card" onclick="DG.toast('已生成可编辑副本「炼化装置实时监控-副本」，模板源不受影响')">
+      <div class="tpl2-card" data-tpl="炼化装置实时监控" data-ind="chem,oil">
         <div class="tpl2-cover" style="background:linear-gradient(160deg,rgba(167,139,250,.22),rgba(255,138,61,.1) 55%),radial-gradient(260px 130px at 82% 12%,rgba(255,138,61,.3),transparent),linear-gradient(200deg,#14101C,#0A0E17)">
           <div class="mini-grid"><i></i><i></i><i></i><i></i><i style="grid-column:span 2"></i></div>
           <div class="c-name">炼化装置实时监控</div>
@@ -132,11 +136,11 @@
         <div class="tpl2-foot">
           <span class="ind chem"><i></i>化工</span><span class="ind oil"><i></i>炼化</span>
           <span class="f-meta">16 部件 · 被套用 12 次</span>
-          <button class="btn sm primary" style="margin-left:auto" onclick="event.stopPropagation();DG.toast('已生成可编辑副本「炼化装置实时监控-副本」，模板源不受影响')">一键套用</button>
+          <button class="btn sm primary tpl-use" style="margin-left:auto">一键套用</button>
         </div>
       </div>
 
-      <div class="tpl2-card" onclick="DG.toast('已生成可编辑副本「集团经营日报-副本」，模板源不受影响')">
+      <div class="tpl2-card" data-tpl="集团经营日报" data-ind="oil,gas">
         <div class="tpl2-cover" style="background:linear-gradient(160deg,rgba(255,138,61,.2),rgba(34,211,238,.14) 60%),radial-gradient(280px 140px at 82% 12%,rgba(96,165,250,.28),transparent),linear-gradient(200deg,#10141C,#0A0E17)">
           <span class="c-badge">跨产业</span>
           <div class="mini-grid"><i style="grid-column:span 3"></i><i></i><i></i><i></i></div>
@@ -146,13 +150,13 @@
         <div class="tpl2-foot">
           <span class="ind oil"><i></i>石油</span><span class="ind gas"><i></i>天然气</span>
           <span class="f-meta">9 部件 · 被套用 45 次</span>
-          <button class="btn sm primary" style="margin-left:auto" onclick="event.stopPropagation();DG.toast('已生成可编辑副本「集团经营日报-副本」，模板源不受影响')">一键套用</button>
+          <button class="btn sm primary tpl-use" style="margin-left:auto">一键套用</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 我的看板 -->
+  <!-- 我的看板（GET /dashboard/list） -->
   <section id="pane-mine" class="hidden">
     <div class="table-wrap">
       <table class="tbl">
@@ -164,27 +168,12 @@
     </div>
   </section>
 
-  <!-- 回收站 -->
+  <!-- 回收站（恢复 / 彻底删除） -->
   <section id="pane-trash" class="hidden">
     <div class="table-wrap">
       <table class="tbl">
         <thead><tr><th>看板名称</th><th>行业</th><th>删除人</th><th>删除时间</th><th>剩余保留期</th><th>操作</th></tr></thead>
-        <tbody>
-          <tr>
-            <td class="cell-main">旧版原油生产周报</td>
-            <td><span class="ind oil"><i></i>石油</span></td>
-            <td>李明</td><td>2026-08-28 16:20</td>
-            <td><span class="tag warn">25 天</span></td>
-            <td><span class="link-btn" onclick="DG.toast('看板已恢复至「我的看板」')">恢复</span><span class="link-btn" onclick="DG.toast('原型演示：彻底删除需二次确认')">彻底删除</span></td>
-          </tr>
-          <tr>
-            <td class="cell-main">门站压力测试看板</td>
-            <td><span class="ind gas"><i></i>天然气</span></td>
-            <td>周海峰</td><td>2026-08-15 09:44</td>
-            <td><span class="tag warn">12 天</span></td>
-            <td><span class="link-btn" onclick="DG.toast('看板已恢复至「我的看板」')">恢复</span><span class="link-btn" onclick="DG.toast('原型演示：彻底删除需二次确认')">彻底删除</span></td>
-          </tr>
-        </tbody>
+        <tbody id="trashRows"></tbody>
       </table>
     </div>
   </section>
@@ -192,41 +181,33 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
 document.getElementById('ic-plus').innerHTML = DG.ICONS.plus;
+document.getElementById('ic-search').innerHTML = DG.ICONS.search;
+const esc = DG.ui.esc;
 
-/* ---- 我的看板数据 ---- */
-const boards = [
-  { n: '华北油田生产日报', ind: ['oil','石油'], w: 12, u: '李明',   t: '2026-09-03 06:30', share: ['warn','密码分享'] },
-  { n: '西气东输管网监控', ind: ['gas','天然气'], w: 10, u: '周海峰', t: '2026-09-02 22:15', share: ['info','签名Token嵌入'] },
-  { n: '长庆区块单井对标', ind: ['oil','石油'], w: 8,  u: '王建国', t: '2026-09-02 17:48', share: ['','私有'] },
-  { n: '甲醇装置产销存周报', ind: ['chem','化工'], w: 14, u: '陈静',   t: '2026-09-01 11:26', share: ['warn','密码分享'] },
-  { n: '矿区瓦斯安全监控', ind: ['coal','煤矿'], w: 11, u: '孙立军', t: '2026-08-31 08:52', share: ['info','签名Token嵌入'] },
-  { n: '集团经营月度分析', ind: ['oil','跨产业'], w: 16, u: '张总工', t: '2026-08-30 15:10', share: ['brand','组织内公开'] },
-  { n: '储气库注采平衡看板', ind: ['gas','天然气'], w: 7, u: '周海峰', t: '2026-08-29 14:03', share: ['','私有'] },
+/* ================= 常量与状态 ================= */
+const IND_LB = { oil: '石油', gas: '天然气', chem: '化工', coal: '煤矿' };
+const SHARE_TAG = { '密码分享': 'warn', '签名Token嵌入': 'info', '私有': '', '组织内公开': 'brand' };
+const state = { ind: 'all', kw: '', rows: [], total: 0, mineLoaded: false };
+let trash = [
+  { board: { id: 'DB-T1', name: '旧版原油生产周报', ind: 'oil', widgets: 8, owner: '李明', updated: '2026-08-28 16:20', share: '私有' }, by: '李明', time: '2026-08-28 16:20', left: 25 },
+  { board: { id: 'DB-T2', name: '门站压力测试看板', ind: 'gas', widgets: 6, owner: '周海峰', updated: '2026-08-15 09:44', share: '私有' }, by: '周海峰', time: '2026-08-15 09:44', left: 12 }
 ];
-document.getElementById('dbRows').innerHTML = boards.map(b => `
-  <tr>
-    <td>
-      <div class="flex" style="gap:10px">
-        <span class="db-icon" style="color:var(--${b.ind[0] === 'oil' && b.ind[1] === '跨产业' ? 'brand' : b.ind[0]});background:var(--${b.ind[0]}-soft)">${DG.ICONS.board}</span>
-        <div><div class="cell-main">${b.n}</div><div class="sm tx-3">看板 · ${b.w} 部件</div></div>
-      </div>
-    </td>
-    <td><span class="ind ${b.ind[0]}"><i></i>${b.ind[1]}</span></td>
-    <td class="num">${b.w}</td>
-    <td>${b.u}</td>
-    <td class="sm">${b.t}</td>
-    <td><span class="tag ${b.share[0]}">${b.share[1]}</span></td>
-    <td style="white-space:nowrap">
-      <span class="link-btn" onclick="DG.toast('原型演示：打开「${b.n}」预览')">预览</span>
-      <span class="link-btn" onclick="location.href='designer.html'">编辑</span>
-      <span class="link-btn" onclick="DG.toast('分享设置：密码分享 / 签名Token嵌入 / 组织内公开')">分享</span>
-      <span class="link-btn" onclick="DG.toast('原型演示：「${b.n}」已移入回收站')">删除</span>
-    </td>
-  </tr>`).join('');
 
-/* ---- Tab 切换 ---- */
+/* 模板部件清单（预览 modal 展示，与 SDS 模板库一致） */
+const TPLS = {
+  '油田生产驾驶舱':   { cover: 'linear-gradient(160deg,rgba(255,138,61,.34),rgba(244,99,58,.06) 65%),radial-gradient(260px 130px at 82% 12%,rgba(255,178,94,.4),transparent),linear-gradient(200deg,#1A1208,#0A0E17)', widgets: ['产量趋势折线图', '采油厂对比柱状图', '含水率指标卡', '注采比仪表盘', '井场明细表', '告警滚动列表'] },
+  '天然气管网运行监控': { cover: 'linear-gradient(160deg,rgba(34,211,238,.3),rgba(34,211,238,.05) 65%),radial-gradient(260px 130px at 82% 12%,rgba(34,211,238,.35),transparent),linear-gradient(200deg,#08161A,#0A0E17)', widgets: ['管输量趋势', '门站压力仪表', '储气库库存水位', '输差分析瀑布图', '管段明细表'] },
+  '煤化工经营分析':   { cover: 'linear-gradient(160deg,rgba(167,139,250,.3),rgba(167,139,250,.05) 65%),radial-gradient(260px 130px at 82% 12%,rgba(167,139,250,.35),transparent),linear-gradient(200deg,#120E1E,#0A0E17)', widgets: ['甲醇产销存交叉表', '优级品率趋势', '装置开工率仪表', '烯烃价格走势', '库存周转条形图'] },
+  '煤矿安全双重预防': { cover: 'linear-gradient(160deg,rgba(232,179,60,.3),rgba(232,179,60,.05) 65%),radial-gradient(260px 130px at 82% 12%,rgba(232,179,60,.35),transparent),linear-gradient(200deg,#181206,#0A0E17)', widgets: ['瓦斯浓度实时曲线', '风险分级四色图', '人员定位统计', '隐患整改闭环表', '顶板压力仪表'] },
+  '炼化装置实时监控': { cover: 'linear-gradient(160deg,rgba(167,139,250,.22),rgba(255,138,61,.1) 55%),radial-gradient(260px 130px at 82% 12%,rgba(255,138,61,.3),transparent),linear-gradient(200deg,#14101C,#0A0E17)', widgets: ['装置负荷趋势', '能耗对标条形图', '联锁状态矩阵', '产品收率饼图', '报警优先级列表', '工艺参数卡片'] },
+  '集团经营日报':    { cover: 'linear-gradient(160deg,rgba(255,138,61,.2),rgba(34,211,238,.14) 60%),radial-gradient(280px 140px at 82% 12%,rgba(96,165,250,.28),transparent),linear-gradient(200deg,#10141C,#0A0E17)', widgets: ['四产业产量 KPI', '收入成本趋势', '利润构成瀑布图', '现金流仪表', '要闻跑马灯'] }
+};
+
+/* ================= Tab 切换 ================= */
 const panes = { mine: 'pane-mine', tpl: 'pane-tpl', trash: 'pane-trash' };
 document.querySelectorAll('#dbTabs .tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -234,16 +215,253 @@ document.querySelectorAll('#dbTabs .tab').forEach(tab => {
     tab.classList.add('active');
     Object.values(panes).forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById(panes[tab.dataset.tab]).classList.remove('hidden');
+    if (tab.dataset.tab === 'mine' && !state.mineLoaded) loadMine();
   });
 });
 
-/* ---- 行业筛选 seg ---- */
-document.querySelectorAll('.seg-item').forEach(s => {
+/* ================= 我的看板（GET /dashboard/list） ================= */
+async function loadMine() {
+  state.mineLoaded = true;
+  const body = document.getElementById('dbRows');
+  body.innerHTML = '<tr><td colspan="7" style="padding:0"><div class="block-loading"><span class="spin"></span> 数据加载中…</div></td></tr>';
+  const r = await DG.api.get('/dashboard/list', { ind: state.ind });
+  if (r.code !== 0) {
+    body.innerHTML = '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="7" style="padding:0"></td>';
+    tr.firstChild.appendChild(DG.ui.errorBlock(r.message, loadMine));
+    body.appendChild(tr);
+    return;
+  }
+  state.rows = r.data.rows;
+  state.total = r.data.total;
+  updateCnt();
+  renderMine();
+}
+function renderMine() {
+  const body = document.getElementById('dbRows');
+  const rows = state.rows.filter(b => !state.kw || b.name.includes(state.kw));
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="7" style="padding:0">${DG.ui.emptyBlock('没有符合条件的看板', '新建看板', 'window.__newBoard')}</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map(b => `
+    <tr data-id="${b.id}">
+      <td><div class="flex" style="gap:10px">
+        <span class="db-icon" style="color:var(--${b.ind});background:var(--${b.ind}-soft)">${DG.ICONS.board}</span>
+        <div><div class="cell-main">${esc(b.name)}</div><div class="sm tx-3">看板 · ${b.widgets} 部件</div></div>
+      </div></td>
+      <td><span class="ind ${b.ind}"><i></i>${IND_LB[b.ind] || '其他'}</span></td>
+      <td class="num">${b.widgets}</td>
+      <td>${esc(b.owner)}</td>
+      <td class="sm">${esc(b.updated)}</td>
+      <td><span class="tag ${SHARE_TAG[b.share] || ''}">${esc(b.share)}</span></td>
+      <td style="white-space:nowrap">
+        <span class="link-btn" data-op="preview">预览</span>
+        <span class="link-btn" data-op="edit">编辑</span>
+        <span class="link-btn" data-op="share">分享</span>
+        <span class="link-btn" data-op="del">删除</span>
+      </td>
+    </tr>`).join('');
+  body.querySelectorAll('tr').forEach(tr => {
+    const b = state.rows.find(x => x.id === tr.dataset.id);
+    if (!b) return;
+    tr.querySelector('[data-op="preview"]').onclick = () => openBoardPreview(b);
+    tr.querySelector('[data-op="edit"]').onclick = () => location.href = 'designer.html?id=' + b.id;
+    tr.querySelector('[data-op="share"]').onclick = () => openShare(b);
+    tr.querySelector('[data-op="del"]').onclick = () => delBoard(b);
+  });
+}
+window.__newBoard = () => location.href = 'designer.html';
+
+/* ---- 看板预览（modal 内嵌缩略预览，3 个 ECharts 小图 + 指标摘要） ---- */
+function openBoardPreview(b) {
+  const m = DG.ui.modal({
+    title: '看板预览 · ' + b.name, width: 900,
+    body: `<div class="grid g-2" style="gap:12px">
+        <div class="card" style="padding:12px"><div class="sm tx-3" style="margin-bottom:6px">近7日产量趋势</div><div class="chart" style="height:170px;min-height:0" data-pv="line"></div></div>
+        <div class="card" style="padding:12px"><div class="sm tx-3" style="margin-bottom:6px">采油厂产量 TOP5（万吨）</div><div class="chart" style="height:170px;min-height:0" data-pv="bar"></div></div>
+        <div class="card" style="padding:12px"><div class="sm tx-3" style="margin-bottom:6px">四产业产量占比（油当量）</div><div class="chart" style="height:170px;min-height:0" data-pv="pie"></div></div>
+        <div class="card" style="padding:12px"><div class="sm tx-3" style="margin-bottom:6px">关键指标</div>
+          <div class="flex-col" style="gap:9px;margin-top:4px;font-size:12.5px">
+            <div class="flex-between"><span class="tx-2">原油产量（昨日）</span><b class="num" style="color:var(--oil)">12.86 万吨</b></div>
+            <div class="flex-between"><span class="tx-2">井口综合含水率</span><b class="num">87.4 %</b></div>
+            <div class="flex-between"><span class="tx-2">月度计划完成率</span><b class="num" style="color:var(--ok)">96.4 %</b></div>
+            <div class="flex-between"><span class="tx-2">未处理告警</span><b class="num" style="color:var(--danger)">3 条</b></div>
+            <div class="flex-between"><span class="tx-2">分享方式</span><span class="tag ${SHARE_TAG[b.share] || ''}">${esc(b.share)}</span></div>
+          </div></div>
+      </div>
+      <div class="sm tx-3 mt-2">缩略预览仅渲染前 4 个部件 · 共 ${b.widgets} 部件 · 更新于 ${esc(b.updated)}</div>`,
+    buttons: [{ label: '关 闭' }, { label: '打开设计器编辑', primary: true, onClick: () => { location.href = 'designer.html?id=' + b.id; } }]
+  });
+  DG.makeChart(m.body.querySelector('[data-pv="line"]'), {
+    tooltip: { trigger: 'axis' }, legend: { data: ['原油(万吨)', '天然气(亿方)'] }, grid: { top: 28 },
+    xAxis: { type: 'category', data: DG.WEEK },
+    yAxis: [{ type: 'value' }, { type: 'value', splitLine: { show: false } }],
+    series: [
+      { name: '原油(万吨)', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2.2 }, data: DG.series(7, 12.8, 0.5, 1),
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.25)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } } },
+      { name: '天然气(亿方)', type: 'line', smooth: true, symbol: 'none', yAxisIndex: 1, lineStyle: { width: 2 }, data: DG.series(7, 4.3, 0.18, 3) }
+    ]
+  });
+  DG.makeChart(m.body.querySelector('[data-pv="bar"]'), {
+    tooltip: { trigger: 'axis' }, grid: { top: 10 },
+    xAxis: { type: 'category', data: ['长庆', '大庆', '塔里木', '胜利', '华北'] },
+    yAxis: { type: 'value' },
+    series: [{ type: 'bar', barWidth: 20, data: [3.42, 3.31, 2.42, 2.31, 1.78],
+      itemStyle: { borderRadius: [4, 4, 0, 0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#FF8A3D' }, { offset: 1, color: 'rgba(244,99,58,.35)' }] } } }]
+  });
+  DG.makeChart(m.body.querySelector('[data-pv="pie"]'), {
+    tooltip: { trigger: 'item' }, legend: { orient: 'vertical', right: 4, top: 'center' },
+    series: [{ type: 'pie', radius: ['48%', '72%'], center: ['36%', '50%'], label: { show: false },
+      itemStyle: { borderColor: '#0A0E17', borderWidth: 2 },
+      data: [{ name: '石油', value: 12.86 }, { name: '天然气', value: 4.32 }, { name: '化工', value: 3.15 }, { name: '煤矿', value: 28.4 }] }]
+  });
+}
+
+/* ---- 分享（三方式 radio + 密码 + 复制链接） ---- */
+function openShare(b) {
+  const link = 'https://bi.energy.local/s/' + b.id + '?sign=dg' + Math.random().toString(36).slice(2, 8);
+  const m = DG.ui.modal({
+    title: '分享看板 · ' + b.name, width: 560,
+    body: `
+      <div class="flex-col" style="gap:8px">
+        <label class="link-cfg" style="cursor:pointer;display:flex"><input type="radio" name="sw" value="密码分享" checked style="accent-color:var(--brand);margin-top:3px"><span class="grow">密码分享<div class="sm tx-3">生成链接 + 访问密码，适合外发特定人员</div></span><span class="tag warn">推荐</span></label>
+        <label class="link-cfg" style="cursor:pointer;display:flex"><input type="radio" name="sw" value="公开链接" style="accent-color:var(--brand);margin-top:3px"><span class="grow">公开链接<div class="sm tx-3">组织内成员登录后可见，免密码</div></span></label>
+        <label class="link-cfg" style="cursor:pointer;display:flex"><input type="radio" name="sw" value="签名Token嵌入" style="accent-color:var(--brand);margin-top:3px"><span class="grow">签名 Token 嵌入<div class="sm tx-3">iframe 嵌入门户 / 钉钉，HMAC 签名防篡改</div></span></label>
+      </div>
+      <div class="form-item mt-2" id="swPwdRow"><label class="form-label">访问密码</label><input class="input num" value="8K2X" maxlength="8"></div>
+      <div class="form-item"><label class="form-label">分享链接</label>
+        <div class="flex" style="gap:8px"><input class="input num" readonly value="${link}"><button class="btn" type="button" id="swCopy">复制链接</button></div>
+      </div>`,
+    buttons: [{ label: '取 消' }, {
+      label: '保存分享设置', primary: true, onClick: () => {
+        const way = m.body.querySelector('input[name="sw"]:checked').value;
+        DG.ui.toast('分享设置已保存：' + way + '（FR-DASH-06）', 'ok');
+      }
+    }]
+  });
+  m.body.querySelectorAll('input[name="sw"]').forEach(r => r.onchange = () => {
+    m.body.querySelector('#swPwdRow').style.display = m.body.querySelector('input[name="sw"]:checked').value === '密码分享' ? '' : 'none';
+  });
+  m.body.querySelector('#swCopy').onclick = () => DG.ui.toast('链接已复制到剪贴板', 'ok');
+}
+
+/* ---- 删除（危险二次确认 → POST /dashboard/delete → 移入回收站） ---- */
+async function delBoard(b) {
+  const ok = await DG.ui.confirm({
+    danger: true, title: '删除看板', okLabel: '删 除',
+    content: `确认删除「${esc(b.name)}」？<br>删除后进入回收站（保留 30 天可恢复），对外分享链接即刻失效。`
+  });
+  if (!ok) return;
+  const r = await DG.api.post('/dashboard/delete', { id: b.id });
+  if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+  state.rows = state.rows.filter(x => x.id !== b.id); state.total--;
+  trash.unshift({ board: b, by: '李明', time: new Date().toLocaleString('zh-CN', { hour12: false }), left: 30 });
+  renderMine(); renderTrash(); updateCnt();
+  DG.ui.toast(`「${b.name}」已移入回收站`, 'ok');
+}
+
+/* ================= 回收站（恢复 / 彻底删除） ================= */
+function renderTrash() {
+  const body = document.getElementById('trashRows');
+  if (!trash.length) {
+    body.innerHTML = `<tr><td colspan="6" style="padding:0">${DG.ui.emptyBlock('回收站为空')}</td></tr>`;
+    updateCnt(); return;
+  }
+  body.innerHTML = trash.map(t => `
+    <tr>
+      <td class="cell-main">${esc(t.board.name)}</td>
+      <td><span class="ind ${t.board.ind}"><i></i>${IND_LB[t.board.ind] || '其他'}</span></td>
+      <td>${esc(t.by)}</td><td class="sm">${esc(t.time)}</td>
+      <td><span class="tag warn">${t.left} 天</span></td>
+      <td style="white-space:nowrap"><span class="link-btn" data-op="re">恢复</span><span class="link-btn" data-op="del">彻底删除</span></td>
+    </tr>`).join('');
+  body.querySelectorAll('tr').forEach((tr, i) => {
+    tr.querySelector('[data-op="re"]').onclick = () => {
+      const t = trash[i]; trash.splice(i, 1);
+      state.rows.unshift(t.board); state.total++;
+      renderMine(); renderTrash(); updateCnt();
+      DG.ui.toast(`「${t.board.name}」已恢复至「我的看板」`, 'ok');
+    };
+    tr.querySelector('[data-op="del"]').onclick = async () => {
+      const t = trash[i];
+      const ok = await DG.ui.confirm({
+        danger: true, title: '彻底删除', okLabel: '彻底删除',
+        content: `「${esc(t.board.name)}」将被永久删除，<b style="color:var(--danger)">不可恢复</b>。确认继续？`
+      });
+      if (!ok) return;
+      trash.splice(i, 1); renderTrash(); updateCnt();
+      DG.ui.toast('已彻底删除', 'ok');
+    };
+  });
+}
+function updateCnt() {
+  document.getElementById('cntMine').textContent = state.total;
+  document.getElementById('cntTrash').textContent = trash.length;
+}
+
+/* ================= 模板库（封面点击→预览 modal，按钮→一键套用） ================= */
+async function applyTpl(name, btn) {
+  if (btn) DG.ui.btnLoading(btn, true);
+  const r = await DG.api.post('/dashboard/copyFromTemplate', { template: name });
+  if (btn) DG.ui.btnLoading(btn, false);
+  if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+  DG.ui.toast(r.data.msg + '：「' + r.data.name + '」', 'ok');
+  setTimeout(() => location.href = 'designer.html?from=template', 1000);
+  return true;
+}
+function openTplPreview(name) {
+  const t = TPLS[name] || { widgets: [] };
+  DG.ui.modal({
+    title: '模板预览 · ' + name, width: 720,
+    body: `
+      <div style="height:170px;border-radius:var(--r-l);border:1px solid var(--line-1);background:${t.cover || 'var(--bg-3)'};display:flex;align-items:flex-end;padding:16px">
+        <div><div style="font-size:18px;font-weight:700;text-shadow:0 2px 8px rgba(0,0,0,.5)">${name}</div>
+        <div class="sm" style="color:var(--tx-2)">${t.widgets.length} 类部件 · 行业模板（FR-HOME-25）</div></div>
+      </div>
+      <div class="form-label" style="margin:14px 0 8px">部件清单</div>
+      <div class="flex wrap" style="gap:8px">${t.widgets.map(w => `<span class="tag" style="padding:5px 12px">${w}</span>`).join('')}</div>
+      <div class="sm tx-3 mt-2" style="line-height:1.8">套用后生成<b style="color:var(--tx-1)">可编辑副本</b>，模板源不受影响；数据集引用将按当前环境自动重绑，行列权限按使用人身份生效。</div>`,
+    buttons: [{ label: '关 闭' }, {
+      label: '使用模板', primary: true, keepOpen: true,
+      onClick: async (api, btn) => { const ok2 = await applyTpl(name, btn); if (ok2 === false) return false; }
+    }]
+  });
+}
+document.querySelectorAll('.tpl2-card').forEach(card => {
+  card.addEventListener('click', e => { if (e.target.closest('.tpl-use')) return; openTplPreview(card.dataset.tpl); });
+  const btn = card.querySelector('.tpl-use');
+  if (btn) btn.addEventListener('click', e => { e.stopPropagation(); applyTpl(card.dataset.tpl, btn); });
+});
+
+/* ================= 行业分段器（ind 参数过滤）+ 搜索（前端过滤） ================= */
+function filterTemplates() {
+  document.querySelectorAll('.tpl2-card').forEach(c => {
+    const indOk = state.ind === 'all' || (c.dataset.ind || '').split(',').includes(state.ind);
+    const kwOk = !state.kw || c.dataset.tpl.includes(state.kw);
+    c.style.display = indOk && kwOk ? '' : 'none';
+  });
+}
+document.querySelectorAll('#indSeg .seg-item').forEach(s => {
   s.addEventListener('click', () => {
-    document.querySelectorAll('.seg-item').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('#indSeg .seg-item').forEach(x => x.classList.remove('active'));
     s.classList.add('active');
+    state.ind = s.dataset.ind;
+    filterTemplates();
+    if (state.mineLoaded) loadMine();
   });
 });
+document.getElementById('dbSearch').addEventListener('input', e => {
+  state.kw = e.target.value.trim();
+  filterTemplates();
+  if (state.mineLoaded) renderMine();
+});
+
+/* ================= 初始化 ================= */
+renderTrash(); updateCnt(); loadMine();
+if (location.hash === '#demo') setTimeout(() => openTplPreview('油田生产驾驶舱'), 500);
+if (location.hash === '#demo2') setTimeout(() => { if (state.rows[0]) openShare(state.rows[0]); }, 1200);
 </script>
 </body>
 </html>

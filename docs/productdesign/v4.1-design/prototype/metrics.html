@@ -78,6 +78,17 @@
   .topo-legend { position: absolute; right: 16px; top: 12px; display: flex; gap: 12px; font-size: 11.5px; color: var(--tx-3); z-index: 2; }
   .topo-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 
+  /* ---- 深化轮新增 ---- */
+  .modal-mask { z-index: 130; }   /* 确保表单/确认弹窗压在抽屉(z95)之上 */
+  .link-btn { color: var(--tx-3); cursor: pointer; font-size: 12px; padding: 2px 8px; border-radius: 6px; flex: none; }
+  .link-btn:hover { color: var(--brand); background: var(--brand-soft); }
+  .ver-item { border-radius: 8px; padding: 8px 10px; margin: 0 -10px; cursor: pointer; }
+  .ver-item:hover { background: var(--bg-glass-2); }
+  #statusTabs { margin-bottom: 0; }
+  #metricSearchWrap { min-width: 230px; cursor: text; }
+  #metricSearchWrap input { cursor: text; }
+  .conflict-col { border-radius: var(--r-l); padding: 14px 16px; border: 1px solid var(--line-2); background: var(--bg-glass); }
+
   @media (max-width: 1100px) { .metric-bench { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -90,9 +101,13 @@
       <div class="page-desc">指标的唯一定义与消费中心 —— 一个指标，一个口径（PRD 10.3 · 语义层核心）</div>
     </div>
     <div class="page-actions">
-      <button class="btn ghost" onclick="DG.toast('口径冲突检测：扫描 86 个指标，发现 2 处同名不同口径（详见右侧告警）')">口径冲突检测 <span class="tag danger" style="margin-left:2px">2</span></button>
-      <button class="btn" onclick="DG.toast('原型演示：打开指标目录（按业务域 / 字母序）')">指标目录</button>
-      <button class="btn primary" onclick="DG.toast('原型演示：打开新建指标向导（定义度量 / 维度 / 过滤条件）')"><span style="width:15px;height:15px;display:flex" id="ic-plus"></span>新建指标</button>
+      <span class="top-search" id="metricSearchWrap">
+        <span style="width:15px;height:15px;display:flex;flex:none" id="ic-search"></span>
+        <input id="metricSearch" placeholder="搜索指标名称 / 编号…（300ms 防抖）" autocomplete="off" />
+      </span>
+      <button class="btn ghost" id="btnConflict">口径冲突检测 <span class="tag danger" style="margin-left:2px">2</span></button>
+      <button class="btn" onclick="DG.ui.toast('指标目录批量导出属 Phase 2 能力，见 PRD FR-SEM-10','warn')">指标目录</button>
+      <button class="btn primary" id="btnNewMetric"><span style="width:15px;height:15px;display:flex" id="ic-plus"></span>新建指标</button>
     </div>
   </div>
 
@@ -126,141 +141,22 @@
   </section>
 
   <div class="metric-bench">
-    <!-- 左：业务域目录树 -->
+    <!-- 左：业务域目录树（GET /semantics/catalog） -->
     <div class="card domain-tree" id="domainTree">
-      <div class="card-title" style="margin-bottom:8px"><span class="bar"></span>业务域</div>
-      <div class="dt-item active" data-domain="all"><span class="dt-dot" style="background:var(--brand)"></span>全部指标<span class="dt-cnt">86</span></div>
-      <div class="dt-item" data-domain="oil"><span class="dt-dot" style="background:var(--oil);box-shadow:0 0 6px var(--oil)"></span>油气勘探开发<span class="dt-cnt">32</span></div>
-      <div class="dt-sub">
-        <div class="dt-item" data-domain="oil">采油生产<span class="dt-cnt">18</span></div>
-        <div class="dt-item" data-domain="oil">注水注气<span class="dt-cnt">8</span></div>
-        <div class="dt-item" data-domain="oil">地质油藏<span class="dt-cnt">6</span></div>
-      </div>
-      <div class="dt-item" data-domain="chem"><span class="dt-dot" style="background:var(--chem);box-shadow:0 0 6px var(--chem)"></span>炼油化工<span class="dt-cnt">18</span></div>
-      <div class="dt-item" data-domain="coal"><span class="dt-dot" style="background:var(--coal);box-shadow:0 0 6px var(--coal)"></span>煤矿生产<span class="dt-cnt">15</span></div>
-      <div class="dt-item" data-domain="gas"><span class="dt-dot" style="background:var(--gas);box-shadow:0 0 6px var(--gas)"></span>天然气管输<span class="dt-cnt">12</span></div>
-      <div class="dt-item" data-domain="fin"><span class="dt-dot" style="background:var(--info)"></span>经营财务<span class="dt-cnt">9</span></div>
+      <div class="card-title" style="margin-bottom:8px"><span class="bar"></span>业务域 <span class="more" style="font-weight:400">/semantics/catalog</span></div>
+      <div id="domainTreeBody"></div>
     </div>
 
-    <!-- 中：指标卡列表 -->
-    <div class="flex-col" style="gap:12px" id="metricList">
-
-      <div class="card metric-card selected" data-metric="oil-output">
-        <div class="mc-head">
-          <span class="mc-name">原油产量</span>
-          <span class="mc-code">M-OIL-001</span>
-          <span class="ind oil"><i></i>石油</span>
-          <span class="tag ok">已认证 v1.2</span>
-          <span style="margin-left:auto" class="sm tx-3">统计周期：日 / 月</span>
-        </div>
-        <div class="mc-desc">采油厂井口产出原油经计量的商品量，不含自用油与损耗；按月口径为自然月累计。</div>
-        <div class="mc-body">
-          <div class="mc-spark chart" style="min-height:36px;height:36px" data-chart="sp1"></div>
-          <div class="mc-meta">
-            <span>当前值<br><b>385.2</b> 万吨/月</span>
-            <span>同比<br><b style="color:var(--ok)">+5.1%</b></span>
-            <span>被引用<br><b>看板 14 · 告警 3 · 问数 27</b></span>
-            <span class="mc-owner"><span class="avatar" style="background:linear-gradient(135deg,#FF8A3D,#B45309);color:#2A1503">王</span>王建国 · 勘探开发部</span>
-          </div>
-        </div>
+    <!-- 中：指标卡列表（GET /semantics/metric/list · domain/status/keyword） -->
+    <div class="flex-col" style="gap:12px">
+      <div class="tabs" id="statusTabs">
+        <div class="tab active" data-status="all">全部 <span class="cnt" id="cntAll">·</span></div>
+        <div class="tab" data-status="certified">已认证 <span class="cnt" id="cntCertified">·</span></div>
+        <div class="tab" data-status="pending">待认证 <span class="cnt" id="cntPending">·</span></div>
+        <div class="tab" data-status="draft">草稿 <span class="cnt" id="cntDraft">·</span></div>
       </div>
-
-      <div class="card metric-card" data-metric="oil-cost">
-        <div class="mc-head">
-          <span class="mc-name">吨油完全成本</span>
-          <span class="mc-code">M-OIL-014</span>
-          <span class="ind oil"><i></i>石油</span>
-          <span class="tag ok">已认证 v1.0</span>
-        </div>
-        <div class="mc-desc">一定时期内原油生产总成本（含操作成本、折旧折耗、期间费用）除以同期商品量。</div>
-        <div class="mc-body">
-          <div class="mc-spark chart" style="min-height:36px;height:36px" data-chart="sp2"></div>
-          <div class="mc-meta">
-            <span>当前值<br><b>2,146</b> 元/吨</span>
-            <span>同比<br><b style="color:var(--danger)">+3.8%</b></span>
-            <span>被引用<br><b>看板 6 · 报表 4 · 问数 11</b></span>
-            <span class="mc-owner"><span class="avatar">李</span>李秀兰 · 财务资产部</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card metric-card" data-metric="water-cut">
-        <div class="mc-head">
-          <span class="mc-name">井口综合含水率</span>
-          <span class="mc-code">M-OIL-027</span>
-          <span class="ind oil"><i></i>石油</span>
-          <span class="tag warn">待认证</span>
-          <span class="tag danger" style="font-size:10.5px">口径冲突</span>
-        </div>
-        <div class="mc-desc">产液量中水所占体积百分比。⚠ 与「M-OIL-09 含水率（化验口径）」同名近义，化验值与计量值偏差最高 2.3pct，待仲裁归并。</div>
-        <div class="mc-body">
-          <div class="mc-spark chart" style="min-height:36px;height:36px" data-chart="sp3"></div>
-          <div class="mc-meta">
-            <span>当前值<br><b>87.4</b> %</span>
-            <span>同比<br><b style="color:var(--warn)">+0.6pct</b></span>
-            <span>被引用<br><b>看板 5 · 告警 2 · 问数 8</b></span>
-            <span class="mc-owner"><span class="avatar" style="background:linear-gradient(135deg,#A78BFA,#6D28D9);color:#1E1033">赵</span>赵鹏 · 采油工程部</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card metric-card" data-metric="coal-wash">
-        <div class="mc-head">
-          <span class="mc-name">原煤入洗率</span>
-          <span class="mc-code">M-COAL-006</span>
-          <span class="ind coal"><i></i>煤矿</span>
-          <span class="tag ok">已认证 v1.1</span>
-        </div>
-        <div class="mc-desc">入洗原煤量占原煤产量的比例，反映煤炭洗选加工深度；按洗煤厂磅房计量数据汇总。</div>
-        <div class="mc-body">
-          <div class="mc-spark chart" style="min-height:36px;height:36px" data-chart="sp4"></div>
-          <div class="mc-meta">
-            <span>当前值<br><b>72.8</b> %</span>
-            <span>同比<br><b style="color:var(--ok)">+4.2pct</b></span>
-            <span>被引用<br><b>看板 3 · 报表 2 · 问数 5</b></span>
-            <span class="mc-owner"><span class="avatar" style="background:linear-gradient(135deg,#E8B33C,#92610A);color:#2A1E03">孙</span>孙立军 · 洗选运销部</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card metric-card" data-metric="methanol-grade">
-        <div class="mc-head">
-          <span class="mc-name">甲醇优级品率</span>
-          <span class="mc-code">M-CHEM-011</span>
-          <span class="ind chem"><i></i>化工</span>
-          <span class="tag warn">待认证</span>
-        </div>
-        <div class="mc-desc">符合 GB 338 优级品标准的甲醇产量占比，以质检中心化验单为准，按班次加权汇总。</div>
-        <div class="mc-body">
-          <div class="mc-spark chart" style="min-height:36px;height:36px" data-chart="sp5"></div>
-          <div class="mc-meta">
-            <span>当前值<br><b>98.2</b> %</span>
-            <span>同比<br><b style="color:var(--ok)">+0.4pct</b></span>
-            <span>被引用<br><b>看板 2 · 告警 1 · 问数 6</b></span>
-            <span class="mc-owner"><span class="avatar" style="background:linear-gradient(135deg,#22D3EE,#0E7490);color:#04262C">陈</span>陈静 · 煤化工质检中心</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card metric-card" data-metric="pipe-turnover">
-        <div class="mc-head">
-          <span class="mc-name">管输周转量</span>
-          <span class="mc-code">M-GAS-004</span>
-          <span class="ind gas"><i></i>天然气</span>
-          <span class="tag">草稿 v0.3</span>
-        </div>
-        <div class="mc-desc">输气量与平均运距的乘积（亿方·公里），衡量管网运输工作量；运距口径待定稿。</div>
-        <div class="mc-body">
-          <div class="mc-spark chart" style="min-height:36px;height:36px" data-chart="sp6"></div>
-          <div class="mc-meta">
-            <span>当前值<br><b>1,284</b> 亿方·km</span>
-            <span>同比<br><b style="color:var(--ok)">+6.9%</b></span>
-            <span>被引用<br><b>看板 1 · 问数 3</b></span>
-            <span class="mc-owner"><span class="avatar" style="background:linear-gradient(135deg,#60A5FA,#1D4ED8);color:#061A3A">周</span>周海峰 · 管道分公司</span>
-          </div>
-        </div>
-      </div>
-
+      <div class="flex-col" style="gap:12px" id="metricList"></div>
+      <div id="metricPager"></div>
     </div>
   </div>
 
@@ -280,108 +176,424 @@
   </div>
 </div>
 
-<!-- 指标详情抽屉 -->
+<!-- 指标详情抽屉（数据来自 GET /semantics/metric/detail/:id + GET /semantics/metric/versions） -->
 <div class="drawer" id="metricDrawer">
   <div class="drawer-head">
     <div>
       <div class="flex" style="gap:8px">
-        <b style="font-size:16px" id="dName">原油产量</b>
-        <span class="mc-code" id="dCode">M-OIL-001</span>
-        <span class="ind oil" id="dInd"><i></i>石油</span>
-        <span class="tag ok" id="dTag">已认证 v1.2</span>
+        <b style="font-size:16px" id="dName">加载中…</b>
+        <span class="mc-code" id="dCode"></span>
+        <span class="ind oil" id="dInd"><i></i>—</span>
+        <span class="tag" id="dTag"></span>
       </div>
-      <div class="sm tx-3 mt-1" id="dDesc">采油厂井口产出原油经计量的商品量，不含自用油与损耗。</div>
+      <div class="sm tx-3 mt-1" id="dDesc"></div>
     </div>
     <button class="icon-btn d-close" onclick="closeDrawer()" title="关闭"><span style="width:18px;height:18px;display:flex" id="ic-x"></span></button>
   </div>
   <div class="drawer-body">
     <div class="d-sec">
       <div class="d-sec-t">指标定义（语义层模型）</div>
-      <dl class="def-grid">
-        <dt>度量</dt><dd>SUM(商品油量) — ODS_采油日报表.fact_oil_daily.commercial_qty</dd>
-        <dt>维度</dt><dd>采油厂 / 区块 / 油藏类型 / 井别 / 日期</dd>
-        <dt>过滤条件</dt><dd>井状态 ∈ {生产井} 且 计量方式 ≠ 估算</dd>
-        <dt>统计周期</dt><dd>日 / 月（自然月累计）</dd>
-        <dt>负责人</dt><dd>王建国（勘探开发部）· 治理委员：张总工</dd>
-        <dt>权限</dt><dd><span class="tag info">行级权限继承</span> <span class="tag warn">单井级敏感</span></dd>
-      </dl>
+      <dl class="def-grid" id="dDef"></dl>
     </div>
     <div class="d-sec">
       <div class="d-sec-t">指标查询引擎 · 编译 SQL 预览</div>
-      <div class="code-block"><span class="cm">-- 由指标语义模型编译生成（Freemarker 参数化，防注入预编译）</span>
-<span class="kw">SELECT</span> t.plant_name          <span class="cm">AS 采油厂</span>,
-       <span class="fn">SUM</span>(t.commercial_qty) <span class="cm">AS 原油产量_吨</span>
-<span class="kw">FROM</span> ods_fact_oil_daily t
-<span class="kw">WHERE</span> t.dt <span class="kw">BETWEEN</span> <span class="pc">${pc(month_start)}</span> <span class="kw">AND</span> <span class="pc">${pc(month_end)}</span>
-  <span class="kw">AND</span> t.well_status = <span class="pc">${pc('生产井')}</span>
-  <span class="kw">AND</span> t.meter_type  &lt;&gt; <span class="pc">'估算'</span>
-  <span class="cm">/* 行级权限自动注入 */</span>
-  <span class="kw">AND</span> t.org_id <span class="kw">IN</span> (<span class="pc">${pc(user_orgs)}</span>)
-<span class="kw">GROUP BY</span> t.plant_name
-<span class="kw">ORDER BY</span> 原油产量_吨 <span class="kw">DESC</span>;</div>
+      <div class="code-block" id="dSql" style="max-height:230px;overflow:auto"></div>
     </div>
     <div class="d-sec">
-      <div class="d-sec-t">版本历史</div>
-      <div class="ver-item"><span class="v-no">v1.2</span><div class="grow"><b>当前版本</b> · 过滤条件新增「计量方式≠估算」<div class="sm tx-3">2026-08-20 · 王建国 · 认证发布</div></div><span class="tag ok">已认证</span></div>
-      <div class="ver-item"><span class="v-no">v1.1</span><div class="grow">维度新增「油藏类型」<div class="sm tx-3">2026-06-11 · 王建国</div></div><span class="tag">历史</span></div>
-      <div class="ver-item"><span class="v-no">v1.0</span><div class="grow">首次定义并接入 12 张看板<div class="sm tx-3">2026-03-02 · 张总工</div></div><span class="tag">历史</span></div>
+      <div class="d-sec-t">版本历史 <span class="sm tx-3" style="font-weight:400;letter-spacing:0">（点击版本 → 与当前版本口径对比）</span></div>
+      <div id="dVers"></div>
     </div>
     <div class="d-sec">
       <div class="d-sec-t">数据血缘（上游 → 下游消费）</div>
-      <div class="lineage-row">
-        <span class="lineage-node" style="border-color:rgba(96,165,250,.4);color:var(--info)">ODS_采油日报表</span>
-        <span class="lineage-arrow" id="la1"></span>
-        <span class="lineage-node" style="border-color:var(--brand-line);color:var(--brand)">指标 · 原油产量</span>
-        <span class="lineage-arrow" id="la2"></span>
-        <span class="lineage-node" style="border-color:rgba(34,211,238,.4);color:var(--gas)">看板 ×14</span>
-        <span class="lineage-node" style="border-color:rgba(251,191,36,.4);color:var(--warn)">告警 ×3</span>
-      </div>
-      <div class="lineage-row" style="padding-left:0">
-        <span class="lineage-node" style="border-color:rgba(96,165,250,.4);color:var(--info)">DIM_组织机构维表</span>
-        <span class="lineage-arrow" id="la3"></span>
-        <span class="lineage-node" style="border-color:var(--brand-line);color:var(--brand)">（维度关联）</span>
-        <span class="lineage-arrow" id="la4"></span>
-        <span class="lineage-node" style="border-color:rgba(167,139,250,.4);color:var(--chem)">问数 ×27</span>
-        <span class="lineage-node" style="border-color:rgba(96,165,250,.4);color:var(--info)">API ×2</span>
-      </div>
+      <div id="dLineage"></div>
+    </div>
+    <div class="d-sec">
+      <div class="d-sec-t">消费方</div>
+      <div id="dConsumers"></div>
     </div>
   </div>
   <div class="drawer-foot">
-    <button class="btn sm" onclick="DG.toast('原型演示：版本对比 v1.1 ↔ v1.2（口径 Diff）')">版本对比</button>
-    <button class="btn sm" onclick="DG.toast('消费方列表：14 看板 / 3 告警 / 27 问数 / 2 API')">消费方列表</button>
-    <button class="btn sm primary" onclick="DG.toast('已提交认证发布申请，待治理委员张总工审批')">认证发布</button>
+    <button class="btn sm" id="dBtnCompare">版本对比</button>
+    <button class="btn sm" id="dBtnEdit">编辑指标</button>
+    <button class="btn sm primary" id="dBtnCertify">认证发布</button>
   </div>
 </div>
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
 document.getElementById('ic-plus').innerHTML = DG.ICONS.plus;
 document.getElementById('ic-x').innerHTML = DG.ICONS.x;
-['la1','la2','la3','la4'].forEach(id => document.getElementById(id).innerHTML = DG.ICONS.arrowR);
+document.getElementById('ic-search').innerHTML = DG.ICONS.search;
+const esc = DG.ui.esc;
 
-/* ---- 指标迷你趋势 sparkline 工厂 ---- */
-function spark(seed, color, base, wave) {
-  return () => ({
+/* ================= 状态 ================= */
+const state = { domain: 'all', status: 'all', keyword: '', page: 1, rows: [] };
+let curMetric = null, curVersions = [], sparks = [];
+const IND_META = { oil: ['oil', '石油'], gas: ['gas', '天然气'], chem: ['chem', '化工'], coal: ['coal', '煤矿'] };
+const DOM_COLOR = { 'dom-oil': 'var(--oil)', 'dom-refine': 'var(--chem)', 'dom-coal': 'var(--coal)', 'dom-pipe': 'var(--gas)', 'dom-fin': 'var(--info)' };
+
+/* ================= 业务域目录树（GET /semantics/catalog） ================= */
+async function loadTree() {
+  const body = document.getElementById('domainTreeBody');
+  body.innerHTML = '';
+  const done = DG.ui.blockLoading(body);
+  const r = await DG.api.get('/semantics/catalog');
+  done();
+  if (r.code !== 0) { body.appendChild(DG.ui.errorBlock(r.message, loadTree)); return; }
+  const total = r.data.reduce((s, d) => s + d.count, 0);
+  body.innerHTML = `<div class="dt-item active" data-domain="all"><span class="dt-dot" style="background:var(--brand)"></span>全部指标<span class="dt-cnt">${total}</span></div>` +
+    r.data.map(d => `<div class="dt-item" data-domain="${d.id}"><span class="dt-dot" style="background:${DOM_COLOR[d.id]};box-shadow:0 0 6px ${DOM_COLOR[d.id]}"></span>${esc(d.name)}<span class="dt-cnt">${d.count}</span></div>` +
+      (d.children ? `<div class="dt-sub">${d.children.map(c => `<div class="dt-item" data-domain="${d.id}" data-sub="${esc(c.name)}">${esc(c.name)}<span class="dt-cnt">${c.count}</span></div>`).join('')}</div>` : '')).join('');
+  body.querySelectorAll('.dt-item').forEach(it => {
+    it.addEventListener('click', e => {
+      e.stopPropagation();
+      body.querySelectorAll('.dt-item').forEach(x => x.classList.remove('active'));
+      it.classList.add('active');
+      state.domain = it.dataset.domain; state.page = 1;
+      if (it.dataset.sub) DG.ui.toast('子域「' + it.dataset.sub + '」按所属业务域过滤（子域细分见 PRD FR-SEM-02）');
+      loadCounts(); loadList();
+    });
+  });
+}
+
+/* ================= 指标列表（GET /semantics/metric/list） ================= */
+async function loadCounts() {
+  const r = await DG.api.get('/semantics/metric/list', { domain: state.domain });
+  if (r.code !== 0) return;
+  const c = { all: r.data.rows.length, certified: 0, pending: 0, draft: 0 };
+  r.data.rows.forEach(m => { if (c[m.status] != null) c[m.status]++; });
+  document.getElementById('cntAll').textContent = c.all;
+  document.getElementById('cntCertified').textContent = c.certified;
+  document.getElementById('cntPending').textContent = c.pending;
+  document.getElementById('cntDraft').textContent = c.draft;
+}
+async function loadList() {
+  const list = document.getElementById('metricList');
+  list.innerHTML = '';
+  const done = DG.ui.blockLoading(list);
+  const r = await DG.api.get('/semantics/metric/list', { domain: state.domain, status: state.status, keyword: state.keyword });
+  done();
+  if (r.code !== 0) { list.appendChild(DG.ui.errorBlock(r.message, loadList)); return; }
+  state.rows = r.data.rows;
+  renderList();
+}
+function statusTagOf(m) {
+  if (m.status === 'certified') return `<span class="tag ok">已认证 ${m.version}</span>`;
+  if (m.status === 'pending') return `<span class="tag warn">待认证 ${m.version}</span>`;
+  return `<span class="tag">草稿 ${m.version}</span>`;
+}
+function refsText(r) {
+  const p = [];
+  if (r.board) p.push('看板 ' + r.board);
+  if (r.report) p.push('报表 ' + r.report);
+  if (r.alert) p.push('告警 ' + r.alert);
+  if (r.ask) p.push('问数 ' + r.ask);
+  return p.join(' · ') || '—';
+}
+function cardHtml(m) {
+  const [ic, il] = IND_META[m.ind] || ['info', '其他'];
+  const yoyColor = m.yoy === '—' ? 'var(--tx-3)' : String(m.yoy).startsWith('-') ? 'var(--danger)' : 'var(--ok)';
+  return `<div class="card metric-card" data-id="${m.id}">
+    <div class="mc-head">
+      <span class="mc-name">${esc(m.name)}</span>
+      <span class="mc-code">${m.code}</span>
+      <span class="ind ${ic}"><i></i>${il}</span>
+      ${statusTagOf(m)}
+      ${m.conflict ? '<span class="tag danger" style="font-size:10.5px">口径冲突</span>' : ''}
+      <span style="margin-left:auto" class="sm tx-3">统计周期：${m.period}</span>
+    </div>
+    <div class="mc-desc">${esc(m.caliber)}${m.conflict ? '<span style="color:var(--danger)"> ⚠ 与「M-OIL-09 含水率（化验口径）」同名近义，化验值与计量值偏差最高 2.3pct，待仲裁归并。</span>' : ''}</div>
+    <div class="mc-body">
+      <div class="mc-spark chart" style="min-height:36px;height:36px" data-spark></div>
+      <div class="mc-meta">
+        <span>当前值<br><b>${m.value}</b></span>
+        <span>同比<br><b style="color:${yoyColor}">${m.yoy}</b></span>
+        <span>被引用<br><b>${refsText(m.refs || {})}</b></span>
+        <span class="mc-owner"><span class="avatar">${esc((m.owner || '李')[0])}</span>${esc(m.owner)}</span>
+        <span class="link-btn" data-edit style="align-self:center">编辑</span>
+      </div>
+    </div>
+  </div>`;
+}
+function colorA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+function renderSpark(el, trend, color) {
+  if (!el || !trend || !trend.length) return null;
+  return DG.makeChart(el, {
     grid: { left: 0, right: 0, top: 2, bottom: 2 },
-    xAxis: { type: 'category', show: false, data: DG.MONTHS },
-    yAxis: { type: 'value', show: false, min: v => v.min - wave, max: v => v.max + wave },
+    xAxis: { type: 'category', show: false, data: trend.map((_, i) => i + 1) },
+    yAxis: { type: 'value', show: false, min: v => v.min - 1, max: v => v.max + 1 },
     tooltip: { trigger: 'axis' },
     series: [{
-      type: 'line', smooth: true, symbol: 'none', data: DG.series(12, base, wave, seed),
+      type: 'line', smooth: true, symbol: 'none', data: trend,
       lineStyle: { width: 1.8, color },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: colorHex(color, .28) }, { offset: 1, color: colorHex(color, 0) }] } }
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: colorA(color, .28) }, { offset: 1, color: colorA(color, 0) }] } }
     }]
   });
 }
-function colorHex(hex, a) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+function renderList() {
+  const list = document.getElementById('metricList');
+  const rows = state.rows;
+  sparks.forEach(c => { try { c && c.dispose(); } catch (e) {} });
+  sparks = [];
+  if (!rows.length) {
+    list.innerHTML = DG.ui.emptyBlock('该筛选条件下暂无指标', '新建指标', 'window.__newMetric');
+    document.getElementById('metricPager').innerHTML = '';
+    return;
+  }
+  const pageRows = rows.slice((state.page - 1) * 10, state.page * 10);
+  list.innerHTML = pageRows.map(cardHtml).join('');
+  pageRows.forEach((m, i) => {
+    const card = list.children[i];
+    sparks.push(renderSpark(card.querySelector('[data-spark]'), m.trend, DG.colors[m.ind] || DG.colors.info));
+    card.addEventListener('click', () => openDetail(m.id));
+    const eb = card.querySelector('[data-edit]');
+    if (eb) eb.addEventListener('click', e => { e.stopPropagation(); openMetricForm(m); });
+  });
+  const pg = document.getElementById('metricPager');
+  if (rows.length > 10) DG.ui.pager(pg, rows.length, 10, state.page, p => { state.page = p; renderList(); });
+  else pg.innerHTML = '';
 }
 
-/* ---- 指标消费拓扑 ---- */
+/* ================= 详情抽屉（detail + versions） ================= */
+const drawer = document.getElementById('metricDrawer');
+function closeDrawer() { drawer.classList.remove('show'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+async function openDetail(id) {
+  document.querySelectorAll('.metric-card').forEach(x => x.classList.toggle('selected', x.dataset.id === id));
+  drawer.classList.add('show');
+  document.getElementById('dName').textContent = '加载中…';
+  const r = await DG.api.get('/semantics/metric/detail/' + id);
+  if (r.code !== 0) { DG.ui.toast(r.message, 'err'); closeDrawer(); return; }
+  curMetric = r.data;
+  const rv = await DG.api.get('/semantics/metric/versions');
+  curVersions = rv.code === 0 ? rv.data : (r.data.versions || []);
+  fillDrawer(curMetric, curVersions);
+}
+function hlSql(sql) {
+  return String(sql || '-- 暂无').split('\n').map(line => {
+    const t = esc(line);
+    if (t.trim().startsWith('--')) return '<span class="cm">' + t + '</span>';
+    return t.replace(/\b(SELECT|FROM|WHERE|GROUP BY|ORDER BY|BETWEEN|AND|IN|AS|DESC|DISTINCT)\b/g, '<span class="kw">$1</span>')
+            .replace(/\b(SUM|AVG|COUNT|MAX|MIN)\(/g, '<span class="fn">$1</span>(')
+            .replace(/\$\{[^}]*\}/g, mm => '<span class="pc">' + mm + '</span>');
+  }).join('\n');
+}
+function fillDrawer(m, vers) {
+  const [ic, il] = IND_META[m.ind] || ['info', '其他'];
+  document.getElementById('dName').textContent = m.name;
+  document.getElementById('dCode').textContent = m.code;
+  const dInd = document.getElementById('dInd');
+  dInd.className = 'ind ' + ic; dInd.innerHTML = '<i></i>' + il;
+  const dTag = document.getElementById('dTag');
+  dTag.className = 'tag ' + (m.status === 'certified' ? 'ok' : m.status === 'pending' ? 'warn' : '');
+  dTag.textContent = (m.status === 'certified' ? '已认证 ' : m.status === 'pending' ? '待认证 ' : '草稿 ') + m.version;
+  document.getElementById('dDesc').textContent = m.caliber;
+  const r = m.refs || {};
+  document.getElementById('dDef').innerHTML = `
+    <dt>度量</dt><dd>${esc(m.measure)} — ${esc(m.dataset || '未绑定数据集')}</dd>
+    <dt>维度</dt><dd>${(m.dims || []).join(' / ') || '—'}</dd>
+    <dt>统计周期</dt><dd>${m.period}</dd>
+    <dt>负责人</dt><dd>${esc(m.owner)}</dd>
+    <dt>当前值</dt><dd><b class="num">${m.value}</b>　同比 ${m.yoy}</dd>
+    <dt>权限</dt><dd><span class="tag info">行级权限继承</span> ${m.conflict ? '<span class="tag danger">口径冲突待仲裁</span>' : '<span class="tag warn">单井级敏感</span>'}</dd>`;
+  document.getElementById('dSql').innerHTML = hlSql(m.sql);
+  document.getElementById('dVers').innerHTML = vers.length ? vers.map(v => `
+    <div class="ver-item" data-v="${v.v}" title="点击与当前版本对比">
+      <span class="v-no">${v.v}</span>
+      <div class="grow"><b>${v.current ? '当前版本 · ' : ''}</b>${esc(v.note)}<div class="sm tx-3">${v.time} · ${esc(v.user)}</div></div>
+      <span class="tag ${v.current ? 'ok' : ''}">${v.current ? '已认证' : '历史'}</span>
+    </div>`).join('') : '<div class="sm tx-3">暂无版本记录</div>';
+  document.querySelectorAll('#dVers .ver-item').forEach(it => it.onclick = () => openCompare(it.dataset.v));
+  document.getElementById('dLineage').innerHTML = `
+    <div class="lineage-row">
+      <span class="lineage-node" style="border-color:rgba(96,165,250,.4);color:var(--info)">${esc(m.dataset || 'ODS 数据集')}</span>
+      <span class="lineage-arrow">${DG.ICONS.arrowR}</span>
+      <span class="lineage-node" style="border-color:var(--brand-line);color:var(--brand)">指标 · ${esc(m.name)}</span>
+      <span class="lineage-arrow">${DG.ICONS.arrowR}</span>
+      ${r.board ? `<span class="lineage-node" style="border-color:rgba(34,211,238,.4);color:var(--gas)">看板 ×${r.board}</span>` : ''}
+      ${r.alert ? `<span class="lineage-node" style="border-color:rgba(251,191,36,.4);color:var(--warn)">告警 ×${r.alert}</span>` : ''}
+    </div>
+    <div class="lineage-row" style="padding-left:0">
+      <span class="lineage-node" style="border-color:rgba(96,165,250,.4);color:var(--info)">DIM_组织机构维表</span>
+      <span class="lineage-arrow">${DG.ICONS.arrowR}</span>
+      <span class="lineage-node" style="border-color:var(--brand-line);color:var(--brand)">（维度关联）</span>
+      <span class="lineage-arrow">${DG.ICONS.arrowR}</span>
+      ${r.ask ? `<span class="lineage-node" style="border-color:rgba(167,139,250,.4);color:var(--chem)">问数 ×${r.ask}</span>` : ''}
+      ${r.report ? `<span class="lineage-node" style="border-color:rgba(167,139,250,.4);color:var(--chem)">报表 ×${r.report}</span>` : ''}
+      <span class="lineage-node" style="border-color:rgba(96,165,250,.4);color:var(--info)">API ×${m.status === 'certified' ? 2 : 0}</span>
+    </div>`;
+  const cons = [];
+  if (r.board) cons.push(['看板消费', r.board + ' 张看板引用（华北油田生产日报 等）', 'var(--gas)']);
+  if (r.alert) cons.push(['告警订阅', r.alert + ' 条告警规则绑定', 'var(--warn)']);
+  if (r.ask) cons.push(['智能问数', r.ask + ' 次问数命中', 'var(--chem)']);
+  if (r.report) cons.push(['统计报表', r.report + ' 张报表引用', 'var(--chem)']);
+  document.getElementById('dConsumers').innerHTML = cons.length ? cons.map(c => `
+    <div class="row-item" data-c="${c[0]}">
+      <span style="width:8px;height:8px;border-radius:50%;background:${c[2]};flex:none"></span>
+      <div class="grow"><div style="font-size:12.5px">${c[0]}</div><div class="sm tx-3">${c[1]}</div></div>
+      <span style="color:var(--tx-4);width:14px;display:flex">${DG.ICONS.arrowR}</span>
+    </div>`).join('') : '<div class="sm tx-3">暂无下游消费方（草稿指标）</div>';
+  document.querySelectorAll('#dConsumers .row-item').forEach(it => it.onclick = () => DG.ui.toast('消费方「' + it.dataset.c + '」明细见下方「消费拓扑」全量血缘（FR-SEM-07）'));
+  document.getElementById('dBtnCertify').style.display = m.status === 'certified' ? 'none' : '';
+}
+
+/* ---- 抽屉底部操作：版本对比 / 编辑 / 认证发布 ---- */
+document.getElementById('dBtnCompare').onclick = () => {
+  if (!curMetric) return;
+  const hist = curVersions.filter(v => !v.current);
+  if (!hist.length) { DG.ui.toast('暂无历史版本可对比', 'warn'); return; }
+  openCompare(hist[0].v);
+};
+document.getElementById('dBtnEdit').onclick = () => { if (curMetric) { closeDrawer(); openMetricForm(curMetric); } };
+document.getElementById('dBtnCertify').onclick = async () => {
+  if (!curMetric) return;
+  if (curMetric.status === 'certified') { DG.ui.toast('该指标已是已认证状态', 'warn'); return; }
+  const r = curMetric.refs || {};
+  const consumers = (r.board || 0) + (r.alert || 0) + (r.ask || 0) + (r.report || 0);
+  const ok = await DG.ui.confirm({
+    title: '认证发布', okLabel: '认证发布',
+    content: `确认将「${esc(curMetric.name)} ${curMetric.version}」认证发布？<br>发布后口径锁定，下游 <b class="num">${consumers}</b> 处消费方统一按新口径生效；需治理委员（张总工）复核。`
+  });
+  if (!ok) return;
+  const btn = document.getElementById('dBtnCertify');
+  DG.ui.btnLoading(btn, true);
+  const resp = await DG.api.post('/semantics/metric/certify', { id: curMetric.id });
+  DG.ui.btnLoading(btn, false);
+  if (resp.code !== 0) { DG.ui.toast(resp.message, 'err'); return; }
+  curMetric.status = 'certified'; curMetric.certified = 1;
+  const dTag = document.getElementById('dTag');
+  dTag.className = 'tag ok'; dTag.textContent = '已认证 ' + curMetric.version;
+  btn.style.display = 'none';
+  DG.ui.toast(`已认证发布（认证人：${resp.data.by}）`, 'ok');
+  loadCounts(); loadList();
+};
+
+/* ---- 版本对比 modal（两版本口径并排 + 差异行品牌色高亮） ---- */
+function openCompare(v) {
+  if (!curMetric) return;
+  const m = curMetric;
+  const cur = curVersions.find(x => x.current) || curVersions[0] || { v: m.version, note: '—', user: '—', time: '—' };
+  const oldV = curVersions.find(x => x.v === v) || { v, note: '—', user: '—', time: '—' };
+  const SNAP = {
+    'v1.1': '采油厂井口产出原油经计量的商品量（含自用油与损耗）；新增区块维度，修复跨厂汇总重复计量。',
+    'v1.0': '采油厂井口产出原油经计量的商品量；按月自然月累计。'
+  };
+  const oldCaliber = SNAP[v] || ('历史口径快照：' + oldV.note);
+  const rows = [
+    ['口径描述', oldCaliber, m.caliber],
+    ['变更说明', oldV.note, cur.note],
+    ['统计维度', v === 'v1.0' ? '采油厂 / 日期' : '采油厂 / 区块 / 日期', (m.dims || []).join(' / ')],
+    ['发布人', oldV.user, cur.user],
+    ['发布时间', oldV.time, cur.time]
+  ];
+  DG.ui.modal({
+    title: `版本口径对比 · ${v} ↔ ${cur.v}（当前）`, width: 720,
+    body: `<div class="table-wrap"><table class="tbl">
+        <thead><tr><th style="width:92px">对比项</th><th>${v}（历史）</th><th>${cur.v}（当前）</th></tr></thead>
+        <tbody>${rows.map(rw => {
+          const diff = rw[1] !== rw[2];
+          return `<tr style="${diff ? 'background:var(--brand-soft);box-shadow:inset 3px 0 0 var(--brand)' : ''}">
+            <td class="cell-main">${rw[0]}${diff ? ' <span class="tag brand" style="font-size:10px">差异</span>' : ''}</td>
+            <td style="font-size:12px">${esc(rw[1])}</td><td style="font-size:12px">${esc(rw[2])}</td></tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <div class="sm tx-3 mt-2">品牌色高亮行为两版本差异项；口径回滚与 Diff 订阅属治理域能力（FR-SEM-06）。</div>`,
+    buttons: [{ label: '关 闭' }]
+  });
+}
+
+/* ---- 口径冲突检测 modal（M-OIL-009 ↔ M-OIL-09 冲突对 + 治理仲裁） ---- */
+function openConflict() {
+  DG.ui.modal({
+    title: '口径冲突检测 · 同名不同口径', width: 740,
+    body: `
+      <div class="sm tx-3 mb-2">已扫描 <b class="num">86</b> 个指标，发现 <b style="color:var(--danger)">2 处</b> 同名近义指标口径冲突；下为冲突对 #1（另 1 处：「管输量」日结 / 实时口径，已转治理工单 GOV-114）：</div>
+      <div class="grid g-2" style="gap:12px">
+        <div class="conflict-col" style="border-color:rgba(255,138,61,.4)">
+          <div class="flex" style="gap:8px;flex-wrap:wrap"><b>井口综合含水率</b><span class="mc-code">M-OIL-009</span><span class="tag warn">待认证</span></div>
+          <dl class="desc-list mt-2" style="grid-template-columns:76px 1fr;font-size:12px">
+            <dt>口径</dt><dd>产液量中水所占体积百分比（井口流量计计量口径）</dd>
+            <dt>数据源</dt><dd>DS_采油日报 · ODS_采油日报表</dd>
+            <dt>统计频率</dt><dd>日</dd>
+            <dt>当前值</dt><dd class="num">87.4 %</dd>
+          </dl>
+        </div>
+        <div class="conflict-col" style="border-color:rgba(248,113,113,.4)">
+          <div class="flex" style="gap:8px;flex-wrap:wrap"><b>含水率（化验口径）</b><span class="mc-code">M-OIL-09</span><span class="tag danger">冲突</span></div>
+          <dl class="desc-list mt-2" style="grid-template-columns:76px 1fr;font-size:12px">
+            <dt>口径</dt><dd>采样化验含水率（化验室 LIMS 离心法测定）</dd>
+            <dt>数据源</dt><dd>化验管理系统 · LIMS 接口</dd>
+            <dt>统计频率</dt><dd>班次（每日 3 班）</dd>
+            <dt>当前值</dt><dd class="num">89.7 %</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="mt-2" style="border:1px solid var(--line-1);border-radius:var(--r-m);padding:10px 14px;font-size:12.5px;color:var(--tx-2);line-height:1.8">
+        同名近义、数据源与统计频率均不同；两口径偏差最高 <b class="num" style="color:var(--danger)">2.3pct</b>（华北采油厂 8 月）。
+        仲裁建议：保留计量口径为主指标，化验口径更名「含水率 · 化验值」并挂接质量校验规则 QR-03。
+      </div>`,
+    buttons: [{ label: '关 闭' }, { label: '发起治理仲裁', primary: true, onClick: () => DG.ui.toast('已发起治理仲裁：待治理委员会（张总工）5 个工作日内裁定（FR-SEM-08）', 'ok') }]
+  });
+}
+
+/* ---- 新建 / 编辑指标（formModal → POST /semantics/metric/save） ---- */
+let catalogCache = null, datasetCache = null;
+async function openMetricForm(m) {
+  if (!catalogCache) { const r = await DG.api.get('/semantics/catalog'); catalogCache = r.code === 0 ? r.data : []; }
+  if (!datasetCache) { const r = await DG.api.get('/dataSet/list'); datasetCache = r.code === 0 ? r.data.rows : []; }
+  const isEdit = !!m;
+  DG.ui.formModal({
+    title: isEdit ? `编辑指标 · ${m.name}（${m.code}）` : '新建指标（FR-SEM-01 语义定义）',
+    width: 600,
+    fields: [
+      { key: 'name', label: '指标名称', required: true, value: m ? m.name : '', placeholder: '如：井口综合含水率' },
+      { key: 'domain', label: '业务域', type: 'select', required: true, options: catalogCache.map(d => ({ v: d.id, t: d.name })), value: m ? m.domain : 'dom-oil' },
+      { key: 'dataset', label: '关联数据集', type: 'select', required: true, options: datasetCache.map(d => ({ v: d.name, t: d.name + '（' + d.type + ' · ' + d.source + '）' })), value: m ? m.dataset : undefined },
+      { key: 'measure', label: '度量', required: true, value: m ? m.measure : '', placeholder: '如：日产油量' },
+      { key: 'agg', label: '聚合方式', type: 'select', required: true, options: ['SUM', 'AVG', 'COUNT', 'MAX', 'MIN', 'COUNT_DISTINCT'].map(a => ({ v: a, t: a })), value: 'SUM' },
+      { key: 'dims', label: '可用维度', value: m ? (m.dims || []).join(' / ') : '', placeholder: '采油厂 / 日期', hint: '可选维度：采油厂 / 区块 / 井场 / 油藏类型 / 井别 / 日期 / 月份（多个用 / 分隔）' },
+      { key: 'caliber', label: '口径描述', type: 'textarea', rows: 3, value: m ? m.caliber : '', placeholder: '业务口径、包含 / 排除范围、统计粒度与更新频率…' }
+    ],
+    okLabel: isEdit ? '保存修改' : '创建指标',
+    onSubmit: async v => {
+      const body = {
+        name: v.name, domain: v.domain, dataset: v.dataset,
+        measure: v.measure + '（' + v.agg + '）', caliber: v.caliber,
+        dims: v.dims ? v.dims.split('/').map(s => s.trim()).filter(Boolean) : []
+      };
+      if (isEdit) body.id = m.id;
+      const r = await DG.api.post('/semantics/metric/save', body);
+      if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+      DG.ui.toast(isEdit ? '指标已保存，列表已刷新' : '指标已创建（草稿 v0.1），已插入列表顶部', 'ok');
+      await loadCounts(); await loadList();
+    }
+  });
+}
+window.__newMetric = () => openMetricForm(null);
+document.getElementById('btnNewMetric').onclick = () => openMetricForm(null);
+document.getElementById('btnConflict').onclick = openConflict;
+
+/* ================= 搜索（300ms 防抖）与状态筛选 ================= */
+let searchTimer = null;
+document.getElementById('metricSearch').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { state.keyword = e.target.value.trim(); state.page = 1; loadList(); }, 300);
+});
+document.querySelectorAll('#statusTabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#statusTabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    state.status = t.dataset.status; state.page = 1;
+    loadList();
+  });
+});
+
+/* ================= 指标消费拓扑（节点点击 → 名称 + 类型） ================= */
 const C = DG.colors;
-const topoOption = () => ({
+const topoChart = DG.makeChart(document.querySelector('[data-chart="topo"]'), {
   tooltip: { trigger: 'item' },
   series: [{
     type: 'graph', layout: 'none', roam: false,
@@ -391,22 +603,19 @@ const topoOption = () => ({
     lineStyle: { color: 'rgba(255,255,255,.22)', width: 1.2, curveness: 0.12 },
     emphasis: { lineStyle: { color: '#FF8A3D', width: 2 } },
     data: [
-      // 上游数据集
-      { name: 'ODS_采油日报表', x: 60,  y: 120, sz: 30, itemStyle: { color: C.info } },
-      { name: 'ODS_管网运行表', x: 60,  y: 240, sz: 30, itemStyle: { color: C.info } },
-      { name: 'ODS_洗煤计量表', x: 60,  y: 360, sz: 30, itemStyle: { color: C.info } },
-      // 指标层
-      { name: '原油产量',   x: 330, y: 90,  sz: 44, itemStyle: { color: C.oil, shadowBlur: 18, shadowColor: 'rgba(255,138,61,.55)' }, label: { fontWeight: 700, color: '#F2F5FA' } },
-      { name: '吨油完全成本', x: 330, y: 190, sz: 38, itemStyle: { color: C.oil } },
-      { name: '管输周转量', x: 330, y: 285, sz: 36, itemStyle: { color: C.gas } },
-      { name: '原煤入洗率', x: 330, y: 375, sz: 36, itemStyle: { color: C.coal } },
-      // 消费层
-      { name: '华北油田生产日报', x: 640, y: 40,  sz: 30, itemStyle: { color: C.gas } },
-      { name: '集团经营驾驶舱',   x: 640, y: 120, sz: 30, itemStyle: { color: C.gas } },
-      { name: '产量阈值告警 ×3',  x: 640, y: 200, sz: 28, itemStyle: { color: C.warn } },
-      { name: '问数会话 ×27',     x: 640, y: 280, sz: 28, itemStyle: { color: C.chem } },
-      { name: '经营日报报表',     x: 640, y: 355, sz: 28, itemStyle: { color: C.chem } },
-      { name: '开放 API ×2',      x: 640, y: 425, sz: 26, itemStyle: { color: C.info } }
+      { name: 'ODS_采油日报表', x: 60,  y: 120, sz: 30, ntype: '上游数据集', itemStyle: { color: C.info } },
+      { name: 'ODS_管网运行表', x: 60,  y: 240, sz: 30, ntype: '上游数据集', itemStyle: { color: C.info } },
+      { name: 'ODS_洗煤计量表', x: 60,  y: 360, sz: 30, ntype: '上游数据集', itemStyle: { color: C.info } },
+      { name: '原油产量',   x: 330, y: 90,  sz: 44, ntype: '语义层指标', itemStyle: { color: C.oil, shadowBlur: 18, shadowColor: 'rgba(255,138,61,.55)' }, label: { fontWeight: 700, color: '#F2F5FA' } },
+      { name: '吨油完全成本', x: 330, y: 190, sz: 38, ntype: '语义层指标', itemStyle: { color: C.oil } },
+      { name: '管输周转量', x: 330, y: 285, sz: 36, ntype: '语义层指标', itemStyle: { color: C.gas } },
+      { name: '原煤入洗率', x: 330, y: 375, sz: 36, ntype: '语义层指标', itemStyle: { color: C.coal } },
+      { name: '华北油田生产日报', x: 640, y: 40,  sz: 30, ntype: '看板消费', itemStyle: { color: C.gas } },
+      { name: '集团经营驾驶舱',   x: 640, y: 120, sz: 30, ntype: '看板消费', itemStyle: { color: C.gas } },
+      { name: '产量阈值告警 ×3',  x: 640, y: 200, sz: 28, ntype: '告警消费', itemStyle: { color: C.warn } },
+      { name: '问数会话 ×27',     x: 640, y: 280, sz: 28, ntype: '问数消费', itemStyle: { color: C.chem } },
+      { name: '经营日报报表',     x: 640, y: 355, sz: 28, ntype: '报表消费', itemStyle: { color: C.chem } },
+      { name: '开放 API ×2',      x: 640, y: 425, sz: 26, ntype: 'API 消费', itemStyle: { color: C.info } }
     ],
     links: [
       { source: 'ODS_采油日报表', target: '原油产量' },
@@ -425,54 +634,14 @@ const topoOption = () => ({
     ]
   }]
 });
-
-DG.autoCharts({
-  sp1: spark(1, C.oil, 380, 14),
-  sp2: spark(2, C.coal, 2100, 60),
-  sp3: spark(3, C.warn, 87, 0.8),
-  sp4: spark(4, C.coal, 71, 2.4),
-  sp5: spark(5, C.chem, 98, 0.5),
-  sp6: spark(6, C.gas, 1250, 60),
-  topo: topoOption
+topoChart.on('click', p => {
+  if (p.dataType === 'node' && p.data) DG.ui.toast(p.name + ' · ' + (p.data.ntype || '节点'), 'ok');
 });
 
-/* ---- 抽屉交互 ---- */
-const drawer = document.getElementById('metricDrawer');
-const METRIC_INFO = {
-  'oil-output':    { n: '原油产量',     c: 'M-OIL-001',  ind: '<span class="ind oil"><i></i>石油</span>',  tag: '<span class="tag ok">已认证 v1.2</span>',  d: '采油厂井口产出原油经计量的商品量，不含自用油与损耗。' },
-  'oil-cost':      { n: '吨油完全成本', c: 'M-OIL-014',  ind: '<span class="ind oil"><i></i>石油</span>',  tag: '<span class="tag ok">已认证 v1.0</span>',  d: '原油生产总成本（含操作成本、折旧折耗、期间费用）除以同期商品量。' },
-  'water-cut':     { n: '井口综合含水率', c: 'M-OIL-027', ind: '<span class="ind oil"><i></i>石油</span>',  tag: '<span class="tag warn">待认证</span>', d: '产液量中水所占体积百分比；与化验口径存在冲突待仲裁。' },
-  'coal-wash':     { n: '原煤入洗率',   c: 'M-COAL-006', ind: '<span class="ind coal"><i></i>煤矿</span>', tag: '<span class="tag ok">已认证 v1.1</span>',  d: '入洗原煤量占原煤产量的比例，按洗煤厂磅房计量数据汇总。' },
-  'methanol-grade':{ n: '甲醇优级品率', c: 'M-CHEM-011', ind: '<span class="ind chem"><i></i>化工</span>', tag: '<span class="tag warn">待认证</span>',     d: '符合 GB 338 优级品标准的甲醇产量占比，以质检化验单为准。' },
-  'pipe-turnover': { n: '管输周转量',   c: 'M-GAS-004',  ind: '<span class="ind gas"><i></i>天然气</span>', tag: '<span class="tag">草稿 v0.3</span>',       d: '输气量与平均运距的乘积（亿方·公里），衡量管网运输工作量。' }
-};
-document.querySelectorAll('.metric-card').forEach(card => {
-  card.addEventListener('click', () => {
-    document.querySelectorAll('.metric-card').forEach(x => x.classList.remove('selected'));
-    card.classList.add('selected');
-    const m = METRIC_INFO[card.dataset.metric];
-    if (m) {
-      document.getElementById('dName').textContent = m.n;
-      document.getElementById('dCode').textContent = m.c;
-      document.getElementById('dInd').outerHTML = m.ind.replace('class="ind', 'id="dInd" class="ind');
-      document.getElementById('dTag').outerHTML = m.tag.replace('class="tag', 'id="dTag" class="tag');
-      document.getElementById('dDesc').textContent = m.d;
-    }
-    drawer.classList.add('show');
-  });
-});
-function closeDrawer() { drawer.classList.remove('show'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
-
-/* ---- 目录树筛选 ---- */
-document.querySelectorAll('#domainTree .dt-item').forEach(it => {
-  it.addEventListener('click', e => {
-    e.stopPropagation();
-    document.querySelectorAll('#domainTree .dt-item').forEach(x => x.classList.remove('active'));
-    it.classList.add('active');
-    DG.toast('原型演示：按「' + it.childNodes[1].textContent.trim() + '」筛选指标列表');
-  });
-});
+/* ================= 初始化 ================= */
+loadTree(); loadCounts(); loadList();
+if (location.hash === '#demo') setTimeout(() => openDetail('M-OIL-001'), 600);
+if (location.hash === '#demo2') setTimeout(openConflict, 600);
 </script>
 </body>
 </html>

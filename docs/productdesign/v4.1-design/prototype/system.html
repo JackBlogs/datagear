@@ -24,8 +24,9 @@
   .chain-node {
     flex: 1; min-width: 118px; text-align: center; padding: 12px 8px;
     background: var(--bg-glass); border: 1px solid var(--line-1); border-radius: var(--r-m);
-    position: relative;
+    position: relative; cursor: pointer; transition: all var(--dur);
   }
+  .chain-node:hover { border-color: var(--brand-line); transform: translateY(-2px); }
   .chain-node + .chain-node { margin-left: 26px; }
   .chain-node + .chain-node::before {
     content: ""; position: absolute; left: -26px; top: 50%; width: 26px; height: 2px;
@@ -56,6 +57,9 @@
   .effect-card svg { width: 16px; height: 16px; color: var(--info); flex: none; margin-top: 2px; }
   .effect-card b { color: var(--tx-1); }
   .avatar-sm { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; flex: none; }
+  .link { color: var(--brand); cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+  .link:hover { color: #FFB25E; }
+  .link.danger { color: var(--danger); }
 </style>
 </head>
 <body data-page="system">
@@ -67,8 +71,8 @@
       <div class="page-desc">用户 / 角色 / 组织管理，行列级权限、动态脱敏与全量审计（PRD 10.12 · UC-005）</div>
     </div>
     <div class="page-actions">
-      <button class="btn" onclick="DG.toast('原型演示：LDAP / OA 组织架构同步')">同步组织架构</button>
-      <button class="btn primary" onclick="DG.toast('原型演示：新建用户并分配角色')"><span id="plusIco" style="display:flex"></span>新建用户</button>
+      <button class="btn" id="btnSyncOrg">同步组织架构</button>
+      <button class="btn primary" id="btnNewUser"><span id="plusIco" style="display:flex"></span>新建用户</button>
     </div>
   </div>
 
@@ -83,9 +87,9 @@
 
   <!-- 用户 -->
   <div class="tab-pane show" data-pane="users">
-    <div class="table-wrap">
+    <div class="table-wrap" id="userWrap">
       <table class="tbl">
-        <thead><tr><th>用户</th><th>账号</th><th>所属组织</th><th>角色</th><th>状态</th><th>最近登录</th><th style="width:170px">操作</th></tr></thead>
+        <thead><tr><th>用户</th><th>账号</th><th>所属组织</th><th>角色</th><th>状态</th><th>最近登录</th><th style="width:200px">操作</th></tr></thead>
         <tbody id="userTbody"></tbody>
       </table>
     </div>
@@ -104,14 +108,14 @@
         <div class="org-tree" id="orgTree"></div>
       </div>
       <div class="card">
-        <div class="card-title"><span class="bar"></span>华北油田分公司 · 组织详情</div>
+        <div class="card-title"><span class="bar"></span><span id="orgDetailName">华北油田分公司</span> · 组织详情</div>
         <div class="grid g-3">
-          <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">组织编码</div><div class="mono bold" style="font-size:15px;margin-top:2px">ORG-CN-HB-001</div></div>
-          <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">在编用户</div><div class="num bold" style="font-size:15px;margin-top:2px">86 人</div></div>
+          <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">组织编码</div><div class="mono bold" style="font-size:15px;margin-top:2px" id="orgCode">ORG-CN-HB-001</div></div>
+          <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">在编用户</div><div class="num bold" style="font-size:15px;margin-top:2px" id="orgCnt">86 人</div></div>
           <div class="card" style="padding:12px 14px;background:var(--bg-glass-2)"><div class="sm tx-3">行级隔离键</div><div class="mono bold" style="font-size:15px;margin-top:2px;color:var(--gas)">org_code</div></div>
         </div>
         <div class="sm tx-3 mt-2" style="line-height:1.9">
-          该组织下用户访问启用「区域数据隔离」规则的资源时，自动附加 <span class="mono" style="color:var(--brand)">org_code = 'ORG-CN-HB-001'</span> 过滤条件；组织编码与 LDAP / 企业微信通讯录每日 03:00 同步。
+          该组织下用户访问启用「区域数据隔离」规则的资源时，自动附加 <span class="mono" style="color:var(--brand)">org_code = '<span id="orgCodeEcho">ORG-CN-HB-001</span>'</span> 过滤条件；组织编码与 LDAP / 企业微信通讯录每日 03:00 同步。
         </div>
       </div>
     </div>
@@ -124,9 +128,9 @@
       <div><b>效果演示（UC-005）</b>：华东区用户「王芳」与华北区用户「李明」打开同一张「华北油田生产日报看板」—— 系统自动按各自 <span class="mono" style="color:var(--brand)">org_code</span> 过滤行数据，王芳仅见华东区块数据；「工资总额」列对业务人员整体隐藏，「联系电话」列以 <span class="mono">138****1234</span> 动态脱敏返回。</div>
     </div>
 
-    <!-- 校验链路图 -->
+    <!-- 校验链路图（节点点击看说明） -->
     <div class="card mb-3">
-      <div class="card-title"><span class="bar"></span>权限校验链路（对齐 PRD 流程 6）</div>
+      <div class="card-title"><span class="bar"></span>权限校验链路（对齐 PRD 流程 6）<span class="more">点击节点查看说明 ›</span></div>
       <div class="chain" id="permChain"></div>
     </div>
 
@@ -134,11 +138,11 @@
       <!-- 行级规则 -->
       <div class="card">
         <div class="card-title"><span class="bar"></span>行级权限规则
-          <span class="more" onclick="DG.toast('原型演示：新建行级规则')">新建规则 ›</span>
+          <span class="more" id="btnNewRow">新建规则 ›</span>
         </div>
-        <div class="table-wrap" style="border:none">
+        <div class="table-wrap" style="border:none" id="rowWrap">
           <table class="tbl">
-            <thead><tr><th>规则名</th><th>作用对象</th><th>过滤条件</th><th>适用角色</th><th>启用</th></tr></thead>
+            <thead><tr><th>规则名</th><th>作用对象</th><th>过滤条件</th><th>适用角色</th><th>启用</th><th style="width:70px">预览</th></tr></thead>
             <tbody id="rowTbody"></tbody>
           </table>
         </div>
@@ -146,11 +150,11 @@
       <!-- 列级规则 -->
       <div class="card">
         <div class="card-title"><span class="bar"></span>列级权限规则
-          <span class="more" onclick="DG.toast('原型演示：新建列级规则')">新建规则 ›</span>
+          <span class="more" id="btnNewCol">新建规则 ›</span>
         </div>
-        <div class="table-wrap" style="border:none">
+        <div class="table-wrap" style="border:none" id="colWrap">
           <table class="tbl">
-            <thead><tr><th>规则名</th><th>目标列</th><th>控制方式</th><th>适用角色</th><th>启用</th></tr></thead>
+            <thead><tr><th>规则名</th><th>目标列</th><th>控制方式</th><th>适用角色</th></tr></thead>
             <tbody id="colTbody"></tbody>
           </table>
         </div>
@@ -160,29 +164,34 @@
 
   <!-- 动态脱敏 -->
   <div class="tab-pane" data-pane="mask">
-    <div class="table-wrap">
+    <div class="flex-between mb-2">
+      <div class="sm tx-3">脱敏在查询结果返回前即时执行，不落盘、不影响源数据；管理员与安全审计角色可见原始值</div>
+      <button class="btn primary sm" id="btnNewMask">新建脱敏规则</button>
+    </div>
+    <div class="table-wrap" id="maskWrap">
       <table class="tbl">
-        <thead><tr><th>规则名</th><th>字段</th><th>脱敏算法</th><th>适用角色</th><th>原始值 → 展示值</th><th>状态</th></tr></thead>
+        <thead><tr><th>规则</th><th>字段</th><th>脱敏算法</th><th>适用角色</th><th>原始值 → 展示值</th><th>状态</th></tr></thead>
         <tbody id="maskTbody"></tbody>
       </table>
     </div>
-    <div class="sm tx-3 mt-2">脱敏在查询结果返回前即时执行，不落盘、不影响源数据；管理员与安全审计角色可见原始值。</div>
   </div>
 
   <!-- 审计日志 -->
   <div class="tab-pane" data-pane="audit">
     <div class="flex-between mb-2">
       <div class="flex" style="gap:8px">
-        <select class="select" style="width:150px;padding:6px 30px 6px 12px;font-size:12.5px" onchange="DG.toast('原型演示：按操作类型过滤')">
-          <option>全部操作类型</option><option>登录</option><option>导出</option><option>授权</option><option>修改指标</option>
+        <select class="select" id="auditOp" style="width:170px;padding:6px 30px 6px 12px;font-size:12.5px">
+          <option value="">全部操作类型</option>
+          <option>数据导出</option><option>权限变更</option><option>越权访问</option>
+          <option>告警触发</option><option>指标认证</option><option>登录失败</option>
         </select>
-        <select class="select" style="width:130px;padding:6px 30px 6px 12px;font-size:12.5px" onchange="DG.toast('原型演示：按时间范围过滤')">
+        <select class="select" id="auditRange" style="width:130px;padding:6px 30px 6px 12px;font-size:12.5px">
           <option>近 24 小时</option><option>近 7 天</option><option>近 30 天</option>
         </select>
       </div>
-      <button class="btn" onclick="DG.toast('已导出审计报告 audit_20260903.pdf')">导出审计报告</button>
+      <button class="btn" id="btnAuditExp">导出审计报告</button>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap" id="auditWrap">
       <table class="tbl">
         <thead><tr><th>时间</th><th>用户</th><th>操作类型</th><th>操作对象</th><th>来源 IP</th><th>结果</th></tr></thead>
         <tbody id="auditTbody"></tbody>
@@ -194,38 +203,110 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
   document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
   document.getElementById('effectIco').innerHTML = DG.ICONS.spark;
 
-  /* 用户表 */
-  const USERS = [
-    { n: '李明', ac: 'liming', org: '华北油田分公司', role: ['数据分析师'], st: '正常', last: '今天 08:32', av: ['#22D3EE', '#0E7490'] },
-    { n: '王芳', ac: 'wangfang', org: '华东区销售分公司', role: ['业务人员'], st: '正常', last: '今天 08:15', av: ['#A78BFA', '#6D28D9'] },
-    { n: '张伟', ac: 'zhangwei', org: '集团数据中心', role: ['数据工程师'], st: '正常', last: '今天 07:58', av: ['#FF8A3D', '#C2410C'] },
-    { n: '陈磊', ac: 'chenlei', org: '煤矿安监部', role: ['业务人员'], st: '正常', last: '昨天 19:44', av: ['#E8B33C', '#A16207'] },
-    { n: '赵静', ac: 'zhaojing', org: '煤化工事业部', role: ['数据分析师', '业务人员'], st: '正常', last: '昨天 18:02', av: ['#34D399', '#047857'] },
-    { n: '刘总', ac: 'liuzong', org: '集团总部', role: ['决策层'], st: '正常', last: '今天 08:00', av: ['#F87171', '#B91C1C'] },
-    { n: '系统管理员', ac: 'admin', org: '集团数据中心', role: ['管理员'], st: '正常', last: '今天 08:05', av: ['#60A5FA', '#1D4ED8'] },
-    { n: '外部顾问-试用', ac: 'guest_ext', org: '—', role: ['开发人员'], st: '锁定', last: '08-28 11:12', av: ['#7C88A0', '#3B4457'] },
-  ];
-  const AVA = (c) => `background:linear-gradient(135deg,${c[0]},${c[1]});color:#0A0E17`;
-  document.getElementById('userTbody').innerHTML = USERS.map(u => `
-    <tr>
-      <td><div class="flex" style="gap:9px"><span class="avatar-sm" style="${AVA(u.av)}">${u.n.slice(0, 1)}</span><span class="cell-main">${u.n}</span></div></td>
-      <td class="mono tx-3">${u.ac}</td>
-      <td class="sm">${u.org}</td>
-      <td>${u.role.map(r => `<span class="tag ${r === '管理员' ? 'danger' : r === '数据工程师' ? 'brand' : r === '数据分析师' ? 'info' : r === '决策层' ? 'warn' : ''}" style="margin-right:4px">${r}</span>`).join('')}</td>
-      <td>${u.st === '正常' ? '<span class="tag ok">正常</span>' : '<span class="tag danger">已锁定</span>'}</td>
-      <td class="sm tx-3">${u.last}</td>
-      <td>
-        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：编辑用户与角色分配')">编辑</span> ·
-        <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：重置密码并邮件通知')">重置密码</span> ·
-        <span style="color:var(--danger);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：停用账号')">停用</span>
-      </td>
-    </tr>`).join('');
+  /* ================= 用户（GET /management/user/list） ================= */
+  const AVA_POOL = [['#22D3EE', '#0E7490'], ['#A78BFA', '#6D28D9'], ['#FF8A3D', '#C2410C'], ['#E8B33C', '#A16207'], ['#34D399', '#047857'], ['#F87171', '#B91C1C'], ['#60A5FA', '#1D4ED8'], ['#7C88A0', '#3B4457']];
+  const ORG_OPTS = ['华北油田分公司', '华东区销售分公司', '集团数据中心', '煤化工事业部', '煤矿安监部', '集团总部'];
+  const ROLE_OPTS = ['业务人员', '数据分析师', '数据工程师', '决策层', '开发人员', '管理员'];
+  let USERS = [];
+  async function loadUsers() {
+    const wrap = document.getElementById('userWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/management/user/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadUsers)); return; }
+    USERS = r.data.rows;
+    renderUsers();
+  }
+  function renderUsers() {
+    const tb = document.getElementById('userTbody');
+    DG.ui.renderRows(tb, USERS, (u, i) => {
+      const av = AVA_POOL[i % AVA_POOL.length];
+      return `<tr data-id="${u.id}">
+        <td><div class="flex" style="gap:9px"><span class="avatar-sm" style="background:linear-gradient(135deg,${av[0]},${av[1]});color:#0A0E17">${u.name.slice(0, 1)}</span><span class="cell-main">${DG.ui.esc(u.name)}</span></div></td>
+        <td class="mono tx-3">${u.account}</td>
+        <td class="sm">${u.org}</td>
+        <td>${u.roles.map(r => `<span class="tag ${r === '管理员' ? 'danger' : r === '数据工程师' ? 'brand' : r === '数据分析师' ? 'info' : r === '决策层' ? 'warn' : ''}" style="margin-right:4px">${r}</span>`).join('')}</td>
+        <td class="st-cell">${u.status === '正常' ? '<span class="tag ok">正常</span>' : '<span class="tag danger">已锁定</span>'}</td>
+        <td class="sm tx-3">${u.last}</td>
+        <td>
+          <span class="link" data-act="edit">编辑</span> ·
+          <span class="link" data-act="reset">重置密码</span> ·
+          <span class="link danger" data-act="toggle">${u.status === '正常' ? '停用' : '启用'}</span>
+        </td>
+      </tr>`;
+    });
+    tb.querySelectorAll('tr[data-id]').forEach(tr => {
+      const u = USERS.find(x => x.id === tr.dataset.id);
+      tr.querySelectorAll('[data-act]').forEach(a => a.onclick = async () => {
+        const act = a.dataset.act;
+        if (act === 'edit') {
+          DG.ui.formModal({
+            title: `编辑用户 · ${u.account}`,
+            fields: [
+              { key: 'name', label: '姓名', required: true, value: u.name },
+              { key: 'org', label: '所属组织', type: 'select', options: ORG_OPTS.map(o => ({ v: o, t: o })), value: u.org },
+              { key: 'role', label: '角色', type: 'select', options: ROLE_OPTS.map(o => ({ v: o, t: o })), value: u.roles[0] }
+            ],
+            onSubmit: async v => {
+              const r = await DG.api.post('/management/user/save', { id: u.id, name: v.name, account: u.account, org: v.org, roles: [v.role] });
+              if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+              await loadUsers();
+              DG.ui.toast(`用户「${v.name}」资料已更新`, 'ok');
+            }
+          });
+        } else if (act === 'reset') {
+          const ok = await DG.ui.confirm({ title: '重置密码', content: `将为「<b>${DG.ui.esc(u.name)}</b>」生成随机密码并发送至其绑定邮箱。` });
+          if (ok) DG.ui.toast(`重置邮件已发送至 ${u.account}@energy.local`, 'ok');
+        } else if (act === 'toggle') {
+          const toLock = u.status === '正常';
+          const ok = await DG.ui.confirm({
+            danger: toLock, title: toLock ? '停用账号' : '启用账号',
+            content: toLock ? `停用后「<b>${DG.ui.esc(u.name)}</b>」将立即无法登录，进行中的会话被踢出。` : `确认恢复「<b>${DG.ui.esc(u.name)}</b>」的登录能力？`
+          });
+          if (!ok) return;
+          const r = await DG.api.post('/management/user/toggle', { id: u.id });
+          if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+          u.status = r.data.status; renderUsers();
+          DG.ui.toast(`账号已${u.status === '正常' ? '启用' : '停用'}`, 'ok');
+        }
+      });
+    });
+  }
+  document.getElementById('btnNewUser').onclick = () => {
+    DG.ui.formModal({
+      title: '新建用户',
+      fields: [
+        { key: 'name', label: '姓名', required: true, placeholder: '如：陈思远' },
+        { key: 'account', label: '账号', required: true, placeholder: '如：chensiyuan',
+          validate: v => /^[a-zA-Z0-9_]+$/.test(v) ? null : '账号仅允许字母、数字、下划线' },
+        { key: 'org', label: '所属组织', type: 'select', options: ORG_OPTS.map(o => ({ v: o, t: o })) },
+        { key: 'role', label: '角色', type: 'select', options: ROLE_OPTS.map(o => ({ v: o, t: o })) },
+        { key: 'pwd', label: '初始密码', type: 'password', required: true,
+          validate: v => v.length >= 8 ? null : '初始密码至少 8 位',
+          hint: '首次登录强制修改密码' }
+      ],
+      onSubmit: async v => {
+        const r = await DG.api.post('/management/user/save', { name: v.name, account: v.account, org: v.org, roles: [v.role] });
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+        await loadUsers();
+        DG.ui.toast(`用户「${v.name}」已创建（${r.data.id}），激活邮件已发送`, 'ok');
+      }
+    });
+  };
+  document.getElementById('btnSyncOrg').onclick = async e => {
+    DG.ui.btnLoading(e.currentTarget, true);
+    await new Promise(r => setTimeout(r, 900));
+    DG.ui.btnLoading(e.currentTarget, false);
+    DG.ui.toast('已同步 6 个组织 / 312 名用户（LDAP · 每日 03:00 自动同步）', 'ok');
+  };
 
-  /* 角色卡 */
+  /* ================= 角色卡 ================= */
   const ROLES = [
     { n: '管理员', c: 3, d: '平台全部功能与资源配置，负责用户、权限、系统参数', i: 'system', col: 'var(--danger)', bg: 'var(--danger-soft)' },
     { n: '数据工程师', c: 12, d: '数据源 / 数据集 / 治理配置，指标开发与发布审核', i: 'db', col: 'var(--brand)', bg: 'var(--brand-soft)' },
@@ -235,7 +316,7 @@
     { n: '决策层', c: 35, d: '驾驶舱与大屏只读，订阅推送与批注审批', i: 'screen', col: 'var(--warn)', bg: 'var(--warn-soft)' },
   ];
   document.getElementById('roleGrid').innerHTML = ROLES.map(r => `
-    <div class="role-card" onclick="DG.toast('原型演示：角色「${r.n}」权限矩阵')">
+    <div class="role-card" data-r="${r.n}">
       <div class="r-head">
         <span class="r-ava" style="color:${r.col};background:${r.bg}">${DG.ICONS[r.i]}</span>
         <div><div class="r-name">${r.n}</div><div class="r-cnt">${r.c} 人</div></div>
@@ -243,114 +324,223 @@
       </div>
       <div class="r-desc">${r.d}</div>
     </div>`).join('');
+  document.querySelectorAll('#roleGrid .role-card').forEach(c => c.onclick = () =>
+    DG.ui.toast(`角色「${c.dataset.r}」权限矩阵编辑属 Phase 2 能力，见 PRD 10.12 · FR-AUTH-03`, 'warn'));
 
-  /* 组织树 */
+  /* ================= 组织树 ================= */
   const ORGS = [
-    { n: '能源集团总部', lv: 0, c: 35 }, { n: '华北油田分公司', lv: 1, c: 86, sel: true },
-    { n: '采油一厂', lv: 2, c: 42 }, { n: '采油二厂', lv: 2, c: 44 },
-    { n: '管道分公司', lv: 1, c: 58 }, { n: '煤化工事业部', lv: 1, c: 47 },
-    { n: '煤矿安监部', lv: 1, c: 33 }, { n: '集团数据中心', lv: 1, c: 15 },
+    { n: '能源集团总部', lv: 0, c: 35, code: 'ORG-CN-HQ-000' }, { n: '华北油田分公司', lv: 1, c: 86, sel: true, code: 'ORG-CN-HB-001' },
+    { n: '采油一厂', lv: 2, c: 42, code: 'ORG-CN-HB-101' }, { n: '采油二厂', lv: 2, c: 44, code: 'ORG-CN-HB-102' },
+    { n: '管道分公司', lv: 1, c: 58, code: 'ORG-CN-GD-001' }, { n: '煤化工事业部', lv: 1, c: 47, code: 'ORG-CN-MHG-001' },
+    { n: '煤矿安监部', lv: 1, c: 33, code: 'ORG-CN-AJ-001' }, { n: '集团数据中心', lv: 1, c: 15, code: 'ORG-CN-DC-001' },
   ];
-  document.getElementById('orgTree').innerHTML = ORGS.map(o => `
-    <div class="org-node ${o.lv === 1 ? 'org-lv1' : o.lv === 2 ? 'org-lv2' : ''}" style="${o.sel ? 'background:var(--brand-soft);color:var(--brand);font-weight:600' : ''}" onclick="DG.toast('原型演示：查看 ${o.n} 组织详情')">
+  document.getElementById('orgTree').innerHTML = ORGS.map((o, i) => `
+    <div class="org-node ${o.lv === 1 ? 'org-lv1' : o.lv === 2 ? 'org-lv2' : ''}" data-i="${i}" style="${o.sel ? 'background:var(--brand-soft);color:var(--brand);font-weight:600' : ''}">
       ${DG.ICONS.home}<span>${o.n}</span><span class="o-cnt">${o.c} 人</span>
     </div>`).join('');
+  document.querySelectorAll('#orgTree .org-node').forEach(el => el.onclick = () => {
+    const o = ORGS[+el.dataset.i];
+    document.querySelectorAll('#orgTree .org-node').forEach(x => x.style.cssText = '');
+    el.style.cssText = 'background:var(--brand-soft);color:var(--brand);font-weight:600';
+    document.getElementById('orgDetailName').textContent = o.n;
+    document.getElementById('orgCode').textContent = o.code;
+    document.getElementById('orgCodeEcho').textContent = o.code;
+    document.getElementById('orgCnt').textContent = o.c + ' 人';
+  });
 
-  /* 权限校验链路 */
+  /* ================= 权限校验链路（节点点击 → 说明） ================= */
   const CHAIN = [
-    { n: '发起请求', s: '浏览器 / API / 嵌入', cls: '' },
-    { n: '身份识别', s: '会话 · API Key · 签名 Token', cls: '' },
-    { n: '功能权限', s: '菜单与操作授权', cls: 'ok' },
-    { n: '资源级', s: '看板 / 数据集可见性', cls: 'ok' },
-    { n: '行级过滤', s: "org_code = 用户组织", cls: 'hl' },
-    { n: '列级控制', s: '隐藏 / 脱敏列', cls: 'hl' },
-    { n: '动态脱敏', s: '按角色即时脱敏', cls: 'hl' },
-    { n: '返回结果', s: '审计留痕', cls: 'ok' },
+    { n: '发起请求', s: '浏览器 / API / 嵌入', cls: '', desc: '统一入口：浏览器会话、开放 API（dgak_*）、嵌入签名 Token 三类身份汇聚到同一鉴权管道。' },
+    { n: '身份识别', s: '会话 · API Key · 签名 Token', cls: '', desc: '解析身份与租户：Session / dgak Key 前缀 / JWT 签名（embed_secret），失败返回 401。' },
+    { n: '功能权限', s: '菜单与操作授权', cls: 'ok', desc: 'RBAC 菜单与按钮级校验，基于角色合集求并集，缓存命中 <5ms。' },
+    { n: '资源级', s: '看板 / 数据集可见性', cls: 'ok', desc: '资源可见性校验：私有 / 授权共享 / 组织内公开三级，越权返回 403。' },
+    { n: '行级过滤', s: 'org_code = 用户组织', cls: 'hl', desc: '行级权限：AST 改写追加 org_code 过滤，<50ms；支持 ${currentUser} / ${currentOrg} 变量。' },
+    { n: '列级控制', s: '隐藏 / 脱敏列', cls: 'hl', desc: '列级权限：SELECT 列裁剪，无权限列直接移除或替换为脱敏表达式。' },
+    { n: '动态脱敏', s: '按角色即时脱敏', cls: 'hl', desc: '动态脱敏：结果集返回前按角色命中掩码/截断/哈希规则，不落盘、不影响源数据。' },
+    { n: '返回结果', s: '审计留痕', cls: 'ok', desc: '审计异步落库（DG_AUDIT_LOG）：谁、何时、查了什么、行数与耗时，外发单独标记。' },
   ];
-  document.getElementById('permChain').innerHTML = CHAIN.map(c => `
-    <div class="chain-node ${c.cls}"><div class="c-name">${c.n}</div><div class="c-sub">${c.s}</div></div>`).join('');
-
-  /* 行级规则 */
-  const ROWS = [
-    { n: '区域数据隔离', o: '华北油田生产日报看板', c: "org_code = 当前用户组织", r: '业务人员', on: true },
-    { n: '采油厂分级可见', o: 'DS_采油日报', c: "cyf IN (用户授权采油厂)", r: '数据分析师', on: true },
-    { n: '煤矿按矿权隔离', o: 'DS_煤矿瓦斯监测', c: "mine_id = 当前用户矿权", r: '业务人员', on: true },
-    { n: '财务数据仅限总部', o: '集团财务核算库报表', c: "org_level = '总部'", r: '数据分析师', on: false },
-  ];
-  document.getElementById('rowTbody').innerHTML = ROWS.map(r => `
-    <tr>
-      <td class="cell-main">${r.n}</td>
-      <td class="sm">${r.o}</td>
-      <td class="mono" style="color:var(--brand)">${r.c}</td>
-      <td><span class="tag info">${r.r}</span></td>
-      <td><label class="switch"><input type="checkbox" ${r.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换行级规则')"/><i></i></label></td>
-    </tr>`).join('');
-
-  /* 列级规则 */
-  const COLS = [
-    { n: '工资总额隐藏', o: '薪酬表.salary_total', c: '<span class="tag danger">隐藏列</span>', r: '业务人员', on: true },
-    { n: '联系电话脱敏', o: '值班表.mobile', c: '<span class="tag warn">脱敏 138****1234</span>', r: '业务人员 · 分析师', on: true },
-    { n: '成本明细隐藏', o: '采购结算.cost_detail', c: '<span class="tag danger">隐藏列</span>', r: '业务人员', on: true },
-    { n: '井位坐标精度降权', o: 'DIM_井位.geo', c: '<span class="tag info">模糊至区块级</span>', r: '外部顾问', on: false },
-  ];
-  document.getElementById('colTbody').innerHTML = COLS.map(r => `
-    <tr>
-      <td class="cell-main">${r.n}</td>
-      <td class="mono" style="color:var(--gas)">${r.o}</td>
-      <td>${r.c}</td>
-      <td><span class="tag info">${r.r}</span></td>
-      <td><label class="switch"><input type="checkbox" ${r.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换列级规则')"/><i></i></label></td>
-    </tr>`).join('');
-
-  /* 动态脱敏 */
-  const MASKS = [
-    ['手机号掩码', '*.mobile / *.phone', '掩码', '业务人员', '13812341234 → 138****1234', true],
-    ['身份证掩码', '*.id_card', '掩码', '除人事外全部', '130102****1234****', true],
-    ['工资哈希', '薪酬表.salary', '哈希', '业务人员', '18,600 → a91f…c2', true],
-    ['银行账号截断', '采购结算.bank_no', '截断', '除财务外全部', '6222 **** **** 8102', false],
-    ['邮箱掩码', '*.email', '掩码', '外部角色', 'l***@huabei.oil', true],
-  ];
-  document.getElementById('maskTbody').innerHTML = MASKS.map(m => `
-    <tr>
-      <td class="cell-main">${m[0]}</td>
-      <td class="mono" style="color:var(--gas)">${m[1]}</td>
-      <td><span class="tag ${m[2] === '哈希' ? 'warn' : m[2] === '截断' ? 'brand' : 'info'}">${m[2]}</span></td>
-      <td class="sm">${m[3]}</td>
-      <td class="mono">${m[4]}</td>
-      <td>${m[5] ? '<span class="tag ok">启用</span>' : '<span class="tag warn">待审批</span>'}</td>
-    </tr>`).join('');
-
-  /* 审计日志 */
-  const AUDITS = [
-    ['今天 08:41', '系统管理员', '授权', '看板「集团经营驾驶舱」→ 决策层', '10.***.***.21', 'ok'],
-    ['今天 08:32', '李明', '登录', 'Web 端（企业微信免登）', '10.***.***.86', 'ok'],
-    ['今天 08:12', '王芳', '导出', '报表「管输量日报」→ Excel', '10.***.***.45', 'ok'],
-    ['今天 07:58', '张伟', '修改指标', 'M-OIL-021 吨油成本口径', '10.***.***.12', 'ok'],
-    ['今天 02:00', 'system', '数据备份', '自动备份 dg_backup_***.zip', '127.0.0.1', 'ok'],
-    ['昨天 19:44', '陈磊', '登录', '移动端 H5（异常设备检测）', '223.***.***.71', 'warn'],
-    ['昨天 17:20', 'guest_ext', '越权访问', '尝试访问「集团财务核算库」', '58.***.***.9', 'err'],
-  ];
-  const AUD_TAG = { ok: '<span class="tag ok">成功</span>', warn: '<span class="tag warn">二次验证</span>', err: '<span class="tag danger">已拦截</span>' };
-  const AUD_TYPE = { '登录': 'info', '导出': 'brand', '授权': 'ok', '修改指标': 'warn', '数据备份': '', '越权访问': 'danger' };
-  document.getElementById('auditTbody').innerHTML = AUDITS.map(a => `
-    <tr>
-      <td class="sm tx-3 num">${a[0]}</td>
-      <td class="cell-main">${a[1]}</td>
-      <td><span class="tag ${AUD_TYPE[a[2]] || ''}">${a[2]}</span></td>
-      <td class="sm">${a[3]}</td>
-      <td class="mono tx-3">${a[4]}</td>
-      <td>${AUD_TAG[a[5]]}</td>
-    </tr>`).join('');
-
-  /* Tabs */
-  document.querySelectorAll('#sysTabs .tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('#sysTabs .tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show'));
-      tab.classList.add('active');
-      document.querySelector(`.tab-pane[data-pane="${tab.dataset.pane}"]`).classList.add('show');
+  document.getElementById('permChain').innerHTML = CHAIN.map((c, i) => `
+    <div class="chain-node ${c.cls}" data-i="${i}"><div class="c-name">${c.n}</div><div class="c-sub">${c.s}</div></div>`).join('');
+  document.querySelectorAll('#permChain .chain-node').forEach(el => el.onclick = () => {
+    const c = CHAIN[+el.dataset.i];
+    DG.ui.modal({
+      title: `权限校验链路 · ${c.n}`, width: 460,
+      body: `<div style="font-size:13px;color:var(--tx-2);line-height:1.9">${c.desc.replace(/\$\{(\w+)\}/g, '<span class="mono" style="color:var(--brand)">$&</span>')}</div>`,
+      buttons: [{ label: '知道了', primary: true }]
     });
   });
+
+  /* ================= 行级权限（GET /auth/rowperm/list） ================= */
+  let ROWPS = [];
+  async function loadRowPerms() {
+    const wrap = document.getElementById('rowWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/auth/rowperm/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadRowPerms)); return; }
+    ROWPS = r.data;
+    renderRowPerms();
+  }
+  function renderRowPerms() {
+    const tb = document.getElementById('rowTbody');
+    DG.ui.renderRows(tb, ROWPS, r => `
+      <tr data-id="${r.id}">
+        <td class="cell-main">${DG.ui.esc(r.name)}</td>
+        <td class="sm">${DG.ui.esc(r.resource)}</td>
+        <td class="mono" style="color:var(--brand)">${DG.ui.esc(r.cond)}</td>
+        <td>${r.roles.map(x => `<span class="tag info" style="margin-right:4px">${x}</span>`).join('')}</td>
+        <td><label class="switch"><input type="checkbox" ${r.enabled ? 'checked' : ''} data-tg/><i></i></label></td>
+        <td><span class="link" data-act="preview">预览影响</span></td>
+      </tr>`);
+    tb.querySelectorAll('tr[data-id]').forEach(tr => {
+      const rp = ROWPS.find(x => x.id === tr.dataset.id);
+      tr.querySelector('[data-tg]').onchange = async e => {
+        const r = await DG.api.post('/auth/rowperm/toggle', { id: rp.id });
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); e.target.checked = !e.target.checked; return; }
+        DG.ui.toast(`行级规则「${rp.name}」已${r.data.enabled ? '启用' : '停用'}`, 'ok');
+      };
+      tr.querySelector('[data-act="preview"]').onclick = () => {
+        DG.ui.modal({
+          title: `预览影响 · ${rp.name}`, width: 520,
+          body: `<div class="sm tx-3" style="margin-bottom:10px">以当前用户（李明 · 华北油田分公司）模拟执行：</div>
+            <div class="mono-block" style="margin-bottom:14px">WHERE ${DG.ui.esc(rp.cond)}</div>
+            <div class="flex-between sm" style="margin-bottom:4px"><span>全量数据</span><b class="num">12,842 行</b></div>
+            <div class="progress" style="margin-bottom:12px"><i style="width:100%"></i></div>
+            <div class="flex-between sm" style="margin-bottom:4px"><span style="color:var(--brand)">过滤后可见</span><b class="num" style="color:var(--brand)">3,106 行</b></div>
+            <div class="progress"><i style="width:24%;background:var(--brand-grad)"></i></div>
+            <div class="sm tx-3" style="margin-top:12px">影响角色：${rp.roles.join('、')} · 追加条件耗时 &lt;50ms，不改变查询结果列结构。</div>`,
+          buttons: [{ label: '关 闭', primary: true }]
+        });
+      };
+    });
+  }
+  document.getElementById('btnNewRow').onclick = () => {
+    DG.ui.formModal({
+      title: '新建行级权限规则',
+      fields: [
+        { key: 'name', label: '规则名称', required: true, placeholder: '如：区域数据隔离' },
+        { key: 'resource', label: '作用资源', type: 'select', options: ['华北油田生产日报看板', '集团经营日报', 'DS_采油日报', '单井产量排名'].map(v => ({ v, t: v })) },
+        { key: 'cond', label: '过滤条件', type: 'textarea', required: true, placeholder: "org_code = ${currentOrg}",
+          hint: '支持 ${currentUser} / ${currentOrg} 变量，运行时注入当前用户上下文' },
+        { key: 'role', label: '适用角色', type: 'select', options: ROLE_OPTS.map(v => ({ v, t: v })) }
+      ],
+      onSubmit: async v => {
+        const r = await DG.api.post('/auth/rowperm/save', { name: v.name, resource: v.resource, cond: v.cond, roles: [v.role] });
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+        ROWPS.push(r.data); renderRowPerms();
+        DG.ui.toast(`行级规则「${v.name}」已创建并启用`, 'ok');
+      }
+    });
+  };
+
+  /* ================= 列级权限（GET /auth/columnperm/list） ================= */
+  async function loadColPerms() {
+    const wrap = document.getElementById('colWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/auth/columnperm/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadColPerms)); return; }
+    document.getElementById('colTbody').innerHTML = r.data.map(c => `
+      <tr>
+        <td class="cell-main">${DG.ui.esc(c.name)}</td>
+        <td class="mono" style="color:var(--gas)">${DG.ui.esc(c.fields)}</td>
+        <td><span class="tag ${c.mode === '隐藏列' ? 'danger' : 'warn'}">${c.mode}</span></td>
+        <td>${c.roles.map(x => `<span class="tag info" style="margin-right:4px">${x}</span>`).join('')}</td>
+      </tr>`).join('');
+  }
+  document.getElementById('btnNewCol').onclick = () => {
+    DG.ui.formModal({
+      title: '新建列级权限规则',
+      fields: [
+        { key: 'name', label: '规则名称', required: true, placeholder: '如：成本敏感列' },
+        { key: 'fields', label: '目标列', required: true, placeholder: '如：薪酬表.salary_total' },
+        { key: 'mode', label: '控制方式', type: 'select', options: ['隐藏列', '脱敏列'].map(v => ({ v, t: v })) },
+        { key: 'role', label: '适用角色', type: 'select', options: ROLE_OPTS.map(v => ({ v, t: v })) }
+      ],
+      onSubmit: v => { loadColPerms(); DG.ui.toast(`列级规则「${v.name}」已保存（原型演示）`, 'ok'); }
+    });
+  };
+
+  /* ================= 动态脱敏（GET /auth/mask/list） ================= */
+  let MASKS = [];
+  async function loadMasks() {
+    const wrap = document.getElementById('maskWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/auth/mask/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadMasks)); return; }
+    MASKS = r.data;
+    renderMasks();
+  }
+  function renderMasks() {
+    document.getElementById('maskTbody').innerHTML = MASKS.map(m => `
+      <tr>
+        <td class="cell-main">${m.id}</td>
+        <td class="mono" style="color:var(--gas)">${DG.ui.esc(m.field)}</td>
+        <td><span class="tag ${m.algo === '哈希' ? 'warn' : m.algo === '截断' ? 'brand' : 'info'}">${m.algo}</span></td>
+        <td class="sm">${DG.ui.esc(m.roles)}</td>
+        <td class="mono">${DG.ui.esc(m.sample || '—')}</td>
+        <td>${m.enabled ? '<span class="tag ok">启用</span>' : '<span class="tag warn">待审批</span>'}</td>
+      </tr>`).join('');
+  }
+  document.getElementById('btnNewMask').onclick = () => {
+    DG.ui.formModal({
+      title: '新建脱敏规则',
+      fields: [
+        { key: 'field', label: '目标字段', required: true, placeholder: '如：值班表.mobile 或 *.email' },
+        { key: 'algo', label: '脱敏算法', type: 'select', options: ['掩码', '截断', '替换', '哈希'].map(v => ({ v, t: v })) },
+        { key: 'roles', label: '适用角色', type: 'select', options: ['业务人员', '数据分析师', '全部非管理员', '外部角色'].map(v => ({ v, t: v })) }
+      ],
+      onSubmit: async v => {
+        const r = await DG.api.post('/auth/mask/save', v);
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+        MASKS.push(r.data); renderMasks();
+        DG.ui.toast(`脱敏规则已保存：${v.field} · ${v.algo}`, 'ok');
+      }
+    });
+  };
+
+  /* ================= 审计日志（GET /management/audit/list?op=） ================= */
+  const AUD_TAG = { '成功': 'ok', '已拦截': 'danger', '已通知': 'info', '已锁定15分钟': 'warn' };
+  async function loadAudit() {
+    const wrap = document.getElementById('auditWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const op = document.getElementById('auditOp').value;
+    const r = await DG.api.get('/management/audit/list' + (op ? '?op=' + encodeURIComponent(op) : ''));
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadAudit)); return; }
+    const tb = document.getElementById('auditTbody');
+    DG.ui.renderRows(tb, r.data.rows, a => `
+      <tr>
+        <td class="sm tx-3 num">${a.time}</td>
+        <td class="cell-main">${a.user}</td>
+        <td><span class="tag ${a.op === '越权访问' ? 'danger' : a.op === '数据导出' ? 'brand' : a.op === '权限变更' ? 'ok' : a.op === '登录失败' ? 'warn' : 'info'}">${a.op}</span></td>
+        <td class="sm">${DG.ui.esc(a.target)}</td>
+        <td class="mono tx-3">${a.ip}</td>
+        <td><span class="tag ${AUD_TAG[a.result] || ''}">${a.result}</span></td>
+      </tr>`);
+  }
+  document.getElementById('auditOp').onchange = loadAudit;
+  document.getElementById('auditRange').onchange = () => DG.ui.toast('原型演示：时间范围过滤（演示数据固定 24h 内）', 'ok');
+  document.getElementById('btnAuditExp').onclick = () => DG.ui.toast('已导出审计报告 audit_20260903.pdf（含水印：admin）', 'ok');
+
+  /* ================= Tabs ================= */
+  function switchPane(p) {
+    document.querySelectorAll('#sysTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.pane === p));
+    document.querySelectorAll('.tab-pane').forEach(x => x.classList.toggle('show', x.dataset.pane === p));
+    if (p === 'rc') { loadRowPerms(); loadColPerms(); }
+    if (p === 'mask') loadMasks();
+    if (p === 'audit') loadAudit();
+  }
+  document.querySelectorAll('#sysTabs .tab').forEach(tab => tab.addEventListener('click', () => switchPane(tab.dataset.pane)));
+
+  loadUsers();
+
+  /* #demo：切到行列级权限并点击「行级过滤」节点说明 */
+  if (location.hash === '#demo') setTimeout(() => {
+    switchPane('rc');
+    setTimeout(() => document.querySelectorAll('#permChain .chain-node')[4].click(), 400);
+  }, 400);
 </script>
 </body>
 </html>

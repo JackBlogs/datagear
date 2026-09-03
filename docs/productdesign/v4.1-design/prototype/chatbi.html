@@ -125,189 +125,52 @@
 <div id="page-content" style="display:none">
 
   <div class="chat-bench">
-    <!-- 左：会话历史 -->
+    <!-- 左：会话历史（GET /ai/session/list） -->
     <div class="card chat-col">
       <div class="hist-head">
         <b style="font-size:13.5px">会话历史</b>
-        <button class="btn sm primary" onclick="DG.toast('原型演示：已新建问数会话')"><span style="width:13px;height:13px;display:flex" id="ic-plus"></span>新会话</button>
+        <button class="btn sm primary" id="btnNewSess"><span style="width:13px;height:13px;display:flex" id="ic-plus"></span>新会话</button>
       </div>
-      <div class="hist-list" id="histList">
-        <div class="hist-group">今天</div>
-        <div class="hist-item active"><div class="h-t">上月各采油厂产量同比</div><div class="h-s">4 轮问答 · 09:12</div></div>
-        <div class="hist-item"><div class="h-t">华东管网输差分析</div><div class="h-s">2 轮问答 · 08:47</div></div>
-        <div class="hist-item"><div class="h-t">甲醇装置开工率趋势</div><div class="h-s">1 轮问答 · 07:55</div></div>
-        <div class="hist-group">昨天</div>
-        <div class="hist-item"><div class="h-t">吨油完全成本环比拆解</div><div class="h-s">5 轮问答 · 昨天 17:20</div></div>
-        <div class="hist-item"><div class="h-t">瓦斯超限次数排名</div><div class="h-s">3 轮问答 · 昨天 15:02</div></div>
-        <div class="hist-item"><div class="h-t">原煤入洗率达标情况</div><div class="h-s">2 轮问答 · 昨天 10:38</div></div>
-        <div class="hist-group">本周</div>
-        <div class="hist-item"><div class="h-t">储气库注采平衡测算</div><div class="h-s">6 轮问答 · 周二</div></div>
-        <div class="hist-item"><div class="h-t">炼化装置能耗对标</div><div class="h-s">3 轮问答 · 周一</div></div>
-      </div>
+      <div class="hist-list" id="histList"><div class="block-loading"><span class="spin"></span> 加载中…</div></div>
     </div>
 
     <!-- 中：对话主区 -->
     <div class="chat-col chat-main">
       <div class="flex wrap" style="gap:8px;flex:none;padding:2px 6px 12px">
-        <span class="tag brand" id="llmTag"></span>
+        <span class="tag brand" id="llmTag" style="cursor:pointer" title="点击查看 BYO-LLM 接入配置"></span>
         <span class="tag info">语义层已连接 · 86 指标</span>
         <span class="tag ok">行级权限继承开启</span>
         <span class="tag" style="margin-left:auto">取数透明化已开启</span>
       </div>
-      <div class="chat-scroll">
-
-        <!-- 用户提问 -->
-        <div class="msg user">
-          <div class="m-avatar">李明</div>
-          <div class="bubble-user">上月各采油厂原油产量的同比变化？</div>
-        </div>
-
-        <!-- AI 回复 -->
-        <div class="msg ai">
-          <div class="m-avatar" id="aiAvatar1"></div>
-          <div class="bubble-ai">
-            <div class="ai-conclusion">
-              上月（2026年8月）全集团原油产量 <b>385.2</b> 万吨，同比 <b style="color:var(--ok)">+5.1%</b>。
-              其中 <b>长庆采油厂</b> 增幅最大，同比 <b style="color:var(--ok)">+12.3%</b>（+10.4 万吨），
-              主要来自安塞区块新井投产；大庆采油厂同比 <b style="color:var(--danger)">-1.8%</b>，受老区自然递减影响。
-            </div>
-            <div class="chart" style="height:230px;margin-top:10px" data-chart="chatBar"></div>
-            <div class="ai-table table-wrap">
-              <table class="tbl">
-                <thead><tr><th>采油厂</th><th class="num">8月产量(万吨)</th><th class="num">去年同期</th><th class="num">同比</th><th>主要驱动区块</th></tr></thead>
-                <tbody>
-                  <tr><td class="cell-main">长庆采油厂</td><td class="num">94.8</td><td class="num">84.4</td><td class="num" style="color:var(--ok)">+12.3%</td><td>安塞 · 靖安</td></tr>
-                  <tr><td class="cell-main">塔里木采油厂</td><td class="num">71.5</td><td class="num">67.9</td><td class="num" style="color:var(--ok)">+5.3%</td><td>轮南 · 哈得</td></tr>
-                  <tr><td class="cell-main">胜利采油厂</td><td class="num">68.2</td><td class="num">66.5</td><td class="num" style="color:var(--ok)">+2.6%</td><td>孤岛 · 孤东</td></tr>
-                  <tr><td class="cell-main">华北采油厂</td><td class="num">52.6</td><td class="num">51.1</td><td class="num" style="color:var(--ok)">+2.9%</td><td>任丘 · 霸州</td></tr>
-                  <tr><td class="cell-main">大庆采油厂</td><td class="num">98.1</td><td class="num">99.9</td><td class="num" style="color:var(--danger)">-1.8%</td><td>萨尔图老区</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="attr-card">
-              <div class="a-t"><span id="ic-spark1" style="display:flex"></span>产量波动归因 · 维度贡献度</div>
-              <div class="attr-row"><span class="a-name">区块</span><div class="progress"><i style="width:82%"></i></div><span class="a-v">贡献 62%<span class="attr-top">Top</span></span></div>
-              <div class="attr-row"><span class="a-name">油藏类型</span><div class="progress"><i style="width:44%;background:linear-gradient(90deg,#22D3EE,#0E7490)"></i></div><span class="a-v">贡献 23%</span></div>
-              <div class="attr-row"><span class="a-name">井别</span><div class="progress"><i style="width:26%;background:linear-gradient(90deg,#A78BFA,#6D28D9)"></i></div><span class="a-v">贡献 11%</span></div>
-            </div>
-            <div class="ai-ops">
-              <button class="btn sm" onclick="DG.toast('已将本问答结果转为看板草稿，可在看板设计器中继续编辑')">转为看板</button>
-              <button class="btn sm" onclick="DG.toast('原型演示：导出 Excel（含数据表与取数 SQL）')">导出 Excel</button>
-              <button class="btn sm ghost" onclick="DG.toast('已收藏到我的收藏')">收藏</button>
-              <button class="btn sm ghost" onclick="DG.toast('纠错反馈已提交，将用于语义层口径优化')">纠错反馈</button>
-            </div>
-            <div class="m-time">09:12:26 · 耗时 2.4s · 命中语义层指标「原油产量 M-OIL-001」</div>
-          </div>
-        </div>
-
-        <!-- 追问 -->
-        <div class="msg user">
-          <div class="m-avatar">李明</div>
-          <div class="bubble-user">长庆为什么涨这么多？</div>
-        </div>
-
-        <!-- AI 归因回复 -->
-        <div class="msg ai">
-          <div class="m-avatar" id="aiAvatar2"></div>
-          <div class="bubble-ai">
-            <div class="ai-conclusion">
-              长庆采油厂 8 月同比 +12.3%，主要由三方面驱动：
-              ① <b>安塞区块</b> 王窑作业区 14 口新井 7 月下旬投产，贡献增量 <b>+6.2</b> 万吨（贡献度 60%）；
-              ② <b>靖安区块</b> 老井措施复配（压裂+补孔）增油 <b>+2.8</b> 万吨（27%）；
-              ③ 去年同期 H2S 治理停井形成低基数，约 <b>+1.4</b> 万吨（13%）。
-              风险提示：新井递减速率高于方案预期 0.8pct，建议关注 10 月稳产能力。
-            </div>
-            <div class="chart" style="height:170px;margin-top:10px" data-chart="attrLine"></div>
-            <div class="ai-ops">
-              <button class="btn sm" onclick="DG.toast('已下钻至安塞区块单井明细')">下钻安塞区块</button>
-              <button class="btn sm ghost" onclick="DG.toast('已订阅「长庆产量异动」告警')">订阅异动告警</button>
-            </div>
-            <div class="m-time">09:13:04 · 耗时 3.1s · 归因引擎 v2（维度拆解 + 基数修正）</div>
-          </div>
-        </div>
+      <div id="ctxBar" class="hidden" style="flex:none;align-items:center;gap:8px;margin:0 6px 10px;padding:6px 12px;background:var(--info-soft);border:1px solid rgba(96,165,250,.3);border-radius:10px;font-size:12px;color:var(--tx-2)">
+        <span style="color:var(--info);width:14px;height:14px;display:flex;flex:none" id="ic-ctx"></span>
+        <span>当前上下文：<b id="ctxText" style="color:var(--tx-1)">—</b> <span class="sm tx-3">（追问将继承该时空与维度口径）</span></span>
+        <span id="ctxClear" title="清除上下文" style="margin-left:auto;cursor:pointer;color:var(--tx-3);width:14px;height:14px;display:flex;flex:none"></span>
       </div>
+      <div class="chat-scroll" id="chatScroll">
+
+</div>
 
       <!-- 输入区 -->
       <div class="chat-input-wrap">
-        <div class="chips">
-          <span class="chip" onclick="DG.toast('原型演示：发送推荐问题「今日原煤产量」')">今日原煤产量</span>
-          <span class="chip" onclick="DG.toast('原型演示：发送推荐问题「甲醇装置开工率趋势」')">甲醇装置开工率趋势</span>
-          <span class="chip" onclick="DG.toast('原型演示：发送推荐问题「瓦斯超限次数排名」')">瓦斯超限次数排名</span>
-          <span class="chip" onclick="DG.toast('原型演示：发送推荐问题「管输量月度计划完成率」')">管输量月度计划完成率</span>
+        <div class="chips" id="recChips">
+          <span class="chip">今日原煤产量</span>
+          <span class="chip">甲醇装置开工率趋势</span>
+          <span class="chip">瓦斯超限次数排名</span>
+          <span class="chip">管输量月度计划完成率</span>
         </div>
         <div class="chat-input">
           <input id="askInput" placeholder="用业务语言提问，如「上月各采油厂原油产量同比？」— 将自动命中语义层指标" />
-          <button class="send-btn" onclick="sendAsk()" title="发送"><span style="width:17px;height:17px;display:flex" id="ic-send"></span></button>
+          <button class="send-btn" id="sendBtn" title="发送"><span style="width:17px;height:17px;display:flex" id="ic-send"></span></button>
         </div>
       </div>
     </div>
 
-    <!-- 右：取数逻辑透明化 -->
+    <!-- 右：取数逻辑透明化（每次回答后更新，步骤可点击折叠） -->
     <div class="card chat-col right trace-panel">
       <div class="card-title" style="margin-bottom:14px"><span class="bar"></span>取数逻辑透明化 <span class="tag brand" style="margin-left:auto">FR-AI</span></div>
-
-      <div class="trace-step">
-        <div class="ts-dot">1</div>
-        <div class="ts-t">意图识别（Text2DSL）</div>
-        <div class="ts-kv">
-          <div><span class="k">指标：</span><b>原油产量</b> <span class="mc-code tag" style="font-family:var(--font-mono)">M-OIL-001</span></div>
-          <div><span class="k">维度：</span><b>采油厂</b></div>
-          <div><span class="k">时间：</span><b>上月（2026-08）</b> · 粒度 月</div>
-          <div><span class="k">对比：</span><b>同比（去年同期）</b></div>
-        </div>
-      </div>
-
-      <div class="trace-step">
-        <div class="ts-dot">2</div>
-        <div class="ts-t">DSL 中间层（语义层 Grounding）</div>
-        <div class="code-block">{
-  <span class="st">"metric"</span>: <span class="st">"M-OIL-001"</span>,
-  <span class="st">"dimensions"</span>: [<span class="st">"plant"</span>],
-  <span class="st">"time_range"</span>: {
-    <span class="st">"type"</span>: <span class="st">"last_month"</span>,
-    <span class="st">"granularity"</span>: <span class="st">"month"</span>
-  },
-  <span class="st">"compare"</span>: <span class="st">"yoy"</span>,
-  <span class="st">"filters"</span>: [
-    { <span class="st">"well_status"</span>: <span class="st">"生产井"</span> }
-  ]
-}</div>
-      </div>
-
-      <div class="trace-step">
-        <div class="ts-dot">3</div>
-        <div class="ts-t">编译 SQL（指标引擎）</div>
-        <div class="code-block"><span class="kw">SELECT</span> plant_name,
-  <span class="fn">SUM</span>(commercial_qty) qty
-<span class="kw">FROM</span> ods_fact_oil_daily
-<span class="kw">WHERE</span> dt <span class="kw">BETWEEN</span>
-  <span class="pc">${pc(month_start)}</span>
-  <span class="kw">AND</span> <span class="pc">${pc(month_end)}</span>
-<span class="cm">-- 行级权限注入</span>
-<span class="kw">AND</span> org_id <span class="kw">IN</span>
-  (<span class="pc">${pc(user_orgs)}</span>)
-<span class="kw">GROUP BY</span> plant_name;</div>
-      </div>
-
-      <div class="trace-step">
-        <div class="ts-dot">4</div>
-        <div class="ts-t">权限与脱敏继承</div>
-        <div class="ts-kv" style="margin-bottom:8px">已按你的身份自动套用数据权限，无需手工声明：</div>
-        <div class="flex wrap" style="gap:6px">
-          <span class="tag info">行级权限：仅华北油田分公司</span>
-          <span class="tag warn">敏感列「单井坐标」已脱敏</span>
-          <span class="tag ok">指标口径已认证 v1.2</span>
-        </div>
-      </div>
-
-      <div class="trace-step">
-        <div class="ts-dot">5</div>
-        <div class="ts-t">执行与缓存</div>
-        <div class="ts-kv">
-          <div><span class="k">引擎：</span><b>StarRocks 集群（信创）</b></div>
-          <div><span class="k">扫描行数：</span><b class="num">128,406</b> 行</div>
-          <div><span class="k">缓存：</span>命中语义层结果缓存（TTL 10min）</div>
-        </div>
+      <div id="traceBody">
+        <div class="sm tx-3" style="line-height:1.9;padding:6px 2px">发起提问后，此处将逐步展示 <b style="color:var(--tx-1)">意图识别 → DSL 落地 → SQL 编译 → 权限继承 → 执行缓存</b> 全过程；每一步骤标题可点击折叠 / 展开。</div>
       </div>
     </div>
   </div>
@@ -315,63 +178,337 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
 document.getElementById('ic-plus').innerHTML = DG.ICONS.plus;
 document.getElementById('ic-send').innerHTML = DG.ICONS.arrowR;
-document.getElementById('ic-spark1').innerHTML = DG.ICONS.spark;
-document.getElementById('aiAvatar1').innerHTML = DG.ICONS.spark;
-document.getElementById('aiAvatar2').innerHTML = DG.ICONS.spark;
-document.getElementById('llmTag').innerHTML = 'DeepSeek-V3 · BYO-LLM 接入';
+document.getElementById('ic-ctx').innerHTML = DG.ICONS.drill;
+document.getElementById('ctxClear').innerHTML = DG.ICONS.x;
+document.getElementById('llmTag').textContent = 'DeepSeek-V3 · BYO-LLM 接入';
+const esc = DG.ui.esc;
+const chatScroll = document.getElementById('chatScroll');
+const askInput = document.getElementById('askInput');
+let answered = 0, ctx = null;
 
-/* 会话历史点击 */
-document.querySelectorAll('.hist-item').forEach(it => {
-  it.addEventListener('click', () => {
-    document.querySelectorAll('.hist-item').forEach(x => x.classList.remove('active'));
-    it.classList.add('active');
-    DG.toast('原型演示：加载会话「' + it.querySelector('.h-t').textContent + '」');
-  });
-});
-function sendAsk() {
-  const v = document.getElementById('askInput').value.trim();
-  DG.toast(v ? '原型演示：已发送「' + v + '」，AI 正在经语义层取数…' : '原型演示：请输入问题或点击推荐问题');
+/* ================= 气泡基础 ================= */
+function scrollBottom() { chatScroll.scrollTop = chatScroll.scrollHeight; }
+function userBubble(q) {
+  const m = DG.ui.el(`<div class="msg user"><div class="m-avatar">李明</div><div class="bubble-user"></div></div>`);
+  m.querySelector('.bubble-user').textContent = q;
+  chatScroll.appendChild(m); scrollBottom();
+}
+function aiShell() {
+  const m = DG.ui.el(`<div class="msg ai"><div class="m-avatar">${DG.ICONS.spark}</div><div class="bubble-ai"></div></div>`);
+  chatScroll.appendChild(m); scrollBottom();
+  return m.querySelector('.bubble-ai');
+}
+function aiSkeleton() {
+  const b = aiShell();
+  b.innerHTML = `<div class="flex" style="gap:8px;color:var(--tx-3);font-size:12.5px"><span class="spin"></span>正在经语义层取数：意图识别 → DSL 落地 → SQL 编译…</div>
+    <div class="skeleton" style="height:13px;margin-top:12px"></div>
+    <div class="skeleton" style="height:13px;width:84%;margin-top:8px"></div>
+    <div class="skeleton" style="height:13px;width:62%;margin-top:8px"></div>`;
+  scrollBottom();
+  return b;
 }
 
-/* 图表 */
-const C = DG.colors;
-DG.autoCharts({
-  chatBar: () => ({
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['8月产量(万吨)', '同比(%)'] },
-    grid: { top: 30 },
-    xAxis: { type: 'category', data: ['长庆', '大庆', '塔里木', '胜利', '华北'] },
-    yAxis: [
-      { type: 'value', name: '万吨', nameTextStyle: { color: '#7C88A0' } },
-      { type: 'value', name: '%', min: -4, max: 14, splitLine: { show: false }, nameTextStyle: { color: '#7C88A0' } }
-    ],
+/* ================= 答案渲染（结论 + ECharts + 数据表 + 操作行 + 归因卡） ================= */
+function dimLabel(a) { return a.metric.indexOf('OIL') > -1 ? '采油厂' : a.metric.indexOf('COAL') > -1 ? '矿区 / 工作面' : '月份'; }
+function chartOptOf(a) {
+  const isTime = a.dims.every(d => String(d).endsWith('月'));
+  if (isTime) return {
+    tooltip: { trigger: 'axis' }, legend: { data: ['本期', '去年同期'] }, grid: { top: 30 },
+    xAxis: { type: 'category', data: a.dims }, yAxis: { type: 'value' },
     series: [
-      { name: '8月产量(万吨)', type: 'bar', barWidth: 26,
-        itemStyle: { borderRadius: [5,5,0,0], color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: '#FF8A3D' }, { offset: 1, color: 'rgba(244,99,58,.35)' }] } },
-        data: [94.8, 98.1, 71.5, 68.2, 52.6] },
-      { name: '同比(%)', type: 'line', yAxisIndex: 1, smooth: true, symbolSize: 7,
-        lineStyle: { width: 2.2, color: '#22D3EE' }, itemStyle: { color: '#22D3EE' },
-        data: [12.3, -1.8, 5.3, 2.6, 2.9] }
+      { name: '本期', type: 'line', smooth: true, symbolSize: 6, lineStyle: { width: 2.4, color: '#FF8A3D' }, itemStyle: { color: '#FF8A3D' }, data: a.values,
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.22)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } } },
+      { name: '去年同期', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 1.6, type: 'dashed', color: '#7C88A0' }, data: a.lastYear }
     ]
-  }),
-  attrLine: () => ({
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['长庆日产量(吨)', '去年同期'] },
-    grid: { top: 30 },
-    xAxis: { type: 'category', data: ['7/25','8/1','8/6','8/11','8/16','8/21','8/26','8/31'], axisLabel: { fontSize: 10 } },
+  };
+  const yoyNum = a.yoy.map(y => { const v = parseFloat(y); return isNaN(v) ? null : v; });
+  return {
+    tooltip: { trigger: 'axis' }, legend: { data: ['本期', '同比(%)'] }, grid: { top: 30 },
+    xAxis: { type: 'category', data: a.dims.map(d => String(d).replace('采油厂', '').replace('矿区', '')) },
+    yAxis: [{ type: 'value' }, { type: 'value', splitLine: { show: false } }],
+    series: [
+      { name: '本期', type: 'bar', barWidth: 26, data: a.values,
+        itemStyle: { borderRadius: [5, 5, 0, 0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#FF8A3D' }, { offset: 1, color: 'rgba(244,99,58,.35)' }] } } },
+      { name: '同比(%)', type: 'line', yAxisIndex: 1, smooth: true, symbolSize: 7, lineStyle: { width: 2.2, color: '#22D3EE' }, itemStyle: { color: '#22D3EE' }, data: yoyNum }
+    ]
+  };
+}
+function renderAnswer(b, a, opts) {
+  opts = opts || {};
+  const t = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  b.innerHTML = `
+    <div class="ai-conclusion">${a.conclusion}</div>
+    <div class="chart" style="height:230px;margin-top:10px"></div>
+    <div class="ai-table table-wrap"><table class="tbl">
+      <thead><tr><th>${dimLabel(a)}</th><th class="num">本期</th><th class="num">去年同期</th><th class="num">同比</th><th>主要驱动</th></tr></thead>
+      <tbody>${a.dims.map((d, i) => `<tr><td class="cell-main">${d}</td><td class="num">${a.values[i]}</td><td class="num">${a.lastYear[i]}</td><td class="num" style="color:${String(a.yoy[i]).indexOf('-') === 0 ? 'var(--danger)' : 'var(--ok)'}">${a.yoy[i]}</td><td>${a.drivers[i] || '—'}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="attr-card">
+      <div class="a-t">${DG.ICONS.spark} 波动归因 · 维度贡献度</div>
+      <div class="attr-rows"><div class="sm tx-3">归因引擎计算中…（POST /ai/insight/attribute）</div></div>
+    </div>
+    <div class="ai-ops">
+      <button class="btn sm" data-op="board">转为看板</button>
+      <button class="btn sm" data-op="excel">导出 Excel</button>
+      <button class="btn sm ghost" data-op="fav">☆ 收藏</button>
+      <button class="btn sm ghost" data-op="fb">纠错反馈</button>
+    </div>
+    <div class="m-time">${t} · 命中语义层指标「${a.title} ${a.metric}」${opts.costMs ? ' · 耗时 ' + opts.costMs + 'ms' : ''}</div>`;
+  scrollBottom();
+  DG.makeChart(b.querySelector('.chart'), chartOptOf(a));
+  DG.api.post('/ai/insight/attribute', { metric: a.metric }).then(r => {
+    if (r.code !== 0 || !b.isConnected) return;
+    const rows = b.querySelector('.attr-rows');
+    if (!rows) return;
+    rows.innerHTML = r.data.map((x, i) => `
+      <div class="attr-row"><span class="a-name">${x.dim}</span>
+        <div class="progress"><i style="width:${x.pct}%;${i === 0 ? '' : 'background:linear-gradient(90deg,#22D3EE,#0E7490)'}"></i></div>
+        <span class="a-v">贡献 ${x.pct}%${i === 0 ? '<span class="attr-top">Top</span>' : ''}</span></div>`).join('');
+    scrollBottom();
+  });
+  b.querySelectorAll('[data-op]').forEach(btn => btn.onclick = () => {
+    const op = btn.dataset.op;
+    if (op === 'board') openSaveAsChart(a);
+    else if (op === 'excel') DG.ui.toast(`已导出「问数-${a.title}.xlsx」（含数据表与编译 SQL）`, 'ok');
+    else if (op === 'fav') {
+      DG.api.post('/collab/favorite/toggle', { id: a.metric }).then(r => {
+        if (r.code === 0) { btn.innerHTML = '★ 已收藏'; btn.style.color = 'var(--brand)'; DG.ui.toast('已收藏到「我的收藏」', 'ok'); }
+        else DG.ui.toast(r.message, 'err');
+      });
+    }
+    else if (op === 'fb') openFeedback(a);
+  });
+}
+
+/* ---- 追问（归因答复） ---- */
+function renderFollowup(b, f) {
+  const t = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  const html = esc(f.a).replace(/([+-]?\d+(\.\d+)?\s*(万吨|pct|%|口|个))/g, '<b>$1</b>');
+  b.innerHTML = `
+    <div class="ai-conclusion">${html}</div>
+    <div class="chart" style="height:170px;margin-top:10px"></div>
+    <div class="ai-ops">
+      <button class="btn sm" data-op="drill">下钻安塞区块</button>
+      <button class="btn sm ghost" data-op="sub">订阅异动告警</button>
+    </div>
+    <div class="m-time">${t} · 归因引擎 v2（维度拆解 + 基数修正）</div>`;
+  DG.makeChart(b.querySelector('.chart'), {
+    tooltip: { trigger: 'axis' }, legend: { data: ['长庆日产量(吨)', '去年同期'] }, grid: { top: 30 },
+    xAxis: { type: 'category', data: ['7/25', '8/1', '8/6', '8/11', '8/16', '8/21', '8/26', '8/31'], axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: '吨/日', nameTextStyle: { color: '#7C88A0', fontSize: 10 } },
     series: [
       { name: '长庆日产量(吨)', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2.2, color: '#FF8A3D' },
-        areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.25)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.25)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } },
         data: [29800, 30500, 31200, 30800, 31600, 32100, 31900, 32400] },
-      { name: '去年同期', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 1.6, type: 'dashed', color: '#7C88A0' },
-        data: [27600, 27500, 27800, 27700, 27900, 28100, 28000, 28200] }
+      { name: '去年同期', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 1.6, type: 'dashed', color: '#7C88A0' }, data: [27600, 27500, 27800, 27700, 27900, 28100, 28000, 28200] }
     ]
-  })
-});
+  });
+  b.querySelector('[data-op="drill"]').onclick = () => DG.ui.toast('已下钻至安塞区块单井明细（FR-AI-06 多轮下钻）');
+  b.querySelector('[data-op="sub"]').onclick = () => DG.ui.toast('已订阅「长庆产量异动」告警，将推送至企业微信（FR-ALERT-02）', 'ok');
+  scrollBottom();
+}
+
+/* ================= 澄清（type=clarify → 可点选项 → /ai/chat/clarify） ================= */
+function renderClarify(b, d) {
+  b.innerHTML = `<div class="ai-conclusion">${esc(d.message)}</div>
+    <div class="chips" style="margin-top:10px">${d.options.map(o => `<span class="chip">${esc(o)}</span>`).join('')}</div>`;
+  b.querySelectorAll('.chip').forEach(c => c.onclick = () => clarifyAsk(c.textContent));
+  scrollBottom();
+}
+async function clarifyAsk(q) {
+  userBubble(q);
+  const b = aiSkeleton();
+  const r = await DG.api.post('/ai/chat/clarify', { question: q });
+  if (r.code !== 0) { b.innerHTML = `<div class="ai-conclusion" style="color:var(--danger)">服务异常：${esc(r.message)}</div>`; scrollBottom(); return; }
+  answered++;
+  renderAnswer(b, r.data, { costMs: r.data.explain && r.data.explain.costMs });
+  ctx = '上月（2026-08） · 采油厂维度';
+  updateTrace(r.data);
+}
+
+/* ================= 发问主流程（发送按钮 / 回车 / 推荐 chips / ?q=） ================= */
+async function sendAsk(q) {
+  q = (q == null ? askInput.value : q).trim();
+  if (!q) { DG.ui.toast('请输入问题，或点击下方推荐问题', 'warn'); return; }
+  askInput.value = '';
+  if (answered > 0 && ctx) showCtx();   /* 追问：顶部出现上下文条 */
+  userBubble(q);
+  const b = aiSkeleton();
+  const r = await DG.api.post('/ai/chat/ask', { question: q });
+  if (r.code !== 0) { b.innerHTML = `<div class="ai-conclusion" style="color:var(--danger)">服务异常：${esc(r.message)}（可重试或换一种问法）</div>`; scrollBottom(); return; }
+  const d = r.data;
+  if (d.type === 'clarify') { renderClarify(b, d); return; }
+  answered++;
+  renderAnswer(b, d, { costMs: d.explain && d.explain.costMs });
+  ctx = ctxOf(d);
+  updateTrace(d);
+}
+function ctxOf(d) {
+  if (d.metric.indexOf('COAL') > -1) return '昨日 · 矿区 / 工作面维度';
+  if (d.metric.indexOf('CHEM') > -1) return '近 6 个月 · 月份维度';
+  return '上月（2026-08） · 采油厂维度';
+}
+function showCtx() { document.getElementById('ctxText').textContent = ctx; document.getElementById('ctxBar').classList.remove('hidden'); }
+document.getElementById('ctxClear').onclick = () => {
+  document.getElementById('ctxBar').classList.add('hidden'); ctx = null;
+  DG.ui.toast('已清除对话上下文，下次提问将重新识别时空范围');
+};
+document.getElementById('sendBtn').onclick = () => sendAsk();
+askInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendAsk(); });
+document.querySelectorAll('#recChips .chip').forEach(c => c.onclick = () => sendAsk(c.textContent));
+
+/* ================= 答案操作行 ================= */
+async function openSaveAsChart(a) {
+  const r = await DG.api.get('/dashboard/list');
+  const rows = r.code === 0 ? r.data.rows : [];
+  DG.ui.formModal({
+    title: '转为看板部件（FR-AI-07）', width: 520,
+    fields: [
+      { key: 'target', label: '目标看板', type: 'select', required: true,
+        options: [...rows.map(d => ({ v: d.name, t: d.name + '（' + d.id + '）' })), { v: '__new', t: '＋ 新建看板「问数-' + a.title + '」' }] },
+      { key: 'wtype', label: '部件形态', type: 'select', options: [{ v: 'chart', t: '图表部件（柱线组合）' }, { v: 'table', t: '数据表部件' }, { v: 'kpi', t: '指标卡部件' }] }
+    ],
+    okLabel: '生成部件',
+    onSubmit: async v => {
+      const rr = await DG.api.post('/ai/chat/saveAsChart', { name: a.title, target: v.target, wtype: v.wtype });
+      if (rr.code !== 0) { DG.ui.toast(rr.message, 'err'); return false; }
+      DG.ui.toast(v.target === '__new'
+        ? '已生成图表部件并创建新看板草稿，可在看板设计器中继续编辑'
+        : `已加入看板「${v.target}」（部件 ${rr.data.chartId}）`, 'ok');
+    }
+  });
+}
+function openFeedback(a) {
+  DG.ui.formModal({
+    title: '纠错反馈 · 帮助语义层变好', width: 520,
+    fields: [
+      { key: 'useful', label: '本次回答是否有用', type: 'select', options: [{ v: '有用', t: '有用 ✓ 数据正确' }, { v: '无用', t: '无用 ✗ 数据或口径有误' }] },
+      { key: 'reason', label: '问题描述', type: 'textarea', placeholder: '如：华北采油厂同比数值与日报不一致，怀疑行级权限过滤遗漏…' }
+    ],
+    okLabel: '提交反馈',
+    onSubmit: async () => { DG.ui.toast('反馈已提交：将用于语义层口径与意图识别优化（FR-AI-10）', 'ok'); }
+  });
+}
+
+/* ================= 取数透明化面板（每次回答后更新，步骤可折叠） ================= */
+function hlSql(sql) {
+  return String(sql || '-- 无').split('\n').map(line => {
+    const t = esc(line);
+    if (t.trim().startsWith('--')) return '<span class="cm">' + t + '</span>';
+    return t.replace(/\b(SELECT|FROM|WHERE|GROUP BY|ORDER BY|BETWEEN|AND|IN|AS|DESC|DISTINCT)\b/g, '<span class="kw">$1</span>')
+            .replace(/\b(SUM|AVG|COUNT|MAX|MIN)\(/g, '<span class="fn">$1</span>(')
+            .replace(/\$\{[^}]*\}/g, mm => '<span class="pc">' + mm + '</span>');
+  }).join('\n');
+}
+function updateTrace(d) {
+  const e = d.explain || {};
+  const dsl = e.dsl || {};
+  const steps = [
+    { t: '意图识别（Text2DSL）', body: `<div class="ts-kv">
+        <div><span class="k">指标：</span><b>${esc(d.title)}</b> <span class="tag" style="font-family:var(--font-mono)">${e.metric || d.metric}</span></div>
+        <div><span class="k">维度：</span><b>${(dsl.dimensions || []).join(' / ') || '—'}</b></div>
+        <div><span class="k">时间：</span><b>${dsl.time_range ? dsl.time_range.type + ' · 粒度 ' + (dsl.time_range.granularity || '—') : '—'}</b></div>
+        <div><span class="k">对比：</span><b>${dsl.compare || 'none'}</b></div>
+      </div>` },
+    { t: 'DSL 中间层（语义层 Grounding）', body: `<div class="code-block">${esc(JSON.stringify(dsl, null, 2))}</div>` },
+    { t: '编译 SQL（指标引擎）', body: `<div class="code-block">${hlSql(e.sql || '-- 无')}</div>` },
+    { t: '权限与脱敏继承', body: `<div class="ts-kv" style="margin-bottom:8px">已按你的身份自动套用数据权限，无需手工声明：</div>
+        <div class="flex wrap" style="gap:6px"><span class="tag info">${esc(e.permission || '行级权限已注入')}</span><span class="tag warn">敏感列已脱敏</span><span class="tag ok">指标口径已认证</span></div>` },
+    { t: '执行与缓存', body: `<div class="ts-kv">
+        <div><span class="k">引擎：</span><b>StarRocks 集群（信创）</b></div>
+        <div><span class="k">耗时：</span><b class="num">${e.costMs || '—'} ms</b></div>
+        <div><span class="k">缓存：</span>${e.cacheHit ? '命中语义层结果缓存（TTL 10min）' : '未命中缓存，结果已写入（TTL 10min）'}</div>
+      </div>` }
+  ];
+  const tb = document.getElementById('traceBody');
+  tb.innerHTML = steps.map((s, i) => `
+    <div class="trace-step">
+      <div class="ts-dot">${i + 1}</div>
+      <div class="ts-t" data-fold style="cursor:pointer">${s.t}<span class="sm tx-3" style="float:right;font-weight:400">折叠</span></div>
+      <div class="ts-body">${s.body}</div>
+    </div>`).join('');
+  tb.querySelectorAll('[data-fold]').forEach(h => h.onclick = () => {
+    const bd = h.nextElementSibling;
+    bd.classList.toggle('hidden');
+    h.querySelector('.sm').textContent = bd.classList.contains('hidden') ? '展开' : '折叠';
+  });
+}
+
+/* ================= 会话历史（GET /ai/session/list） / 新会话 ================= */
+async function loadSessions() {
+  const list = document.getElementById('histList');
+  const r = await DG.api.get('/ai/session/list');
+  if (r.code !== 0) { list.innerHTML = ''; list.appendChild(DG.ui.errorBlock(r.message, loadSessions)); return; }
+  list.innerHTML = '<div class="hist-group">最近会话</div>' + r.data.map((s, i) => `
+    <div class="hist-item${i === 0 ? ' active' : ''}" data-t="${esc(s.title)}"><div class="h-t">${esc(s.title)}</div><div class="h-s">${s.turns} 轮问答 · ${s.time}</div></div>`).join('');
+  list.querySelectorAll('.hist-item').forEach(it => it.onclick = () => {
+    list.querySelectorAll('.hist-item').forEach(x => x.classList.remove('active'));
+    it.classList.add('active');
+    DG.ui.toast('已加载会话「' + it.dataset.t + '」（演示内容）');
+    answered = 0; ctx = null;
+    document.getElementById('ctxBar').classList.add('hidden');
+    renderDemo();
+  });
+}
+document.getElementById('btnNewSess').onclick = () => { renderWelcome(); DG.ui.toast('已新建问数会话', 'ok'); };
+
+/* ================= BYO-LLM 配置展示（模型 tag 点击） ================= */
+function openLLM() {
+  DG.ui.modal({
+    title: 'BYO-LLM 接入配置（FR-AI-09）', width: 640,
+    body: `
+      <dl class="desc-list" style="grid-template-columns:96px 1fr">
+        <dt>Base URL</dt><dd class="num">https://api.deepseek.com/v1</dd>
+        <dt>Model</dt><dd>deepseek-chat（DeepSeek-V3）</dd>
+        <dt>API Key</dt><dd class="num">sk-9f2c••••••••••••3kQa（KMS 加密存储）</dd>
+        <dt>接入方式</dt><dd><span class="tag brand">BYO-LLM 自带密钥</span> <span class="tag ok">连接正常 · 312ms</span></dd>
+      </dl>
+      <div class="form-label" style="margin:16px 0 8px">按功能点指定模型（多模型路由）</div>
+      <div class="table-wrap"><table class="tbl">
+        <thead><tr><th>功能点</th><th>模型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-main">Text2DSL 意图识别</td><td class="num">DeepSeek-V3</td><td>语义层 Grounding，temperature 0.1</td></tr>
+          <tr><td class="cell-main">归因分析</td><td class="num">DeepSeek-V3</td><td>维度拆解 + 基数修正</td></tr>
+          <tr><td class="cell-main">NL2SQL 兜底</td><td class="num">Qwen2.5-72B（信创内网）</td><td>语义层未命中时降级</td></tr>
+          <tr><td class="cell-main">图表推荐</td><td class="num">规则引擎</td><td>不消耗 Token</td></tr>
+        </tbody>
+      </table></div>
+      <div class="sm tx-3 mt-2">模型与密钥为平台级配置，修改入口在「系统管理 → 模型接入」；本页只读展示。</div>`,
+    buttons: [{ label: '关 闭' }]
+  });
+}
+document.getElementById('llmTag').onclick = openLLM;
+
+/* ================= 演示会话 / 欢迎态 / 初始化 ================= */
+function renderDemo() {
+  chatScroll.innerHTML = ''; answered = 1;
+  const a = DG.api._canned.oil;
+  userBubble('上月各采油厂原油产量的同比变化？');
+  renderAnswer(aiShell(), a, { costMs: 842 });
+  userBubble(a.followup.q);
+  renderFollowup(aiShell(), a.followup);
+  ctx = '上月（2026-08） · 采油厂维度';
+  updateTrace({ title: a.title, metric: a.metric, explain: { metric: a.metric, dsl: a.dsl, sql: a.sql, permission: '已按行级权限过滤：仅华北油田分公司可见数据；敏感列已脱敏', costMs: 842, cacheHit: false } });
+}
+function renderWelcome() {
+  chatScroll.innerHTML = ''; answered = 0; ctx = null;
+  document.getElementById('ctxBar').classList.add('hidden');
+  const b = aiShell();
+  b.innerHTML = `<div class="ai-conclusion">您好，我是 <b>能源问数助手</b>。直接用业务语言提问即可，我会命中语义层指标取数，并把取数全过程展示在右侧面板。</div>
+    <div class="chips" style="margin-top:12px">${['上月各采油厂产量同比？', '瓦斯超限次数排名', '甲醇装置开工率趋势', '今日原煤产量'].map(q => `<span class="chip">${q}</span>`).join('')}</div>`;
+  b.querySelectorAll('.chip').forEach(c => c.onclick = () => sendAsk(c.textContent));
+  document.getElementById('traceBody').innerHTML = '<div class="sm tx-3" style="line-height:1.9;padding:6px 2px">发起提问后，此处将逐步展示 <b style="color:var(--tx-1)">意图识别 → DSL 落地 → SQL 编译 → 权限继承 → 执行缓存</b> 全过程；每一步骤标题可点击折叠 / 展开。</div>';
+}
+loadSessions();
+const q0 = new URLSearchParams(location.search).get('q');
+if (q0) { chatScroll.innerHTML = ''; sendAsk(q0); } else renderDemo();
+if (location.hash === '#demo') setTimeout(() => openSaveAsChart(DG.api._canned.oil), 900);
+if (location.hash === '#demo2') setTimeout(openLLM, 700);
 </script>
 </body>
 </html>

@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const backendTarget = env.VITE_BACKEND_TARGET || 'http://localhost:50401'
+  const backendTarget = env.VITE_BACKEND_TARGET || 'http://localhost:50404'
 
   return {
     plugins: [vue()],

@@ -114,7 +114,7 @@
         </div>
         <nav class="side-nav">${navHtml}</nav>
         <div class="side-foot">
-          <div class="side-user">
+          <div class="side-user" id="sideUser" title="账户菜单">
             <div class="avatar">李明</div>
             <div class="side-user-info">
               <div class="u-name">李明</div>
@@ -127,14 +127,14 @@
       <div class="main">
         <header class="topbar">
           <div class="crumbs">${meta.crumbs.split('/').map((s, i, arr) => i === arr.length - 1 ? '<b>' + s.trim() + '</b>' : '<span>' + s.trim() + '</span>').join('<span style="margin:0 6px;color:var(--tx-4)">/</span>')}</div>
-          <div class="top-search" onclick="location.href='chatbi.html'">
+          <div class="top-search" id="topSearch" style="cursor:pointer">
             ${ICONS.search}
             <input placeholder="全局搜索：指标 / 看板 / 数据集，或直接向 AI 提问…" readonly />
             <kbd>⌘K</kbd>
           </div>
           <div class="top-actions">
             <span class="env-tag">生产环境 · 信创适配</span>
-            <button class="icon-btn" title="告警通知">${ICONS.bell}<span class="dot"></span></button>
+            <button class="icon-btn" id="bellBtn" title="告警通知">${ICONS.bell}<span class="dot"></span></button>
             <button class="icon-btn" title="帮助与新手引导" onclick="DG.toast('新手引导：角色化任务教学（FR-HOME-23）')">${ICONS.spark}</button>
           </div>
         </header>
@@ -150,6 +150,123 @@
     document.getElementById('foldBtn').addEventListener('click', () => {
       document.getElementById('sidebar').classList.toggle('fold');
       setTimeout(() => window.dispatchEvent(new Event('resize')), 220);
+    });
+    bindGlobalInteractions();
+  }
+
+  /* ---------- 全局交互：⌘K 搜索 / 通知 / 用户菜单 ---------- */
+  function closeDropdowns() { document.querySelectorAll('.dropdown').forEach(d => d.remove()); }
+  function toggleDropdown(dd) {
+    const existed = !!document.querySelector('.dropdown');
+    closeDropdowns();
+    if (!existed) {
+      document.body.appendChild(dd);
+      setTimeout(() => document.addEventListener('click', function h(e) { if (!dd.contains(e.target)) { dd.remove(); document.removeEventListener('click', h); } }), 0);
+    }
+  }
+
+  /* 通知下拉（数据来自 GET /home/todo） */
+  function openNotify() {
+    const dd = document.createElement('div');
+    dd.className = 'dropdown';
+    dd.innerHTML = `<div class="dd-head">通知与待办 <span class="dd-op" data-readall>全部已读</span></div>
+      <div class="dd-body"><div class="block-loading"><span class="spin"></span> 加载中…</div></div>`;
+    dd.querySelector('[data-readall]').onclick = () => { document.querySelector('.icon-btn .dot') && document.querySelector('.icon-btn .dot').remove(); toast('已全部标记为已读', 'ok'); dd.remove(); };
+    toggleDropdown(dd);
+    const body = dd.querySelector('.dd-body');
+    const render = rows => {
+      body.innerHTML = rows.map(t => `
+        <div class="row-item" data-href="${t.kind === 'alert' ? 'alert.html' : t.kind === 'approve' ? 'system.html' : 'index.html'}">
+          <span class="tag ${t.level === 'danger' ? 'danger' : t.level === 'warn' ? 'warn' : t.level === 'ok' ? 'ok' : 'info'}">${t.kind === 'alert' ? '告警' : t.kind === 'sub' ? '订阅' : t.kind === 'approve' ? '审批' : '质量'}</span>
+          <div class="grow"><div style="font-size:12.5px">${t.title}</div><div class="sm tx-3">${t.sub}</div></div>
+        </div>`).join('');
+      body.querySelectorAll('.row-item').forEach(r => r.onclick = () => location.href = r.dataset.href);
+    };
+    if (window.DG && DG.api) DG.api.get('/home/todo').then(r => render(r.data)); else render([]);
+  }
+
+  /* 用户菜单 */
+  function openUserMenu() {
+    const dd = document.createElement('div');
+    dd.className = 'dropdown dd-user';
+    dd.style.left = '12px'; dd.style.right = 'auto'; dd.style.top = 'auto'; dd.style.bottom = '64px'; dd.style.position = 'fixed';
+    dd.innerHTML = `
+      <div style="padding:14px 16px;border-bottom:1px solid var(--line-1)">
+        <div style="font-weight:600">李明 <span class="tag brand" style="margin-left:6px">数据分析师</span></div>
+        <div class="sm tx-3 mt-1">liming@energy.local · 华北油田分公司</div>
+      </div>
+      ${[['个人设置', 'system'], ['我的收藏', 'star'], ['我的订阅', 'alert'], ['主题偏好（暗色）', 'spark'], ['退出登录', 'arrowR']].map(m => `<div class="dd-menu-item" data-act="${m[1]}">${ICONS[m[1]] || ''}${m[0]}</div>`).join('')}`;
+    dd.querySelectorAll('.dd-menu-item').forEach(it => it.onclick = () => {
+      const act = it.dataset.act; dd.remove();
+      if (act === 'arrowR') location.href = 'login.html';
+      else if (act === 'star') location.href = 'index.html';
+      else if (act === 'alert') location.href = 'alert.html';
+      else toast('原型演示：' + it.textContent.trim());
+    });
+    toggleDropdown(dd);
+  }
+
+  /* ⌘K 全局搜索（数据来自 GET /search?q=，FR-HOME-08） */
+  function openSearch() {
+    if (document.getElementById('dgSearchMask')) return;
+    const mask = document.createElement('div');
+    mask.className = 'modal-mask show'; mask.id = 'dgSearchMask';
+    mask.innerHTML = `<div class="search-modal">
+      <div class="sm-head">${ICONS.search}<input id="dgSearchInput" placeholder="搜索指标 / 看板 / 数据集 / 报表 / 数据源 …" autocomplete="off"/><kbd style="font-size:10px;color:var(--tx-4);border:1px solid var(--line-2);border-radius:4px;padding:0 5px">ESC</kbd></div>
+      <div class="sm-body" id="dgSearchBody"><div class="block-loading"><span class="spin"></span></div></div>
+      <div class="sm-foot"><span>↑↓ 选择</span><span>↵ 打开</span><span>按 Enter 可将问题发送至智能问数</span></div>
+    </div>`;
+    document.body.appendChild(mask);
+    const input = mask.querySelector('#dgSearchInput');
+    const body = mask.querySelector('#dgSearchBody');
+    let cur = -1;
+    const close = () => { mask.remove(); document.removeEventListener('keydown', nav); };
+    mask.addEventListener('click', e => { if (e.target === mask) close(); });
+    function nav(e) {
+      const items = body.querySelectorAll('.sm-item');
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault(); if (!items.length) return;
+        cur = (cur + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        items.forEach((x, i) => x.classList.toggle('hover', i === cur));
+      } else if (e.key === 'Enter') {
+        if (cur >= 0 && items[cur]) location.href = items[cur].dataset.href;
+        else if (input.value.trim()) location.href = 'chatbi.html?q=' + encodeURIComponent(input.value.trim());
+      }
+    }
+    document.addEventListener('keydown', nav);
+    function render(rows, grouped) {
+      if (!rows.length) { body.innerHTML = `<div class="empty" style="padding:28px"><div class="sm tx-3">未找到「${input.value}」相关资源</div><button class="btn primary sm mt-2" id="dgAskBtn">用智能问数提问</button></div>`; const b = body.querySelector('#dgAskBtn'); if (b) b.onclick = () => location.href = 'chatbi.html?q=' + encodeURIComponent(input.value.trim()); return; }
+      const byType = {};
+      rows.forEach(r => { (byType[r.type] = byType[r.type] || []).push(r); });
+      body.innerHTML = Object.keys(byType).map(t => `<div class="sm-group">${t}</div>` + byType[t].map(r => `
+        <div class="sm-item" data-href="${r.href}">
+          <div class="sm-ico" style="color:${r.c};background:var(--bg-glass-2)">${ICONS[r.icon] || ICONS.dot}</div>
+          <div class="grow"><div class="sm-name">${r.name}</div><div class="sm-sub">${r.sub}</div></div>
+          <span class="tag">${r.type}</span>
+        </div>`).join('')).join('');
+      cur = -1;
+      body.querySelectorAll('.sm-item').forEach(it => it.onclick = () => location.href = it.dataset.href);
+    }
+    const doSearch = q => {
+      if (window.DG && DG.api) DG.api.get('/search', { q }).then(r => render(r.data.rows));
+      else render([]);
+    };
+    let timer;
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => doSearch(input.value.trim()), 200); });
+    doSearch('');
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function bindGlobalInteractions() {
+    const ts = document.getElementById('topSearch');
+    if (ts) ts.addEventListener('click', openSearch);
+    const bell = document.getElementById('bellBtn');
+    if (bell) bell.addEventListener('click', openNotify);
+    const user = document.getElementById('sideUser');
+    if (user) user.addEventListener('click', openUserMenu);
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openSearch(); }
     });
   }
 

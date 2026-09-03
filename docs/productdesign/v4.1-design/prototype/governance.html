@@ -16,7 +16,6 @@
   .tree-node.sel { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
   .tree-node svg { width: 14px; height: 14px; flex: none; opacity: .85; }
   .tree-lv1 { margin-left: 20px; }
-  .tree-lv2 { margin-left: 40px; }
   .tree-node .t-cnt { margin-left: auto; font-size: 10.5px; color: var(--tx-4); font-family: var(--font-num); }
   .collect-card { display: flex; gap: 14px; align-items: center; }
   .collect-card .cc-ico { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex: none; }
@@ -34,6 +33,11 @@
   .lineage-legend span { display: inline-flex; align-items: center; gap: 5px; }
   .lineage-legend i { width: 9px; height: 9px; border-radius: 50%; }
   .mask-demo { font-family: var(--font-mono); font-size: 12px; }
+  .link { color: var(--brand); cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+  .link:hover { color: #FFB25E; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px dashed rgba(255,255,255,.06); font-size: 13px; }
+  .kv .k { color: var(--tx-3); flex: none; }
+  .kv .v { color: var(--tx-1); text-align: right; }
   @media (max-width: 1200px) { .meta-layout { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -46,8 +50,8 @@
       <div class="page-desc">元数据采集、数据标准、质量校验、全链路血缘与敏感数据保护（PRD 10.4）</div>
     </div>
     <div class="page-actions">
-      <button class="btn" onclick="DG.toast('原型演示：治理报告导出为 PDF')">治理周报</button>
-      <button class="btn primary" onclick="DG.toast('原型演示：新建采集任务向导')"><span id="plusIco" style="display:flex"></span>新建采集任务</button>
+      <button class="btn" onclick="DG.ui.toast('治理周报已导出：governance_weekly_2026W36.pdf','ok')">治理周报</button>
+      <button class="btn primary" onclick="DG.ui.toast('采集任务编排属 Phase 2 能力，见 PRD 10.4 · FR-GOV-02','warn')"><span id="plusIco" style="display:flex"></span>新建采集任务</button>
     </div>
   </div>
 
@@ -68,12 +72,12 @@
         <div class="tree" id="metaTree"></div>
       </div>
       <div class="card">
-        <div class="card-title"><span class="bar"></span>ODS_采油日报 · 字段元数据
-          <span class="more" onclick="DG.toast('原型演示：编辑业务描述与敏感级别')">批量标注 ›</span>
+        <div class="card-title"><span class="bar"></span><span id="fieldTblName">ODS_采油日报</span> · 字段元数据
+          <span class="more" onclick="DG.ui.toast('批量标注属 Phase 2 能力，见 PRD 10.4 · FR-GOV-05','warn')">批量标注 ›</span>
         </div>
-        <div class="table-wrap" style="border:none">
+        <div class="table-wrap" style="border:none" id="fieldWrap">
           <table class="tbl">
-            <thead><tr><th>字段名</th><th>类型</th><th>业务描述</th><th>敏感级别</th><th>质量规则</th></tr></thead>
+            <thead><tr><th>字段名</th><th>类型</th><th>业务描述</th><th>敏感级别</th><th>质量规则</th><th style="width:90px">操作</th></tr></thead>
             <tbody id="fieldTbody"></tbody>
           </table>
         </div>
@@ -83,6 +87,10 @@
 
   <!-- 数据标准 -->
   <div class="tab-pane" data-pane="std">
+    <div class="flex-between mb-2">
+      <div class="sm tx-3">标准被数据集 / 指标引用后，字段命名与值域自动校验</div>
+      <button class="btn primary sm" id="btnNewStd">新建标准</button>
+    </div>
     <div class="table-wrap">
       <table class="tbl">
         <thead><tr><th>标准名称</th><th>类别</th><th>标准内容摘要</th><th>状态</th><th>被引用</th><th>维护人</th><th style="width:150px">操作</th></tr></thead>
@@ -108,10 +116,12 @@
       </div>
       <div class="flex-col" style="gap:14px">
         <div class="card">
-          <div class="card-title"><span class="bar"></span>质量规则与最近校验</div>
-          <div class="table-wrap" style="border:none">
+          <div class="card-title"><span class="bar"></span>质量规则与最近校验
+            <span class="more" id="btnNewQr">新建规则 ›</span>
+          </div>
+          <div class="table-wrap" style="border:none" id="qrWrap">
             <table class="tbl">
-              <thead><tr><th>规则</th><th>类型</th><th>校验对象</th><th>最近通过率</th><th>近 7 日趋势</th></tr></thead>
+              <thead><tr><th>规则</th><th>类型</th><th>校验对象</th><th>频率</th><th>最近通过率</th><th>近 7 日趋势</th><th>启用</th></tr></thead>
               <tbody id="qrTbody"></tbody>
             </table>
           </div>
@@ -128,7 +138,7 @@
   <div class="tab-pane" data-pane="lineage">
     <div class="card mb-3">
       <div class="card-title"><span class="bar"></span>全链路血缘：物理表 → 数据集 → 指标 → 消费端
-        <span class="more" onclick="DG.toast('影响分析：下游 3 个指标、4 个看板将受 ODS_采油日报 变更影响')">影响分析 ›</span>
+        <span class="more" id="btnImpact">影响分析 ›</span>
       </div>
       <div class="lineage-legend mb-2">
         <span><i style="background:var(--gas)"></i>物理表</span>
@@ -137,6 +147,7 @@
         <span><i style="background:var(--chem)"></i>看板 / 报表 / 告警</span>
       </div>
       <div class="chart" style="height:420px;min-height:420px" id="lineageChart"></div>
+      <div class="sm tx-3" style="margin-top:6px">提示：点击节点查看上下游详情</div>
     </div>
     <div class="card">
       <div class="card-title"><span class="bar"></span>字段级血缘示例</div>
@@ -167,31 +178,24 @@
     <div class="flex-col" style="gap:14px">
       <div class="card">
         <div class="card-title"><span class="bar"></span>敏感字段自动识别 <span class="tag brand">AI 扫描</span>
-          <span class="more" onclick="DG.toast('原型演示：重新扫描全部数据源')">重新扫描 ›</span>
+          <span class="more" onclick="DG.ui.toast('已触发全量敏感字段扫描，预计 2 分钟完成','ok')">重新扫描 ›</span>
         </div>
-        <div class="table-wrap" style="border:none">
+        <div class="table-wrap" style="border:none" id="sfWrap">
           <table class="tbl">
-            <thead><tr><th>敏感类型</th><th>出现位置</th><th>样本（已脱敏）</th><th>建议脱敏规则</th><th>状态</th></tr></thead>
-            <tbody>
-              <tr><td><span class="tag danger">身份证号</span></td><td class="sm">员工档案表.id_card</td><td class="mask-demo">130***********4217</td><td>保留前 3 后 4 掩码</td><td><span class="tag ok">已采纳</span></td></tr>
-              <tr><td><span class="tag danger">手机号</span></td><td class="sm">供应商联系人.phone、值班表.mobile</td><td class="mask-demo">138****1234</td><td>中间 4 位掩码</td><td><span class="tag ok">已采纳</span></td></tr>
-              <tr><td><span class="tag warn">银行账号</span></td><td class="sm">采购结算.bank_no</td><td class="mask-demo">6222 **** **** 8102</td><td>哈希 + 仅财务角色可见</td><td><span class="tag warn">待确认</span></td></tr>
-            </tbody>
+            <thead><tr><th>敏感字段</th><th>出现位置</th><th>类型</th><th>识别方式</th><th>脱敏规则</th><th style="width:110px">操作</th></tr></thead>
+            <tbody id="sfTbody"></tbody>
           </table>
         </div>
       </div>
       <div class="grid" style="grid-template-columns:1fr 300px;gap:14px">
         <div class="card">
-          <div class="card-title"><span class="bar"></span>脱敏规则</div>
+          <div class="card-title"><span class="bar"></span>脱敏规则
+            <span class="more" id="btnNewMask">新建脱敏规则 ›</span>
+          </div>
           <div class="table-wrap" style="border:none">
             <table class="tbl">
               <thead><tr><th>规则名</th><th>字段</th><th>脱敏算法</th><th>适用角色</th><th>状态</th></tr></thead>
-              <tbody>
-                <tr><td class="cell-main">手机号掩码</td><td class="mask-demo">*.mobile / *.phone</td><td><span class="tag info">掩码</span></td><td class="sm">业务人员 · 分析师</td><td><span class="tag ok">启用</span></td></tr>
-                <tr><td class="cell-main">身份证掩码</td><td class="mask-demo">*.id_card</td><td><span class="tag info">掩码</span></td><td class="sm">除人事外全部角色</td><td><span class="tag ok">启用</span></td></tr>
-                <tr><td class="cell-main">工资哈希</td><td class="mask-demo">薪酬表.salary</td><td><span class="tag warn">哈希</span></td><td class="sm">业务人员</td><td><span class="tag ok">启用</span></td></tr>
-                <tr><td class="cell-main">银行账号截断</td><td class="mask-demo">采购结算.bank_no</td><td><span class="tag brand">截断</span></td><td class="sm">除财务外全部角色</td><td><span class="tag warn">待审批</span></td></tr>
-              </tbody>
+              <tbody id="maskTbody"></tbody>
             </table>
           </div>
         </div>
@@ -202,7 +206,7 @@
             <div class="row-item"><span style="width:15px;height:15px;display:inline-flex;color:var(--warn)" id="auditIco1"></span><div class="grow"><div style="font-size:12.5px">导出「供应商联系人.csv」</div><div class="sm tx-3">张伟 · 09-01 15:20 · 已自动脱敏</div></div></div>
             <div class="row-item"><span style="width:15px;height:15px;display:inline-flex;color:var(--info)" id="auditIco2"></span><div class="grow"><div style="font-size:12.5px">API 批量拉取「员工档案」</div><div class="sm tx-3">dgak_8f3**** · 08-28 09:12 · 审批单 A-2026-113</div></div></div>
           </div>
-          <button class="btn mt-2" style="width:100%;justify-content:center" onclick="DG.toast('原型演示：跳转审计日志 · 外发维度')">查看外发审计明细</button>
+          <button class="btn mt-2" style="width:100%;justify-content:center" onclick="location.href='system.html'">查看外发审计明细</button>
         </div>
       </div>
     </div>
@@ -212,37 +216,59 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
   document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
   document.getElementById('auditIco1').innerHTML = DG.ICONS.alert;
   document.getElementById('auditIco2').innerHTML = DG.ICONS.api;
 
-  /* 采集任务卡 */
+  /* ================= 元数据采集卡（立即采集 → 进度条 → toast） ================= */
   const COLLECTS = [
     { n: '华北油田生产库', t: 'MySQL · 全量+增量', tb: '128', fd: '3,402', last: '今天 02:00', rate: 100, col: 'var(--oil)', bg: 'var(--oil-soft)' },
     { n: '煤化工 ERP 库', t: 'Oracle · 全量', tb: '86', fd: '1,968', last: '今天 02:20', rate: 97.6, col: 'var(--chem)', bg: 'var(--chem-soft)' },
     { n: '煤矿安全监测流', t: 'Kafka · 实时 schema', tb: '9', fd: '214', last: '实时', rate: 99.1, col: 'var(--coal)', bg: 'var(--coal-soft)' },
   ];
-  document.getElementById('collectCards').innerHTML = COLLECTS.map(c => `
-    <div class="card hover">
+  document.getElementById('collectCards').innerHTML = COLLECTS.map((c, i) => `
+    <div class="card hover" id="collect${i}">
       <div class="collect-card">
         <span class="cc-ico" style="color:${c.col};background:${c.bg}">${DG.ICONS.db}</span>
         <div class="grow">
           <div style="font-size:13.5px;font-weight:600">${c.n}</div>
-          <div class="sm tx-3">${c.t} · 最近采集 ${c.last}</div>
+          <div class="sm tx-3">${c.t} · 最近采集 <span class="last-t">${c.last}</span></div>
         </div>
         <span class="tag ${c.rate >= 99 ? 'ok' : 'warn'}">成功率 ${c.rate}%</span>
       </div>
       <div class="flex-between sm tx-3 mt-2" style="padding-top:10px;border-top:1px dashed var(--line-1)">
         <span>表 <b class="num" style="color:var(--tx-1)">${c.tb}</b></span>
         <span>字段 <b class="num" style="color:var(--tx-1)">${c.fd}</b></span>
-        <span style="color:var(--brand);cursor:pointer" onclick="DG.toast('原型演示：立即采集')">立即采集</span>
+        <button class="btn sm" data-collect="${i}">立即采集</button>
       </div>
+      <div class="progress mt-2 hidden"><i style="width:0%"></i></div>
     </div>`).join('');
+  document.querySelectorAll('[data-collect]').forEach(btn => {
+    btn.onclick = async () => {
+      const c = COLLECTS[+btn.dataset.collect];
+      const card = btn.closest('.card');
+      const prog = card.querySelector('.progress');
+      DG.ui.btnLoading(btn, true);
+      prog.classList.remove('hidden');
+      const bar = prog.querySelector('i');
+      bar.style.width = '8%';
+      await new Promise(r => setTimeout(r, 350)); bar.style.width = '46%';
+      await new Promise(r => setTimeout(r, 500)); bar.style.width = '82%';
+      await new Promise(r => setTimeout(r, 450)); bar.style.width = '100%';
+      await new Promise(r => setTimeout(r, 300));
+      DG.ui.btnLoading(btn, false);
+      prog.classList.add('hidden'); bar.style.width = '0%';
+      card.querySelector('.last-t').textContent = '刚刚';
+      DG.ui.toast(`「${c.n}」采集完成：${c.tb} 表 / ${c.fd} 字段，变更已同步治理目录`, 'ok');
+    };
+  });
 
-  /* 目录树 */
+  /* ================= 元数据目录树 → 字段表 ================= */
   const TREE = [
-    { n: '华北油田生产库', lv: 0, cnt: '128 表', ic: 'db', sel: true, open: true },
+    { n: '华北油田生产库', lv: 0, cnt: '128 表', ic: 'db' },
     { n: 'ODS_采油日报', lv: 1, cnt: '36 列', ic: 'dataset', sel: true },
     { n: 'ODS_注水日报', lv: 1, cnt: '28 列', ic: 'dataset' },
     { n: 'ODS_井史档案', lv: 1, cnt: '52 列', ic: 'dataset' },
@@ -250,30 +276,67 @@
     { n: '集团财务核算库', lv: 0, cnt: '54 表', ic: 'db' },
     { n: '煤矿安全监测流', lv: 0, cnt: '9 topic', ic: 'db' },
   ];
+  const FIELD_SETS = {
+    'ODS_采油日报': [
+      ['rq', 'DATE', '生产日期', '低', '非空'], ['cyf', 'VARCHAR(32)', '采油厂名称', '低', '非空 · 枚举'],
+      ['block', 'VARCHAR(32)', '所属区块（关联区块档案）', '低', '外键一致'], ['well_no', 'VARCHAR(24)', '井号', '中', '非空 · 唯一'],
+      ['oil_t', 'DECIMAL(10,2)', '日产油量（吨）', '低', '范围 0-2000'], ['water_t', 'DECIMAL(10,2)', '日产水量（吨）', '低', '范围 0-5000'],
+      ['wc_pct', 'DECIMAL(5,2)', '含水率（%）', '低', '范围 0-100'], ['dyn_lvl', 'DECIMAL(8,2)', '动液面深度（米）', '低', '及时性 ≤ T+1'],
+    ],
+    'ODS_注水日报': [
+      ['rq', 'DATE', '生产日期', '低', '非空'], ['well_no', 'VARCHAR(24)', '注水井号', '中', '非空 · 唯一'],
+      ['inj_p', 'DECIMAL(6,2)', '注水压力（MPa）', '低', '范围 0-35'], ['inj_q', 'DECIMAL(8,2)', '日注水量（方）', '低', '范围 0-800'],
+      ['pump_st', 'CHAR(1)', '泵状态', '低', '枚举 0/1'], ['team', 'VARCHAR(16)', '作业班组', '低', '—'],
+    ],
+    'ODS_井史档案': [
+      ['well_no', 'VARCHAR(24)', '井号', '中', '非空 · 唯一'], ['spud_dt', 'DATE', '开钻日期', '低', '—'],
+      ['compl_dt', 'DATE', '完钻日期', '低', '—'], ['well_type', 'VARCHAR(8)', '井别', '低', '值域标准'],
+      ['horizon', 'VARCHAR(16)', '目的层位', '低', '—'], ['depth', 'DECIMAL(8,2)', '完钻井深（米）', '低', '范围 500-8000'],
+    ],
+    'DIM_区块档案': [
+      ['block_code', 'CHAR(4)', '区块编码', '高', '主键'], ['block_name', 'VARCHAR(32)', '区块名称', '低', '非空'],
+      ['basin', 'VARCHAR(16)', '所属盆地', '低', '枚举'], ['resv_type', 'CHAR(2)', '油藏类型代码', '低', '值域 SY/T 6169'],
+    ],
+  };
+  const LV_TAG = { '低': '<span class="tag">低</span>', '中': '<span class="tag warn">中</span>', '高': '<span class="tag danger">高</span>' };
   document.getElementById('metaTree').innerHTML = TREE.map(t => `
-    <div class="tree-node ${t.sel ? 'sel' : ''} ${t.lv === 1 ? 'tree-lv1' : ''}" onclick="DG.toast('原型演示：定位 ${t.n} 元数据')">
+    <div class="tree-node ${t.sel ? 'sel' : ''} ${t.lv === 1 ? 'tree-lv1' : ''}" data-n="${t.n}">
       ${DG.ICONS[t.ic]}<span class="ellipsis">${t.n}</span><span class="t-cnt">${t.cnt}</span>
     </div>`).join('');
 
-  /* 字段表 */
-  const FIELDS = [
-    ['rq', 'DATE', '生产日期', '低', '非空'],
-    ['cyf', 'VARCHAR(32)', '采油厂名称', '低', '非空 · 枚举'],
-    ['block', 'VARCHAR(32)', '所属区块（关联区块档案）', '低', '外键一致'],
-    ['well_no', 'VARCHAR(24)', '井号', '中', '非空 · 唯一'],
-    ['oil_t', 'DECIMAL(10,2)', '日产油量（吨）', '低', '范围 0-2000'],
-    ['water_t', 'DECIMAL(10,2)', '日产水量（吨）', '低', '范围 0-5000'],
-    ['wc_pct', 'DECIMAL(5,2)', '含水率（%）', '低', '范围 0-100'],
-    ['dyn_lvl', 'DECIMAL(8,2)', '动液面深度（米）', '低', '及时性 ≤ T+1'],
-  ];
-  const LV_TAG = { '低': '<span class="tag">低</span>', '中': '<span class="tag warn">中</span>', '高': '<span class="tag danger">高</span>' };
-  document.getElementById('fieldTbody').innerHTML = FIELDS.map(f => `
-    <tr>
-      <td class="mask-demo cell-main">${f[0]}</td><td class="mask-demo tx-3">${f[1]}</td>
-      <td>${f[2]}</td><td>${LV_TAG[f[3]]}</td><td class="sm tx-3">${f[4]}</td>
-    </tr>`).join('');
+  function renderFields(name, fields) {
+    document.getElementById('fieldTblName').textContent = name;
+    const tb = document.getElementById('fieldTbody');
+    tb.innerHTML = `<tr><td colspan="6" style="padding:0"><div class="block-loading"><span class="spin"></span> 字段加载中…</div></td></tr>`;
+    setTimeout(() => {
+      tb.innerHTML = fields.map(f => `
+        <tr data-f="${f[0]}">
+          <td class="mask-demo cell-main">${f[0]}</td><td class="mask-demo tx-3">${f[1]}</td>
+          <td>${f[2]}</td><td class="lv-cell">${LV_TAG[f[3]]}</td><td class="sm tx-3">${f[4]}</td>
+          <td><span class="link" data-mark="${f[0]}">标记敏感</span></td>
+        </tr>`).join('');
+      tb.querySelectorAll('[data-mark]').forEach(a => a.onclick = async () => {
+        const field = a.dataset.mark;
+        const r = await DG.api.post('/sensitive/mark', { field: name + '.' + field });
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+        a.closest('tr').querySelector('.lv-cell').innerHTML = '<span class="tag danger">高 · 已标记</span>';
+        DG.ui.toast(`字段「${name}.${field}」已标记为敏感，将进入脱敏规则配置`, 'ok');
+      });
+    }, 380);
+  }
+  renderFields('ODS_采油日报', FIELD_SETS['ODS_采油日报']);
+  document.querySelectorAll('#metaTree .tree-node').forEach(n => {
+    n.onclick = () => {
+      document.querySelectorAll('#metaTree .tree-node').forEach(x => x.classList.remove('sel'));
+      n.classList.add('sel');
+      const name = n.dataset.n;
+      const fields = FIELD_SETS[name];
+      if (fields) renderFields(name, fields);
+      else DG.ui.toast(`「${name}」为库级节点，请展开选择具体表`, 'warn');
+    };
+  });
 
-  /* 数据标准 */
+  /* ================= 数据标准 ================= */
   const STDS = [
     ['指标命名规范 V3.0', '命名规范', '业务域_业务过程_度量_统计粒度，如 OIL_PROD_DAILY', '已发布', 86, '李明'],
     ['组织机构编码规则', '编码规则', 'GB/T 11714 扩展：集团-分公司-厂-区四级 12 位', '已发布', 42, '赵静'],
@@ -283,77 +346,172 @@
     ['管道站场编码', '编码规则', '管网-干线-站场三级编码，对齐 SCADA 点位表', '已发布', 22, '王芳'],
     ['瓦斯浓度计量规范', '值域标准', '%CH₄，报警阈值 1.0%、断电阈值 1.5%', '已发布', 14, '陈磊'],
   ];
-  document.getElementById('stdTbody').innerHTML = STDS.map(s => `
-    <tr>
-      <td class="cell-main">${s[0]}</td><td><span class="tag info">${s[1]}</span></td>
-      <td class="sm tx-2" style="max-width:380px">${s[2]}</td>
-      <td>${s[3] === '已发布' ? '<span class="tag ok">已发布</span>' : '<span class="tag warn">评审中</span>'}</td>
-      <td><span class="num">${s[4]}</span> <span class="sm tx-3">处</span></td>
-      <td class="sm">${s[5]}</td>
-      <td><span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：标准详情与引用清单')">详情</span> ·
-          <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：引用血缘')">引用</span></td>
-    </tr>`).join('');
-
-  /* 质量规则 */
-  const QRS = [
-    ['井号非空校验', '非空', 'ODS_采油日报', 99.8], ['采油厂枚举校验', '值域', 'ODS_采油日报', 100],
-    ['井号唯一性', '唯一', 'ODS_井史档案', 98.2], ['含水率范围 0-100', '范围', 'ODS_采油日报', 96.8],
-    ['T+1 及时性', '及时性', 'ODS_注水日报', 99.1], ['区块外键一致性', '一致性', 'DIM_区块档案', 100],
-  ];
-  document.getElementById('qrTbody').innerHTML = QRS.map((q, i) => `
-    <tr>
-      <td class="cell-main">${q[0]}</td><td><span class="tag">${q[1]}</span></td><td class="sm">${q[2]}</td>
-      <td><span class="num" style="color:${q[3] >= 99 ? 'var(--ok)' : q[3] >= 97 ? 'var(--warn)' : 'var(--danger)'}">${q[3]}%</span></td>
-      <td><div class="chart" style="height:34px;min-height:34px;width:120px" id="spark${i}"></div></td>
-    </tr>`).join('');
-  QRS.forEach((q, i) => {
-    DG.makeChart(document.getElementById('spark' + i), {
-      grid: { left: 0, right: 0, top: 3, bottom: 3 },
-      xAxis: { type: 'category', show: false, data: DG.WEEK },
-      yAxis: { type: 'value', show: false, min: 90, max: 100 },
-      tooltip: { trigger: 'axis' },
-      series: [{ type: 'line', smooth: true, symbol: 'none', data: DG.series(7, q[3] - 1.5, 1.2, i),
-        lineStyle: { width: 1.6, color: q[3] >= 97 ? '#34D399' : '#FBBF24' },
-        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: q[3] >= 97 ? 'rgba(52,211,153,.22)' : 'rgba(251,191,36,.22)' }, { offset: 1, color: 'rgba(0,0,0,0)' }] } } }]
+  function renderStds() {
+    document.getElementById('stdTbody').innerHTML = STDS.map(s => `
+      <tr>
+        <td class="cell-main">${s[0]}</td><td><span class="tag info">${s[1]}</span></td>
+        <td class="sm tx-2" style="max-width:380px">${s[2]}</td>
+        <td>${s[3] === '已发布' ? '<span class="tag ok">已发布</span>' : '<span class="tag warn">评审中</span>'}</td>
+        <td><span class="num">${s[4]}</span> <span class="sm tx-3">处</span></td>
+        <td class="sm">${s[5]}</td>
+        <td><span class="link" data-std-d="${s[0]}">详情</span> ·
+            <span class="link" data-std-r="${s[0]}">引用</span></td>
+      </tr>`).join('');
+    document.querySelectorAll('[data-std-d]').forEach(a => a.onclick = () => {
+      const s = STDS.find(x => x[0] === a.dataset.stdD);
+      DG.ui.drawer({
+        title: s[0], width: 460,
+        body: `<div class="kv"><span class="k">类别</span><span class="v">${s[1]}</span></div>
+          <div class="kv"><span class="k">状态</span><span class="v">${s[3]}</span></div>
+          <div class="kv"><span class="k">维护人</span><span class="v">${s[5]}</span></div>
+          <div class="kv"><span class="k">被引用</span><span class="v num">${s[4]} 处</span></div>
+          <div style="margin-top:14px;font-size:12.5px;color:var(--tx-2);line-height:1.8">${s[2]}</div>`
+      });
     });
-  });
+    document.querySelectorAll('[data-std-r]').forEach(a => a.onclick = () =>
+      DG.ui.toast(`「${a.dataset.stdR}」的引用血缘：可在「数据血缘」页查看`, 'ok'));
+  }
+  renderStds();
+  document.getElementById('btnNewStd').onclick = () => {
+    DG.ui.formModal({
+      title: '新建数据标准',
+      fields: [
+        { key: 'name', label: '标准名称', required: true, placeholder: '如：管线压力计量规范' },
+        { key: 'cat', label: '类别', type: 'select', options: ['命名规范', '编码规则', '值域标准', '度量标准'].map(v => ({ v, t: v })) },
+        { key: 'content', label: '标准内容摘要', type: 'textarea', required: true, placeholder: '描述编码构成 / 值域范围 / 单位换算规则…' },
+        { key: 'owner', label: '维护人', value: '李明' }
+      ],
+      onSubmit: v => {
+        STDS.push([v.name, v.cat, v.content, '评审中', 0, v.owner]);
+        renderStds();
+        DG.ui.toast(`标准「${v.name}」已创建并进入评审流程`, 'ok');
+      }
+    });
+  };
 
-  /* 质量异常 */
-  const ISSUES = [
-    { c: 'var(--danger)', bg: 'var(--danger-soft)', t: 'ODS_采油日报表 · 含水率空值率 3.2% 超阈值（阈值 1%）', s: '今天 06:00 校验 · 疑似 SCADA 采集缺报 · 已通知王芳' },
-    { c: 'var(--warn)', bg: 'var(--warn-soft)', t: 'ODS_井史档案 · 井号重复 2 条（HB-2048 / HB-2049）', s: '昨天 22:00 校验 · 等待源系统主数据修复' },
+  /* ================= 数据质量（GET /quality/rule/list · /quality/issue/list） ================= */
+  let QR_ROWS = [];
+  async function loadQuality() {
+    const wrap = document.getElementById('qrWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/quality/rule/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadQuality)); return; }
+    QR_ROWS = r.data;
+    renderQr();
+  }
+  function renderQr() {
+    const tb = document.getElementById('qrTbody');
+    DG.ui.renderRows(tb, QR_ROWS, (q, i) => `
+      <tr data-id="${q.id}">
+        <td class="cell-main">${q.name}</td><td><span class="tag">${q.type}</span></td>
+        <td class="sm mask-demo">${q.target}</td><td class="sm">${q.freq}</td>
+        <td><span class="num" style="color:${q.pass >= 99 ? 'var(--ok)' : q.pass >= 97 ? 'var(--warn)' : 'var(--danger)'}">${q.pass}%</span></td>
+        <td><div class="chart" style="height:34px;min-height:34px;width:120px" id="spark${i}"></div></td>
+        <td><label class="switch"><input type="checkbox" ${q.enabled ? 'checked' : ''} data-qt="${q.id}"/><i></i></label></td>
+      </tr>`);
+    QR_ROWS.forEach((q, i) => {
+      DG.makeChart(document.getElementById('spark' + i), {
+        grid: { left: 0, right: 0, top: 3, bottom: 3 },
+        xAxis: { type: 'category', show: false, data: DG.WEEK },
+        yAxis: { type: 'value', show: false, min: 90, max: 100 },
+        tooltip: { trigger: 'axis' },
+        series: [{ type: 'line', smooth: true, symbol: 'none', data: q.trend,
+          lineStyle: { width: 1.6, color: q.pass >= 97 ? '#34D399' : '#FBBF24' },
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: q.pass >= 97 ? 'rgba(52,211,153,.22)' : 'rgba(251,191,36,.22)' }, { offset: 1, color: 'rgba(0,0,0,0)' }] } } }]
+      });
+    });
+    tb.querySelectorAll('[data-qt]').forEach(sw => sw.onchange = async () => {
+      const r = await DG.api.post('/quality/rule/toggle', { id: sw.dataset.qt });
+      if (r.code !== 0) { DG.ui.toast(r.message, 'err'); sw.checked = !sw.checked; return; }
+      const q = QR_ROWS.find(x => x.id === sw.dataset.qt);
+      DG.ui.toast(`规则「${q.name}」已${r.data.enabled ? '启用' : '停用'}`, 'ok');
+    });
+  }
+  document.getElementById('btnNewQr').onclick = () => {
+    DG.ui.formModal({
+      title: '新建质量规则',
+      fields: [
+        { key: 'name', label: '规则名称', required: true, placeholder: '如：含水率范围校验' },
+        { key: 'type', label: '规则类型', type: 'select', options: ['非空', '唯一', '范围', '格式', '及时性'].map(v => ({ v, t: v })) },
+        { key: 'target', label: '目标对象', required: true, placeholder: '如 ODS_采油日报表.含水率' },
+        { key: 'threshold', label: '阈值', placeholder: '如 0-100 / 空值率 ≤ 1%' },
+        { key: 'freq', label: '校验频率', type: 'select', options: ['实时', '每小时', '每天 22:00', '每周一'].map(v => ({ v, t: v })) }
+      ],
+      onSubmit: v => {
+        QR_ROWS.push({ id: 'QR-NEW', name: v.name, type: v.type, target: v.target, freq: v.freq, pass: 100, trend: [100, 100, 100, 100, 100, 100], enabled: true });
+        renderQr();
+        DG.ui.toast(`质量规则「${v.name}」已创建，下个校验周期生效`, 'ok');
+      }
+    });
+  };
+
+  /* 质量异常（GET /quality/issue/list） → 处理 */
+  async function loadIssues() {
+    const box = document.getElementById('issueList');
+    const stop = DG.ui.blockLoading(box);
+    const r = await DG.api.get('/quality/issue/list');
+    stop();
+    if (r.code !== 0) { box.appendChild(DG.ui.errorBlock(r.message, loadIssues)); return; }
+    box.innerHTML = r.data.map(i => `
+      <div class="row-item" data-id="${i.id}">
+        <span style="width:30px;height:30px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;color:var(--${i.level});background:var(--${i.level}-soft)">${DG.ICONS.alert}</span>
+        <div class="grow"><div style="font-size:13px;color:var(--tx-1)">${i.target} · ${i.detail}</div>
+        <div class="sm tx-3">规则：${i.rule} · ${i.time}</div></div>
+        <span class="link" style="flex:none" data-handle="${i.id}">处理</span>
+      </div>`).join('');
+    box.querySelectorAll('[data-handle]').forEach(a => a.onclick = async e => {
+      e.stopPropagation();
+      const ok = await DG.ui.confirm({ title: '处理质量异常', content: '将为该异常生成处理工单并指派给数据工程师 <b>张伟</b>，同时在审计日志留痕。' });
+      if (!ok) return;
+      a.closest('.row-item').style.opacity = '.45';
+      a.textContent = '已生成工单';
+      a.style.pointerEvents = 'none';
+      DG.ui.toast('已生成处理工单并通知张伟', 'ok');
+    });
+  }
+
+  /* 质量分环图（Tab 显示时初始化，避免 0 尺寸） */
+  function initScore() {
+    DG.makeChart(document.getElementById('scoreChart'), {
+      series: [{
+        type: 'pie', radius: ['72%', '88%'], center: ['50%', '50%'],
+        label: { show: false }, silent: true,
+        data: [
+          { value: 92.6, itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 1, colorStops: [{ offset: 0, color: '#FFB25E' }, { offset: 1, color: '#F4633A' }] }, borderRadius: 8 } },
+          { value: 7.4, itemStyle: { color: 'rgba(255,255,255,.06)' } }
+        ]
+      }]
+    });
+  }
+
+  /* ================= 数据血缘（节点点击 → 详情抽屉） ================= */
+  const LINEAGE_NODES = [
+    { name: 'ODS_采油日报', type: '物理表', up: [], down: ['DS_采油日报'] },
+    { name: 'ODS_注水日报', type: '物理表', up: [], down: ['DS_注采对应'] },
+    { name: 'DIM_区块档案', type: '物理表', up: [], down: ['DS_采油日报', 'DS_注采对应'] },
+    { name: 'DS_采油日报', type: '数据集', up: ['ODS_采油日报', 'DIM_区块档案'], down: ['原油产量 M-OIL-001', '综合含水率 M-OIL-008'] },
+    { name: 'DS_注采对应', type: '数据集', up: ['ODS_注水日报', 'DIM_区块档案'], down: ['注采比 M-OIL-015'] },
+    { name: '原油产量 M-OIL-001', type: '语义指标', up: ['DS_采油日报'], down: ['生产日报看板', '经营驾驶舱大屏', '产量月报报表'] },
+    { name: '综合含水率 M-OIL-008', type: '语义指标', up: ['DS_采油日报'], down: ['生产日报看板', '低产告警规则'] },
+    { name: '注采比 M-OIL-015', type: '语义指标', up: ['DS_注采对应'], down: ['经营驾驶舱大屏'] },
+    { name: '生产日报看板', type: '消费端', up: ['原油产量 M-OIL-001', '综合含水率 M-OIL-008'], down: [] },
+    { name: '经营驾驶舱大屏', type: '消费端', up: ['原油产量 M-OIL-001', '注采比 M-OIL-015'], down: [] },
+    { name: '产量月报报表', type: '消费端', up: ['原油产量 M-OIL-001'], down: [] },
+    { name: '低产告警规则', type: '消费端', up: ['综合含水率 M-OIL-008'], down: [] },
   ];
-  document.getElementById('issueList').innerHTML = ISSUES.map(i => `
-    <div class="row-item" onclick="DG.toast('原型演示：异常详情与处理工单')">
-      <span style="width:30px;height:30px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;color:${i.c};background:${i.bg}">${DG.ICONS.alert}</span>
-      <div class="grow"><div style="font-size:13px;color:var(--tx-1)">${i.t}</div><div class="sm tx-3">${i.s}</div></div>
-      <span style="color:var(--brand);cursor:pointer;font-size:12.5px;flex:none">处理</span>
-    </div>`).join('');
-
-  /* 质量分环图 */
-  DG.makeChart(document.getElementById('scoreChart'), {
-    series: [{
-      type: 'pie', radius: ['72%', '88%'], center: ['50%', '50%'],
-      label: { show: false }, silent: true,
-      data: [
-        { value: 92.6, itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 1, colorStops: [{ offset: 0, color: '#FFB25E' }, { offset: 1, color: '#F4633A' }] }, borderRadius: 8 } },
-        { value: 7.4, itemStyle: { color: 'rgba(255,255,255,.06)' } }
-      ]
-    }]
-  });
-
-  /* 血缘图（懒加载） */
+  const TYPE_TAG = { '物理表': 'info', '数据集': 'brand', '语义指标': 'warn', '消费端': 'ok' };
   let lineageInited = false;
   function initLineage() {
     if (lineageInited) return; lineageInited = true;
     const C = DG.colors;
-    const node = (name, x, y, color, sym) => ({ name, x, y, symbol: sym || 'roundRect', symbolSize: [132, 34],
+    const node = (name, x, y, color) => ({ name, x, y, symbol: 'roundRect', symbolSize: [132, 34],
       itemStyle: { color: color + '26', borderColor: color, borderWidth: 1.2, borderRadius: 8 },
       label: { show: true, color: '#F2F5FA', fontSize: 11, lineHeight: 14 } });
     const nodes = [
       node('ODS_采油日报', 60, 60, C.gas), node('ODS_注水日报', 60, 210, C.gas), node('DIM_区块档案', 60, 360, C.gas),
       node('DS_采油日报', 330, 130, C.info), node('DS_注采对应', 330, 300, C.info),
-      node('原油产量\nM-OIL-001', 600, 40, C.brand || '#FF8A3D'), node('综合含水率\nM-OIL-008', 600, 190, '#FF8A3D'), node('注采比\nM-OIL-015', 600, 340, '#FF8A3D'),
+      node('原油产量\nM-OIL-001', 600, 40, '#FF8A3D'), node('综合含水率\nM-OIL-008', 600, 190, '#FF8A3D'), node('注采比\nM-OIL-015', 600, 340, '#FF8A3D'),
       node('生产日报看板', 870, 20, C.chem), node('经营驾驶舱大屏', 870, 150, C.chem), node('产量月报报表', 870, 280, C.chem), node('低产告警规则', 870, 400, C.chem),
     ];
     const edges = [
@@ -362,7 +520,7 @@
       ['原油产量\nM-OIL-001', '生产日报看板'], ['原油产量\nM-OIL-001', '经营驾驶舱大屏'], ['原油产量\nM-OIL-001', '产量月报报表'],
       ['综合含水率\nM-OIL-008', '生产日报看板'], ['综合含水率\nM-OIL-008', '低产告警规则'], ['注采比\nM-OIL-015', '经营驾驶舱大屏'],
     ].map(([s, t]) => ({ source: s, target: t, lineStyle: { color: 'rgba(255,255,255,.28)', curveness: 0.08, width: 1.4 } }));
-    DG.makeChart(document.getElementById('lineageChart'), {
+    const chart = DG.makeChart(document.getElementById('lineageChart'), {
       grid: { left: 0, right: 0, top: 0, bottom: 0 },
       tooltip: { trigger: 'item' },
       series: [{
@@ -370,9 +528,112 @@
         data: nodes, links: edges, emphasis: { focus: 'adjacency', lineStyle: { color: '#FF8A3D', width: 2.2 } }
       }]
     });
+    chart.on('click', p => {
+      if (p.dataType !== 'node') return;
+      const key = p.name.replace('\n', ' ');
+      const meta = LINEAGE_NODES.find(n => n.name === key);
+      if (!meta) return;
+      DG.ui.drawer({
+        title: meta.name, width: 440,
+        body: `
+          <div class="kv"><span class="k">节点类型</span><span class="v"><span class="tag ${TYPE_TAG[meta.type]}">${meta.type}</span></span></div>
+          <div class="kv"><span class="k">名称</span><span class="v">${meta.name}</span></div>
+          <div style="margin:16px 0 8px;font-size:12px;color:var(--tx-3)">上游（${meta.up.length}）</div>
+          ${meta.up.length ? meta.up.map(u => `<div class="row-item" style="padding:7px 10px"><span style="width:12px;display:flex;color:var(--info)">${DG.ICONS.arrowR}</span><span style="font-size:12.5px">${u}</span></div>`).join('') : '<div class="sm tx-4">源节点，无上游</div>'}
+          <div style="margin:16px 0 8px;font-size:12px;color:var(--tx-3)">下游（${meta.down.length}）</div>
+          ${meta.down.length ? meta.down.map(u => `<div class="row-item" style="padding:7px 10px"><span style="width:12px;display:flex;color:var(--brand)">${DG.ICONS.arrowR}</span><span style="font-size:12.5px">${u}</span></div>`).join('') : '<div class="sm tx-4">末级节点，无下游</div>'}`
+      });
+    });
   }
 
-  /* Tabs */
+  /* 影响分析 modal */
+  document.getElementById('btnImpact').onclick = () => {
+    const body = DG.ui.el(`<div>
+      <div class="form-item">
+        <label class="form-label">选择变更字段</label>
+        <select class="select" id="iaField">
+          <option>ODS_采油日报.oil_t</option>
+          <option>ODS_采油日报.wc_pct</option>
+          <option>ODS_采油日报.water_t</option>
+        </select>
+      </div>
+      <button class="btn primary" id="iaRun" style="width:100%;justify-content:center">开始分析</button>
+      <div id="iaResult"></div>
+    </div>`);
+    DG.ui.modal({ title: '影响分析 · 变更传播评估', width: 620, body, buttons: [{ label: '关 闭', primary: true }] });
+    body.querySelector('#iaRun').onclick = async e => {
+      const btn = e.currentTarget;
+      DG.ui.btnLoading(btn, true);
+      await new Promise(r => setTimeout(r, 700));
+      DG.ui.btnLoading(btn, false);
+      const f = body.querySelector('#iaField').value;
+      body.querySelector('#iaResult').innerHTML = `
+        <div style="margin:14px 0 8px;font-size:12.5px;color:var(--tx-2)">字段 <b class="mono-block" style="display:inline;padding:2px 8px">${f}</b> 变更将影响：</div>
+        <div class="table-wrap" style="border-radius:var(--r-m)">
+          <table class="tbl" style="font-size:12.5px">
+            <thead><tr><th>类型</th><th>对象</th><th>影响说明</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag warn">指标</span></td><td class="cell-main">原油产量 M-OIL-001</td><td class="sm">聚合口径引用该字段</td></tr>
+              <tr><td><span class="tag warn">指标</span></td><td class="cell-main">吨油完全成本 M-OIL-002</td><td class="sm">分母为该字段月累计</td></tr>
+              <tr><td><span class="tag info">看板</span></td><td class="cell-main">生产日报看板</td><td class="sm">3 个图表引用</td></tr>
+              <tr><td><span class="tag info">看板</span></td><td class="cell-main">经营驾驶舱大屏</td><td class="sm">趋势图引用</td></tr>
+              <tr><td><span class="tag info">看板</span></td><td class="cell-main">集团经营日报</td><td class="sm">KPI 卡引用</td></tr>
+              <tr><td><span class="tag danger">告警</span></td><td class="cell-main">日产油低于阈值 AR-01</td><td class="sm">阈值基于该字段</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="sm tx-3" style="margin-top:10px">合计：2 个指标 · 3 个看板 · 1 条告警规则。建议变更前通知指标负责人王建国。</div>`;
+    };
+  };
+
+  /* ================= 数据安全（GET /sensitive/list · /auth/mask/save） ================= */
+  function openMaskForm(field) {
+    DG.ui.formModal({
+      title: '配置脱敏规则',
+      fields: [
+        { key: 'field', label: '目标字段', required: true, value: field || '', placeholder: '如 供应商主数据.phone' },
+        { key: 'algo', label: '脱敏算法', type: 'select', options: ['掩码', '截断', '替换', '哈希'].map(v => ({ v, t: v })) },
+        { key: 'roles', label: '适用角色', type: 'select', options: ['业务人员', '数据分析师', '全部非管理员', '外部角色'].map(v => ({ v, t: v })) }
+      ],
+      onSubmit: async v => {
+        const r = await DG.api.post('/auth/mask/save', v);
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+        loadMasks();
+        DG.ui.toast(`脱敏规则已保存：${v.field} · ${v.algo}，即时生效`, 'ok');
+      }
+    });
+  }
+  async function loadSensitive() {
+    const wrap = document.getElementById('sfWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/sensitive/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadSensitive)); return; }
+    const tb = document.getElementById('sfTbody');
+    tb.innerHTML = r.data.map(s => `
+      <tr>
+        <td class="cell-main">${s.field}</td><td class="sm mask-demo">${s.pos}</td>
+        <td><span class="tag ${s.type === '手机号' || s.type === '身份证' ? 'danger' : 'warn'}">${s.type}</span></td>
+        <td class="sm">${s.mode}</td><td class="sm">${s.rule}</td>
+        <td><span class="link" data-cfg="${s.pos}">配置脱敏</span></td>
+      </tr>`).join('');
+    tb.querySelectorAll('[data-cfg]').forEach(a => a.onclick = () => openMaskForm(a.dataset.cfg));
+  }
+  async function loadMasks() {
+    const r = await DG.api.get('/auth/mask/list');
+    if (r.code !== 0) return;
+    document.getElementById('maskTbody').innerHTML = r.data.map(m => `
+      <tr>
+        <td class="cell-main">${m.id}</td><td class="mask-demo">${m.field}</td>
+        <td><span class="tag ${m.algo === '哈希' ? 'warn' : m.algo === '截断' ? 'brand' : 'info'}">${m.algo}</span></td>
+        <td class="sm">${m.roles}</td>
+        <td>${m.enabled ? '<span class="tag ok">启用</span>' : '<span class="tag warn">待审批</span>'}</td>
+      </tr>`).join('');
+  }
+  document.getElementById('btnNewMask').onclick = () => openMaskForm('');
+
+  /* ================= Tabs（血缘 / 质量图表懒加载） ================= */
+  let qualityLoaded = false, scoreInited = false;
   document.querySelectorAll('#govTabs .tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('#govTabs .tab').forEach(t => t.classList.remove('active'));
@@ -380,9 +641,27 @@
       tab.classList.add('active');
       document.querySelector(`.tab-pane[data-pane="${tab.dataset.pane}"]`).classList.add('show');
       if (tab.dataset.pane === 'lineage') initLineage();
+      if (tab.dataset.pane === 'quality' && !qualityLoaded) {
+        qualityLoaded = true;
+        initScore();
+        loadQuality(); loadIssues();
+      }
+      if (tab.dataset.pane === 'secure') { loadSensitive(); loadMasks(); }
       window.dispatchEvent(new Event('resize'));
     });
   });
+
+  /* #demo：切到血缘页并打开影响分析；#demo2：仅展示血缘图 */
+  if (location.hash === '#demo') setTimeout(() => {
+    document.querySelector('#govTabs .tab[data-pane="lineage"]').click();
+    setTimeout(() => document.getElementById('btnImpact').click(), 500);
+  }, 400);
+  if (location.hash === '#demo2') setTimeout(() => {
+    document.querySelector('#govTabs .tab[data-pane="lineage"]').click();
+  }, 400);
+  if (location.hash === '#demo3') setTimeout(() => {
+    document.querySelector('#govTabs .tab[data-pane="quality"]').click();
+  }, 400);
 </script>
 </body>
 </html>

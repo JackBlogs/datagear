@@ -78,6 +78,10 @@ function onView() {
   router.push({ path: `/dtbsSource/${id}/view`, query: { mode: 'view' } })
 }
 
+function onManageData(id: string) {
+  router.push(`/dtbsSourceData/${id}`)
+}
+
 async function onDelete() {
   const ids = selected.value.map((i) => i.id)
   if (!ids.length) return
@@ -136,7 +140,12 @@ onMounted(load)
         <Column field="id" :header="t('id')" hidden />
         <Column field="title" :header="t('title')" sortable class="col-name" />
         <Column field="url" :header="t('url')" sortable class="col-desc" />
-        <Column field="createTime" :header="t('createTime')" sortable class="col-datetime col-last" />
+        <Column field="createTime" :header="t('createTime')" sortable class="col-datetime" />
+        <Column :header="t('operation')">
+          <template #body="{ data }">
+            <Button :label="t('dataManagement')" size="small" text @click="onManageData(data.id)" />
+          </template>
+        </Column>
       </DataTable>
     </div>
   </div>

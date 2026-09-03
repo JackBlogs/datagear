@@ -186,75 +186,99 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
 document.getElementById('qa-icon').innerHTML = DG.ICONS.spark;
 
+/* KPI 指标卡点击 → 指标中心详情（FR-SEM-07 个性化指标卡） */
+document.querySelectorAll('.stat-card').forEach(c => {
+  c.style.cursor = 'pointer';
+  c.onclick = () => location.href = 'metrics.html';
+});
+
+/* 快速问数：携带问题跳转 ChatBI（FR-AI-01） */
+document.querySelector('.quick-ask').onclick = () =>
+  location.href = 'chatbi.html?q=' + encodeURIComponent('上月各采油厂原油产量的同比变化？');
+
 /* 最近访问 */
 const recents = [
-  { n: '华北油田生产日报', s: '看板 · 2 小时前', c: 'var(--oil)', bg: 'var(--oil-soft)', i: 'board' },
-  { n: '西气东输管网监控', s: '大屏 · 昨天', c: 'var(--gas)', bg: 'var(--gas-soft)', i: 'screen' },
-  { n: '吨油完全成本', s: '指标 · 昨天', c: 'var(--coal)', bg: 'var(--coal-soft)', i: 'metric' },
-  { n: '甲醇装置产销存', s: '报表 · 3 天前', c: 'var(--chem)', bg: 'var(--chem-soft)', i: 'report' },
+  { n: '华北油田生产日报', s: '看板 · 2 小时前', c: 'var(--oil)', bg: 'var(--oil-soft)', i: 'board', href: 'dashboards.html' },
+  { n: '西气东输管网监控', s: '大屏 · 昨天', c: 'var(--gas)', bg: 'var(--gas-soft)', i: 'screen', href: 'screen.html' },
+  { n: '吨油完全成本', s: '指标 · 昨天', c: 'var(--coal)', bg: 'var(--coal-soft)', i: 'metric', href: 'metrics.html' },
+  { n: '甲醇装置产销存', s: '报表 · 3 天前', c: 'var(--chem)', bg: 'var(--chem-soft)', i: 'report', href: 'report.html' },
 ];
 document.getElementById('recentGrid').innerHTML = recents.map(r => `
-  <div class="fav-item" onclick="location.href='dashboards.html'">
+  <div class="fav-item" data-href="${r.href}">
     <div class="f-icon" style="color:${r.c};background:${r.bg}">${DG.ICONS[r.i]}</div>
     <div><div class="f-name">${r.n}</div><div class="f-sub">${r.s}</div></div>
   </div>`).join('');
+document.querySelectorAll('#recentGrid .fav-item').forEach(el => el.onclick = () => location.href = el.dataset.href);
 
-/* 待办与消息 */
-const todos = [
-  { c: 'var(--danger)', bg: 'var(--danger-soft)', i: 'alert', t: '【告警】长庆区块日产油量低于阈值 100 万吨', s: '阈值告警 · 08:12 · 点击查看归因' },
-  { c: 'var(--warn)', bg: 'var(--warn-soft)', i: 'clock', t: '【订阅】经营日报已推送至企业微信', s: '订阅推送 · 08:00' },
-  { c: 'var(--info)', bg: 'var(--info-soft)', i: 'safe', t: '【审批】王芳申请「井口含水率」指标查看权限', s: '权限审批 · 昨天 17:42' },
-  { c: 'var(--ok)', bg: 'var(--ok-soft)', i: 'govern', t: '【质量】ODS_采油日报表 质量校验通过 98.6%', s: '数据质量 · 昨天 22:00' },
-];
-document.getElementById('todoList').innerHTML = todos.map(t => `
-  <div class="todo-item">
-    <div class="t-ico" style="color:${t.c};background:${t.bg}">${DG.ICONS[t.i]}</div>
-    <div class="grow"><div class="t-title">${t.t}</div><div class="t-sub">${t.s}</div></div>
-  </div>`).join('');
-
-/* 收藏 */
-const favs = [
-  { n: '集团经营驾驶舱', s: '大屏', c: 'var(--brand)' },
-  { n: '单井产量排名', s: '看板', c: 'var(--gas)' },
-  { n: '问数：上月同比分析', s: '问数', c: 'var(--chem)' },
-  { n: '原煤入洗率', s: '指标', c: 'var(--coal)' },
-];
-document.getElementById('favList').innerHTML = favs.map(f => `
-  <div class="row-item">
-    <span style="color:${f.c};width:16px;display:flex">${DG.ICONS.star}</span>
-    <div class="grow"><div style="font-size:13px;font-weight:500">${f.n}</div><div class="sm tx-3">${f.s}</div></div>
-    <span style="color:var(--tx-4);width:14px;display:flex">${DG.ICONS.arrowR}</span>
-  </div>`).join('');
-
-/* 趋势分段选择 */
-const seg = document.getElementById('trendSeg');
-['近7日', '近30日', '近12月'].forEach((s, i) => {
-  const el = document.createElement('span');
-  el.className = 'seg-item' + (i === 0 ? ' active' : '');
-  el.style.cssText = 'padding:2px 10px;font-size:12px;border-radius:7px;cursor:pointer;color:var(--tx-3)';
-  if (i === 0) el.style.cssText += ';background:var(--brand-soft);color:var(--brand);font-weight:600';
-  el.textContent = s;
-  el.onclick = (e) => { e.stopPropagation(); seg.querySelectorAll('.seg-item').forEach(x => { x.classList.remove('active'); x.style.cssText = 'padding:2px 10px;font-size:12px;border-radius:7px;cursor:pointer;color:var(--tx-3)'; }); el.classList.add('active'); el.style.cssText += ';background:var(--brand-soft);color:var(--brand);font-weight:600'; DG.toast('原型演示：切换时间粒度'); };
-  seg.appendChild(el);
+/* 待办与消息（GET /home/todo） */
+const TODO_STYLE = { alert: ['var(--danger)', 'var(--danger-soft)', 'alert', 'alert.html'], sub: ['var(--warn)', 'var(--warn-soft)', 'clock', 'alert.html'], approve: ['var(--info)', 'var(--info-soft)', 'safe', 'system.html'], quality: ['var(--ok)', 'var(--ok-soft)', 'govern', 'governance.html'] };
+DG.api.get('/home/todo').then(r => {
+  document.getElementById('todoList').innerHTML = r.data.map(t => {
+    const s = TODO_STYLE[t.kind] || TODO_STYLE.sub;
+    return `<div class="todo-item" data-href="${s[3]}" style="cursor:pointer">
+      <div class="t-ico" style="color:${s[0]};background:${s[1]}">${DG.ICONS[s[2]]}</div>
+      <div class="grow"><div class="t-title">${t.title}</div><div class="t-sub">${t.sub}</div></div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#todoList .todo-item').forEach(el => el.onclick = () => location.href = el.dataset.href);
 });
 
-/* 图表 */
-DG.autoCharts({
-  produceTrend: () => ({
+/* 收藏（GET /home/favorite） */
+const FAV_C = { '大屏': 'var(--brand)', '看板': 'var(--gas)', '问数': 'var(--chem)', '指标': 'var(--coal)' };
+DG.api.get('/home/favorite').then(r => {
+  document.getElementById('favList').innerHTML = r.data.map(f => `
+    <div class="row-item" data-href="${f.href}">
+      <span style="color:${FAV_C[f.type] || 'var(--brand)'};width:16px;display:flex">${DG.ICONS.star}</span>
+      <div class="grow"><div style="font-size:13px;font-weight:500">${f.name}</div><div class="sm tx-3">${f.type}</div></div>
+      <span style="color:var(--tx-4);width:14px;display:flex">${DG.ICONS.arrowR}</span>
+    </div>`).join('');
+  document.querySelectorAll('#favList .row-item').forEach(el => el.onclick = () => location.href = el.dataset.href);
+});
+
+/* 生产运营趋势：粒度切换真实重渲染 */
+const TREND_CONF = {
+  '近7日': () => ({ x: DG.WEEK, oil: DG.series(7, 12.8, 0.5, 1), gas: DG.series(7, 4.3, 0.18, 3), coal: DG.series(7, 28.4, 1.2, 5) }),
+  '近30日': () => ({ x: Array.from({ length: 30 }, (_, i) => '8/' + (i + 1)), oil: DG.series(30, 12.6, 0.8, 2), gas: DG.series(30, 4.2, 0.25, 4), coal: DG.series(30, 27.9, 1.8, 6) }),
+  '近12月': () => ({ x: DG.MONTHS, oil: DG.series(12, 12.2, 0.7, 8), gas: DG.series(12, 4.0, 0.3, 9), coal: DG.series(12, 27.0, 2.2, 10) })
+};
+let trendChart = null;
+function trendOption(key) {
+  const d = TREND_CONF[key]();
+  return {
     legend: { data: ['原油产量(万吨)', '天然气产量(亿方)', '原煤产量(万吨)'] },
     tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: DG.WEEK },
+    xAxis: { type: 'category', data: d.x },
     yAxis: [{ type: 'value', name: '万吨', nameTextStyle: { color: '#7C88A0' } }, { type: 'value', name: '亿方', splitLine: { show: false }, nameTextStyle: { color: '#7C88A0' } }],
     series: [
-      { name: '原油产量(万吨)', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2.5 }, data: DG.series(7, 12.8, 0.5, 1),
+      { name: '原油产量(万吨)', type: 'line', smooth: true, symbol: 'none', lineStyle: { width: 2.5 }, data: d.oil,
         areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.28)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } } },
-      { name: '天然气产量(亿方)', type: 'line', smooth: true, symbol: 'none', yAxisIndex: 1, lineStyle: { width: 2.5 }, data: DG.series(7, 4.3, 0.18, 3) },
-      { name: '原煤产量(万吨)', type: 'bar', barWidth: 14, itemStyle: { borderRadius: [4, 4, 0, 0], color: 'rgba(232,179,60,.75)' }, data: DG.series(7, 28.4, 1.2, 5) }
+      { name: '天然气产量(亿方)', type: 'line', smooth: true, symbol: 'none', yAxisIndex: 1, lineStyle: { width: 2.5 }, data: d.gas },
+      { name: '原煤产量(万吨)', type: 'bar', barWidth: 14, itemStyle: { borderRadius: [4, 4, 0, 0], color: 'rgba(232,179,60,.75)' }, data: d.coal }
     ]
-  }),
+  };
+}
+const seg = document.getElementById('trendSeg');
+Object.keys(TREND_CONF).forEach((s, i) => {
+  const el = document.createElement('span');
+  el.className = 'seg-item' + (i === 0 ? ' active' : '');
+  el.style.cssText = 'padding:2px 10px;font-size:12px;border-radius:7px;cursor:pointer;' + (i === 0 ? 'background:var(--brand-soft);color:var(--brand);font-weight:600' : 'color:var(--tx-3)');
+  el.textContent = s;
+  el.onclick = (e) => {
+    e.stopPropagation();
+    seg.querySelectorAll('.seg-item').forEach(x => { x.classList.remove('active'); x.style.cssText = 'padding:2px 10px;font-size:12px;border-radius:7px;cursor:pointer;color:var(--tx-3)'; });
+    el.classList.add('active'); el.style.cssText += ';background:var(--brand-soft);color:var(--brand);font-weight:600';
+    if (trendChart) { trendChart.showLoading({ text: '', color: '#FF8A3D', maskColor: 'rgba(10,14,23,.4)' }); setTimeout(() => { trendChart.hideLoading(); trendChart.setOption(trendOption(s)); }, 260); }
+  };
+  seg.appendChild(el);
+});
+trendChart = DG.makeChart(document.querySelector('[data-chart="produceTrend"]'), trendOption('近7日'));
+
+DG.autoCharts({
   assetDonut: () => ({
     tooltip: { trigger: 'item' },
     legend: { orient: 'vertical', right: 4, top: 'center' },

@@ -13,6 +13,7 @@
     border-radius: var(--r-l); cursor: pointer; transition: all var(--dur); position: relative;
   }
   .dst-type:hover { border-color: var(--brand-line); transform: translateY(-2px); }
+  .dst-type.sel { border-color: var(--brand); background: var(--brand-soft); }
   .dst-type .t-head { display: flex; align-items: center; gap: 8px; }
   .dst-type .t-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex: none; }
   .dst-type .t-ico svg { width: 15px; height: 15px; }
@@ -27,7 +28,7 @@
   .field-chip {
     display: flex; align-items: center; gap: 7px; padding: 6px 10px; margin-bottom: 6px;
     background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 8px;
-    font-size: 12.5px; cursor: grab; transition: all var(--dur);
+    font-size: 12.5px; cursor: pointer; transition: all var(--dur);
   }
   .field-chip:hover { border-color: var(--brand-line); }
   .field-chip .f-type {
@@ -79,6 +80,21 @@
   .prep-step .p-name svg { width: 14px; height: 14px; color: var(--brand); flex: none; }
   .prep-step .p-detail { font-size: 11.5px; color: var(--tx-3); line-height: 1.6; }
   .prep-step .p-detail code { font-family: var(--font-mono); color: var(--gas); font-size: 11px; }
+  .prep-step .p-x { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border-radius: 6px; border: none; background: none; color: var(--tx-4); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .prep-step .p-x:hover { color: var(--danger); background: var(--danger-soft); }
+  .prep-step .p-x svg { width: 12px; height: 12px; }
+  .prep-add {
+    flex: none; min-width: 130px; border: 1.5px dashed var(--line-2); border-radius: var(--r-l);
+    margin-left: 34px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; color: var(--tx-3); cursor: pointer; font-size: 12px; transition: all var(--dur); padding: 14px;
+    position: relative;
+  }
+  .prep-add::before {
+    content: ""; position: absolute; left: -34px; top: 50%; width: 34px; height: 2px;
+    background: linear-gradient(90deg, var(--line-3), var(--brand-line));
+  }
+  .prep-add:hover { border-color: var(--brand-line); color: var(--brand); }
+  .prep-add svg { width: 18px; height: 18px; }
   .bound-bar {
     display: flex; align-items: center; gap: 10px; padding: 11px 16px; margin-top: 14px;
     background: var(--warn-soft); border: 1px solid rgba(251,191,36,.3); border-radius: var(--r-m);
@@ -88,6 +104,13 @@
   .bound-bar b { color: var(--warn); }
   .tab-pane { display: none; }
   .tab-pane.show { display: block; }
+  .type-grid6 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .link { color: var(--brand); cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+  .link:hover { color: #FFB25E; }
+  .link.danger { color: var(--danger); }
+  .sec-label { font-size: 12px; color: var(--tx-3); letter-spacing: 1px; margin: 16px 0 10px; display: flex; align-items: center; gap: 6px; }
+  .sec-label svg { width: 13px; height: 13px; }
+  .sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line-1); }
   @media (max-width: 1280px) { .qb { grid-template-columns: 220px 260px 1fr; } .dst-types { grid-template-columns: repeat(3,1fr); } }
 </style>
 </head>
@@ -100,24 +123,24 @@
       <div class="page-desc">SQL / HTTP / 文件等六类数据集，支持拖拽式可视化查询构建与自助数据准备（PRD 10.5）</div>
     </div>
     <div class="page-actions">
-      <button class="btn" onclick="DG.toast('原型演示：打开数据集授权面板')">授权管理</button>
-      <button class="btn primary" onclick="DG.toast('原型演示：新建数据集向导')"><span id="plusIco" style="display:flex"></span>新建数据集</button>
+      <button class="btn" onclick="DG.ui.toast('原型演示：打开数据集授权面板（同数据源授权）')">授权管理</button>
+      <button class="btn primary" id="btnNewDs2"><span id="plusIco" style="display:flex"></span>新建数据集</button>
     </div>
   </div>
 
-  <!-- 六类数据集类型卡 -->
+  <!-- 六类数据集类型卡（点击过滤列表，再点取消） -->
   <section class="dst-types mb-3" id="typeCards"></section>
 
   <!-- Tabs -->
   <div class="tabs" id="dstTabs">
-    <div class="tab active" data-pane="list">数据集列表 <span class="cnt">148</span></div>
+    <div class="tab active" data-pane="list">数据集列表 <span class="cnt" id="listCnt">—</span></div>
     <div class="tab" data-pane="builder">可视化查询构建器</div>
     <div class="tab" data-pane="prep">自助数据准备</div>
   </div>
 
   <!-- Tab 1: 数据集列表 -->
   <div class="tab-pane show" data-pane="list">
-    <div class="table-wrap">
+    <div class="table-wrap" id="dsListWrap">
       <table class="tbl">
         <thead><tr>
           <th>数据集名称</th><th>类型</th><th>关联数据源</th><th>参数</th><th>缓存策略</th><th>更新人 / 时间</th><th>被引用</th><th style="width:210px">操作</th>
@@ -130,64 +153,54 @@
   <!-- Tab 2: 可视化查询构建器 -->
   <div class="tab-pane" data-pane="builder">
     <div class="qb">
-      <!-- 左：字段树 -->
+      <!-- 左：字段树（点击加入槽位） -->
       <div class="qb-pane">
         <div class="p-title"><span id="icoTree" style="display:flex"></span>ODS_采油日报 · 字段</div>
-        <div class="field-chip dim"><span class="f-type">日期</span>日期 rq</div>
-        <div class="field-chip dim"><span class="f-type">文本</span>采油厂 cyf</div>
-        <div class="field-chip dim"><span class="f-type">文本</span>区块 block</div>
-        <div class="field-chip dim"><span class="f-type">文本</span>井号 well_no</div>
-        <div class="field-chip mea"><span class="f-type">数值</span>日产油 oil_t</div>
-        <div class="field-chip mea"><span class="f-type">数值</span>日产水 water_t</div>
-        <div class="field-chip mea"><span class="f-type">数值</span>含水率 wc_pct</div>
-        <div class="field-chip mea"><span class="f-type">数值</span>动液面 dyn_lvl</div>
-        <div class="sm tx-3" style="margin-top:8px">拖拽字段至右侧槽位，自动生成预编译 SQL</div>
+        <div id="fieldTree">
+          <div class="field-chip dim" data-kind="dim" data-f="采油厂"><span class="f-type">文本</span>采油厂 cyf</div>
+          <div class="field-chip dim" data-kind="dim" data-f="区块"><span class="f-type">文本</span>区块 block</div>
+          <div class="field-chip dim" data-kind="dim" data-f="井号"><span class="f-type">文本</span>井号 well_no</div>
+          <div class="field-chip dim" data-kind="dim" data-f="日期"><span class="f-type">日期</span>日期 rq</div>
+          <div class="field-chip mea" data-kind="mea" data-f="日产油"><span class="f-type">数值</span>日产油 oil_t</div>
+          <div class="field-chip mea" data-kind="mea" data-f="日产水"><span class="f-type">数值</span>日产水 water_t</div>
+          <div class="field-chip mea" data-kind="mea" data-f="含水率"><span class="f-type">数值</span>含水率 wc_pct</div>
+          <div class="field-chip mea" data-kind="mea" data-f="动液面"><span class="f-type">数值</span>动液面 dyn_lvl</div>
+        </div>
+        <div class="sm tx-3" style="margin-top:8px">点击字段加入对应槽位（维度 / 度量），自动生成预编译 SQL</div>
       </div>
-      <!-- 中：拖放槽 -->
-      <div class="qb-pane">
+      <!-- 中：槽位 -->
+      <div class="qb-pane" id="slotPane">
         <div class="p-title"><span id="icoSlot" style="display:flex"></span>查询结构</div>
         <div class="drop-slot">
           <div class="s-label"><span id="icoDim" style="display:flex"></span>维度区</div>
-          <span class="slot-chip dim">采油厂 <span id="x1" style="display:inline-flex"></span></span>
-          <span class="slot-chip dim">日期 <span id="x2" style="display:inline-flex"></span></span>
+          <span id="dimSlot"></span>
         </div>
         <div class="drop-slot">
           <div class="s-label"><span id="icoMea" style="display:flex"></span>度量区</div>
-          <span class="slot-chip mea">日产油 · 求和 <span id="x3" style="display:inline-flex"></span></span>
-          <span class="slot-chip mea">含水率 · 平均 <span id="x4" style="display:inline-flex"></span></span>
+          <span id="meaSlot"></span>
         </div>
         <div class="drop-slot">
           <div class="s-label"><span id="icoFlt" style="display:flex"></span>过滤区</div>
-          <span class="slot-chip flt">日期 = 近30日 <span id="x5" style="display:inline-flex"></span></span>
+          <span id="fltSlot"></span>
         </div>
-        <button class="btn primary" style="width:100%;justify-content:center" onclick="DG.toast('已执行：返回 86 行，用时 0.42s')">运行查询</button>
+        <button class="btn primary" style="width:100%;justify-content:center" id="btnRunQ">预览结果</button>
+        <button class="btn" style="width:100%;justify-content:center;margin-top:8px" id="btnSqlEscape">SQL 逃生舱</button>
+        <button class="btn ghost" style="width:100%;justify-content:center;margin-top:4px" id="btnSaveAs">保存为数据集</button>
       </div>
       <!-- 右：预览 + SQL -->
       <div class="flex-col" style="gap:14px;min-width:0">
         <div class="qb-pane">
-          <div class="p-title"><span id="icoPrev" style="display:flex"></span>结果预览 <span class="tag ok" style="margin-left:auto">86 行 · 0.42s</span></div>
-          <div class="table-wrap" style="border-radius:var(--r-m)">
+          <div class="p-title"><span id="icoPrev" style="display:flex"></span>结果预览 <span class="tag ok" style="margin-left:auto" id="prevMeta">待运行</span></div>
+          <div class="table-wrap" style="border-radius:var(--r-m)" id="prevWrap">
             <table class="tbl" style="font-size:12px">
-              <thead><tr><th>采油厂</th><th>日期</th><th>日产油合计(吨)</th><th>平均含水率(%)</th></tr></thead>
-              <tbody>
-                <tr><td class="cell-main">长庆采油一厂</td><td class="num">2026-09-02</td><td class="num">12,486.3</td><td class="num">61.2</td></tr>
-                <tr><td class="cell-main">华北采油二厂</td><td class="num">2026-09-02</td><td class="num">9,312.8</td><td class="num">72.5</td></tr>
-                <tr><td class="cell-main">塔里木采油三厂</td><td class="num">2026-09-02</td><td class="num">8,947.1</td><td class="num">45.8</td></tr>
-                <tr><td class="cell-main">大庆采油四厂</td><td class="num">2026-09-02</td><td class="num">7,655.4</td><td class="num">83.1</td></tr>
-                <tr><td class="cell-main">胜利采油五厂</td><td class="num">2026-09-02</td><td class="num">6,208.9</td><td class="num">90.4</td></tr>
-              </tbody>
+              <thead id="prevHead"><tr><th>点击「预览结果」执行查询</th></tr></thead>
+              <tbody id="prevBody"></tbody>
             </table>
           </div>
         </div>
         <div class="qb-pane">
           <div class="p-title"><span id="icoSql" style="display:flex"></span>生成的 SQL <span class="sm tx-3" style="margin-left:auto;font-weight:400">参数化预编译，防注入</span></div>
-<div class="sql-code"><span class="cm">-- ${pc()} 预编译注释：该 SQL 由查询构建器生成，参数走 PreparedStatement</span>
-<span class="kw">SELECT</span> cyf <span class="kw">AS</span> <span class="st">"采油厂"</span>, rq <span class="kw">AS</span> <span class="st">"日期"</span>,
-       <span class="fn">SUM</span>(oil_t) <span class="kw">AS</span> <span class="st">"日产油合计"</span>, <span class="fn">AVG</span>(wc_pct) <span class="kw">AS</span> <span class="st">"平均含水率"</span>
-<span class="kw">FROM</span> ODS_采油日报
-<span class="kw">WHERE</span> rq &gt;= <span class="pm">${pc(日期起)}</span> <span class="cm">/* 近30日 → 参数绑定 */</span>
-<span class="kw">GROUP BY</span> cyf, rq
-<span class="kw">ORDER BY</span> rq <span class="kw">DESC</span> <span class="kw">LIMIT</span> <span class="pm">${pc(行数上限, 5000)}</span></div>
+          <div class="sql-code" id="sqlCode"><span class="cm">-- 点击左侧字段构建查询，或点击「预览结果」查看真实 SQL</span></div>
         </div>
       </div>
     </div>
@@ -197,9 +210,9 @@
   <div class="tab-pane" data-pane="prep">
     <div class="card">
       <div class="card-title"><span class="bar"></span>自助数据准备流水线 <span class="tag info">轻量 ETL</span>
-        <span class="more" onclick="DG.toast('原型演示：保存并发布为数据集')">保存为数据集 ›</span>
+        <span class="more" id="prepSave">保存为数据集 ›</span>
       </div>
-      <div class="prep-flow">
+      <div class="prep-flow" id="prepFlow">
         <div class="prep-step">
           <span class="p-no">STEP 1</span>
           <div class="p-name"><span id="pico1" style="display:flex"></span>选择数据集</div>
@@ -220,11 +233,7 @@
           <div class="p-name"><span id="pico4" style="display:flex"></span>新增计算列</div>
           <div class="p-detail"><code>吨油成本 = 操作成本 / 日产油</code><br/>类型：数值 · 保留 2 位</div>
         </div>
-        <div class="prep-step">
-          <span class="p-no">STEP 5</span>
-          <div class="p-name"><span id="pico5" style="display:flex"></span>输出发布</div>
-          <div class="p-detail">输出 <code>DS_吨油成本分析</code><br/>可授权给指标中心引用</div>
-        </div>
+        <div class="prep-add" id="prepAdd"></div>
       </div>
       <div class="bound-bar">
         <span id="boundIco" style="display:flex"></span>
@@ -237,18 +246,20 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
   document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
   ['icoTree','icoSlot','icoDim','icoMea','icoFlt','icoPrev','icoSql','boundIco'].forEach(id => {
     const map = { icoTree: 'dataset', icoSlot: 'drill', icoDim: 'dataset', icoMea: 'metric', icoFlt: 'search', icoPrev: 'board', icoSql: 'api', boundIco: 'alert' };
     document.getElementById(id).innerHTML = DG.ICONS[map[id]];
   });
-  ['x1','x2','x3','x4','x5'].forEach(id => document.getElementById(id).innerHTML = DG.ICONS.x);
-  ['pico1','pico2','pico3','pico4','pico5'].forEach((id, i) => {
-    document.getElementById(id).innerHTML = DG.ICONS[['dataset','share','spark','metric','arrowR'][i]];
+  ['pico1','pico2','pico3','pico4'].forEach((id, i) => {
+    document.getElementById(id).innerHTML = DG.ICONS[['dataset','share','spark','metric'][i]];
   });
+  document.getElementById('prepAdd').innerHTML = DG.ICONS.plus + '<span>添加步骤</span>';
 
-  /* 类型卡 */
+  /* ================= 类型卡（点击过滤） ================= */
   const TYPES = [
     { n: 'SQL', c: 62, d: '编写 SQL 查询数据库，支持参数与预编译', i: 'db', col: 'var(--oil)', bg: 'var(--oil-soft)' },
     { n: 'HTTP', c: 18, d: '调用 REST 接口拉取 JSON 报文', i: 'api', col: 'var(--info)', bg: 'var(--info-soft)' },
@@ -257,54 +268,315 @@
     { n: 'Excel', c: 15, d: '上传 Excel 工作簿，按 Sheet 读取', i: 'board', col: 'var(--ok)', bg: 'var(--ok-soft)' },
     { n: '目录文件', c: 6, d: '服务端目录批量读取同构文件', i: 'share', col: 'var(--chem)', bg: 'var(--chem-soft)' },
   ];
+  let fType = null;
   document.getElementById('typeCards').innerHTML = TYPES.map(t => `
-    <div class="dst-type" onclick="DG.toast('原型演示：新建 ${t.n} 数据集')">
+    <div class="dst-type" data-t="${t.n}">
       <div class="t-head">
         <span class="t-ico" style="color:${t.col};background:${t.bg}">${DG.ICONS[t.i]}</span>
         <span class="t-name">${t.n}</span><span class="t-cnt">${t.c}</span>
       </div>
       <div class="t-desc">${t.d}</div>
     </div>`).join('');
-
-  /* 数据集列表 */
-  const LIST = [
-    { n: 'DS_采油日报', t: 'SQL', ds: '华北油田生产库', prm: '${month}', cache: '缓存 10 分钟', up: '李明 · 今天 08:30', ref: 32 },
-    { n: 'DS_管网输量', t: 'SQL', ds: '西气东输管网 SCADA', prm: '${station}', cache: '实时', up: '王芳 · 今天 07:52', ref: 18 },
-    { n: 'DS_煤矿瓦斯监测', t: 'SQL', ds: '煤矿安全监测流', prm: '—', cache: '实时', up: '陈磊 · 今天 06:15', ref: 12 },
-    { n: 'DS_区块档案', t: 'SQL', ds: '塔里木油田档案库', prm: '—', cache: '缓存 1 小时', up: '张伟 · 昨天 21:40', ref: 26 },
-    { n: 'DS_甲醇产销存', t: 'Excel', ds: '煤化工 ERP 库', prm: '${org}', cache: '缓存 30 分钟', up: '赵静 · 昨天 18:22', ref: 9 },
-    { n: 'DS_油藏类型字典', t: 'JSON 值', ds: '—', prm: '—', cache: '常驻内存', up: '李明 · 3 天前', ref: 15 },
-    { n: 'DS_物资采购目录', t: 'CSV 文件', ds: '物资采购 CSV 目录', prm: '—', cache: '缓存 1 小时', up: '赵静 · 3 天前', ref: 4 },
-    { n: 'DS_能耗指标接口', t: 'HTTP', ds: '集团能耗平台 API', prm: '${dateRange}', cache: '缓存 5 分钟', up: '陈磊 · 4 天前', ref: 7 },
-    { n: 'DS_井史归档目录', t: '目录文件', ds: '历史井史归档库', prm: '—', cache: '缓存 1 天', up: '张伟 · 上周', ref: 3 },
-  ];
-  document.getElementById('dstTbody').innerHTML = LIST.map(d => `
-    <tr>
-      <td class="cell-main">${d.n}</td>
-      <td><span class="tag info">${d.t}</span></td>
-      <td class="sm">${d.ds}</td>
-      <td>${d.prm === '—' ? '<span class="tx-3">—</span>' : `<span class="tag brand" style="font-family:var(--font-mono)">${d.prm}</span>`}</td>
-      <td class="sm">${d.cache === '实时' ? '<span class="tag ok">实时</span>' : d.cache}</td>
-      <td class="sm tx-3">${d.up}</td>
-      <td><span class="num">${d.ref}</span> <span class="sm tx-3">个图表/指标</span></td>
-      <td>
-        <span class="link" style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：在构建器中编辑')">编辑</span> ·
-        <span class="link" style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：预览前 100 行')">预览</span> ·
-        <span class="link" style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：复制为新数据集')">复制</span> ·
-        <span class="link" style="color:var(--danger);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：删除需确认引用关系')">删除</span>
-      </td>
-    </tr>`).join('');
-
-  /* Tabs 切换 */
-  document.querySelectorAll('#dstTabs .tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('#dstTabs .tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show'));
-      tab.classList.add('active');
-      document.querySelector(`.tab-pane[data-pane="${tab.dataset.pane}"]`).classList.add('show');
-      window.dispatchEvent(new Event('resize'));
-    });
+  document.querySelectorAll('#typeCards .dst-type').forEach(c => {
+    c.onclick = () => {
+      fType = (fType === c.dataset.t) ? null : c.dataset.t;
+      document.querySelectorAll('#typeCards .dst-type').forEach(x => x.classList.toggle('sel', x.dataset.t === fType));
+      renderList();
+    };
   });
+
+  /* ================= 数据集列表（GET /dataSet/list） ================= */
+  let DS_LIST = [];
+  async function loadList() {
+    const wrap = document.getElementById('dsListWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/dataSet/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadList)); return; }
+    DS_LIST = r.data.rows;
+    document.getElementById('listCnt').textContent = r.data.total + 142; // 总量口径：演示库 6 + 其他 142
+    renderList();
+  }
+  function renderList() {
+    const rows = DS_LIST.filter(d => !fType || d.type.startsWith(fType.replace(' 值/文件', '')));
+    const tb = document.getElementById('dstTbody');
+    DG.ui.renderRows(tb, rows, d => `
+      <tr data-id="${d.id}" style="cursor:pointer">
+        <td class="cell-main">${DG.ui.esc(d.name)}</td>
+        <td><span class="tag info">${d.type}</span></td>
+        <td class="sm">${DG.ui.esc(d.source)}</td>
+        <td>${d.params.length ? d.params.map(p => `<span class="tag brand" style="font-family:var(--font-mono)">\${${p}}</span>`).join(' ') : '<span class="tx-3">—</span>'}</td>
+        <td class="sm">${d.cache === '不缓存' ? '<span class="tag ok">实时</span>' : '缓存 ' + d.cache}</td>
+        <td class="sm tx-3">${DG.ui.esc(d.update)}</td>
+        <td><span class="num">${d.refs}</span> <span class="sm tx-3">个图表/指标</span></td>
+        <td data-ops>
+          <span class="link" data-act="edit">编辑</span> ·
+          <span class="link" data-act="copy">复制</span> ·
+          <span class="link danger" data-act="del">删除</span>
+        </td>
+      </tr>`);
+    tb.querySelectorAll('tr[data-id]').forEach(tr => {
+      const d = DS_LIST.find(x => x.id === tr.dataset.id);
+      tr.onclick = () => openDsDrawer(d);
+      tr.querySelectorAll('[data-act]').forEach(a => a.onclick = async e => {
+        e.stopPropagation();
+        const act = a.dataset.act;
+        if (act === 'edit') openDsDrawer(d);
+        else if (act === 'copy') {
+          const cp = { ...d, id: d.id + '-C', name: d.name + '（副本）', refs: 0, update: '李明 · 刚刚' };
+          DS_LIST.push(cp); renderList();
+          DG.ui.toast(`已复制为「${cp.name}」`, 'ok');
+        } else if (act === 'del') {
+          const ok = await DG.ui.confirm({
+            danger: true, title: '删除数据集', okLabel: '确认删除',
+            content: `「<b>${DG.ui.esc(d.name)}</b>」被 <b class="num">${d.refs}</b> 个图表/指标引用，删除后这些引用将失效。`
+          });
+          if (!ok) return;
+          DS_LIST = DS_LIST.filter(x => x.id !== d.id);
+          renderList();
+          DG.ui.toast(`数据集「${d.name}」已删除`, 'ok');
+        }
+      });
+    });
+  }
+
+  /* ================= 详情抽屉 ================= */
+  const FIELD_META = [
+    ['rq', 'DATE', '生产日期'], ['cyf', 'VARCHAR(32)', '采油厂名称'], ['block', 'VARCHAR(32)', '所属区块'],
+    ['well_no', 'VARCHAR(24)', '井号'], ['oil_t', 'DECIMAL(10,2)', '日产油量（吨）'],
+    ['water_t', 'DECIMAL(10,2)', '日产水量（吨）'], ['wc_pct', 'DECIMAL(5,2)', '含水率（%）'], ['dyn_lvl', 'DECIMAL(8,2)', '动液面深度（米）']
+  ];
+  const CACHE_OPTS = ['不缓存', '10 分钟', '30 分钟', '1 小时', '6 小时'];
+  async function openDsDrawer(d) {
+    const body = DG.ui.el(`<div>
+      <div class="sec-label">${DG.ICONS.dataset}字段清单（${FIELD_META.length} 列）</div>
+      <div class="table-wrap" style="border-radius:var(--r-m)">
+        <table class="tbl" style="font-size:12px">
+          <thead><tr><th>字段名</th><th>类型</th><th>业务含义</th></tr></thead>
+          <tbody>${FIELD_META.map(f => `<tr><td class="cell-main" style="font-family:var(--font-mono)">${f[0]}</td><td class="sm tx-3" style="font-family:var(--font-mono)">${f[1]}</td><td class="sm">${f[2]}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="sec-label">${DG.ICONS.drill}参数与缓存</div>
+      <div class="card" style="padding:12px 14px">
+        <div class="flex-between" style="margin-bottom:10px">
+          <span class="sm tx-3">查询参数</span>
+          <span>${d.params.length ? d.params.map(p => `<span class="tag brand" style="font-family:var(--font-mono)">\${${p}}</span>`).join(' ') : '<span class="tx-3 sm">无参数</span>'}</span>
+        </div>
+        <div class="flex-between">
+          <span class="sm tx-3">缓存策略</span>
+          <select class="select" id="cacheSel" style="width:150px;padding:5px 26px 5px 10px;font-size:12px">
+            ${CACHE_OPTS.map(c => `<option ${d.cache === c ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="sec-label">${DG.ICONS.board}引用看板（${d.refs}）</div>
+      <div id="refBoards"><div class="block-loading"><span class="spin"></span></div></div>
+    </div>`);
+    body.querySelector('#cacheSel').onchange = e => {
+      d.cache = e.target.value;
+      DG.ui.toast(`「${d.name}」缓存策略已保存：${e.target.value}`, 'ok');
+      renderList();
+    };
+    DG.ui.drawer({
+      title: `${d.name}（${d.id}）`, width: 520, body, footer: true,
+      buttons: [
+        { label: '预览数据', onClick: async () => { switchPane('builder'); document.getElementById('btnRunQ').click(); } },
+        { label: '关 闭', primary: true }
+      ]
+    });
+    const r = await DG.api.get('/dashboard/list');
+    const boards = r.code === 0 ? r.data.rows.slice(0, 3) : [];
+    body.querySelector('#refBoards').innerHTML = boards.map(b => `
+      <div class="row-item">
+        <span style="width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:var(--info);background:var(--info-soft)">${DG.ICONS.board}</span>
+        <div class="grow"><div style="font-size:12.5px;font-weight:500">${b.name}</div><div class="sm tx-3">${b.widgets} 个部件 · ${b.owner}</div></div>
+        <span class="tag">看板</span>
+      </div>`).join('') || '<div class="sm tx-3">暂无引用</div>';
+  }
+
+  /* ================= 新建数据集 ================= */
+  const NEW_TYPES = [
+    ['SQL', '编写 SQL 查询数据库', '#FF8A3D'], ['HTTP', 'REST 接口拉取 JSON', '#60A5FA'],
+    ['JSON 值/文件', '静态值或 .json 上传', '#22D3EE'], ['CSV 值/文件', '粘贴或上传 .csv', '#E8B33C'],
+    ['Excel', '上传工作簿按 Sheet 读取', '#34D399'], ['目录文件', '目录批量读取同构文件', '#A78BFA'],
+  ];
+  function openNewDataset() {
+    let selType = '';
+    const body = DG.ui.el(`<div>
+      <div class="form-label" style="margin-bottom:10px">选择数据集类型</div>
+      <div class="type-grid6">${NEW_TYPES.map(t => `
+        <div class="type-cell" data-t="${t[0]}" style="display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--line-1);border-radius:var(--r-m);cursor:pointer;background:var(--bg-glass)">
+          <div style="width:30px;height:30px;border-radius:8px;background:${t[2]};color:#0A0E17;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:var(--font-num);flex:none">${t[0].slice(0,2).toUpperCase()}</div>
+          <div><div style="font-size:12.5px;font-weight:600">${t[0]}</div><div style="font-size:10.5px;color:var(--tx-3)">${t[1]}</div></div>
+        </div>`).join('')}</div>
+    </div>`);
+    body.querySelectorAll('.type-cell').forEach(c => c.onclick = () => {
+      selType = c.dataset.t;
+      body.querySelectorAll('.type-cell').forEach(x => {
+        const on = x.dataset.t === selType;
+        x.style.borderColor = on ? 'var(--brand)' : 'var(--line-1)';
+        x.style.background = on ? 'var(--brand-soft)' : 'var(--bg-glass)';
+      });
+    });
+    DG.ui.modal({
+      title: '新建数据集 · 选择类型', width: 640, body,
+      buttons: [{ label: '取 消' }, {
+        label: '下一步', primary: true, onClick: async () => {
+          if (!selType) { DG.ui.toast('请先选择数据集类型', 'warn'); return false; }
+          const srcR = await DG.api.get('/dtbsSource/list');
+          const srcs = srcR.code === 0 ? srcR.data.rows.map(s => s.name) : [];
+          DG.ui.formModal({
+            title: `新建 ${selType} 数据集`,
+            fields: [
+              { key: 'name', label: '数据集名称', required: true, placeholder: '如：DS_采油日报' },
+              { key: 'source', label: '关联数据源', required: true, type: 'select', options: srcs.map(s => ({ v: s, t: s })) },
+              { key: 'query', label: '查询内容', type: 'textarea', rows: 5, required: true,
+                placeholder: 'SELECT * FROM ODS_采油日报 WHERE month = ${month}',
+                hint: '支持 ${param} 文本替换与 ${pc(param)} 预编译参数绑定（推荐，防 SQL 注入）' }
+            ],
+            onSubmit: v => {
+              const row = { id: 'DS' + String(Math.floor(Math.random() * 900 + 100)), name: v.name, type: selType, source: v.source, params: (v.query.match(/\$\{pc?\((\w+)\)|\$\{(\w+)\}/g) || []).map(s => s.replace(/\$\{pc?\(|\$?\{|\)|\}/g, '')), cache: '10 分钟', refs: 0, update: '李明 · 刚刚' };
+              DS_LIST.unshift(row); renderList();
+              DG.ui.toast(`数据集「${v.name}」已创建`, 'ok');
+            }
+          });
+        }
+      }]
+    });
+  }
+  document.getElementById('btnNewDs2').onclick = openNewDataset;
+
+  /* ================= 可视化查询构建器 ================= */
+  const slots = { dim: ['采油厂', '日期'], mea: ['日产油 · 求和', '含水率 · 平均'], flt: ['日期 = 近30日'] };
+  function renderSlots() {
+    const paint = (id, arr, cls, removable) => {
+      document.getElementById(id).innerHTML = arr.map((f, i) =>
+        `<span class="slot-chip ${cls}">${DG.ui.esc(f)}${removable ? `<span data-i="${i}" style="display:inline-flex;cursor:pointer">${DG.ICONS.x}</span>` : ''}</span>`).join('')
+        || '<span class="sm tx-4">点击左侧字段加入</span>';
+      document.getElementById(id).querySelectorAll('[data-i]').forEach(x => x.onclick = () => {
+        arr.splice(+x.dataset.i, 1); renderSlots();
+      });
+    };
+    paint('dimSlot', slots.dim, 'dim', true);
+    paint('meaSlot', slots.mea, 'mea', true);
+    paint('fltSlot', slots.flt, 'flt', false);
+  }
+  renderSlots();
+  document.querySelectorAll('#fieldTree .field-chip').forEach(chip => {
+    chip.onclick = () => {
+      const kind = chip.dataset.kind, name = chip.dataset.f;
+      const label = kind === 'mea' ? name + ' · 求和' : name;
+      const arr = kind === 'mea' ? slots.mea : slots.dim;
+      if (arr.some(x => x.startsWith(name))) { DG.ui.toast(`「${name}」已在${kind === 'mea' ? '度量' : '维度'}槽位中`, 'warn'); return; }
+      arr.push(label); renderSlots();
+    };
+  });
+
+  /* 预览结果 → POST /dataSet/preview */
+  async function runPreview(btn) {
+    if (!slots.dim.length && !slots.mea.length) { DG.ui.toast('请先加入至少一个维度或度量字段', 'warn'); return; }
+    DG.ui.btnLoading(btn, true);
+    const r = await DG.api.post('/dataSet/preview', { dims: slots.dim, meas: slots.mea });
+    DG.ui.btnLoading(btn, false);
+    if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+    const d = r.data;
+    document.getElementById('prevHead').innerHTML = '<tr>' + d.columns.map(c => `<th>${DG.ui.esc(c)}</th>`).join('') + '</tr>';
+    document.getElementById('prevBody').innerHTML = d.rows.map(row =>
+      '<tr>' + row.map((c, i) => `<td class="${i === 0 ? 'cell-main' : 'num'}">${DG.ui.esc(c)}</td>`).join('') + '</tr>').join('');
+    document.getElementById('prevMeta').textContent = `${d.rows.length} 行 · ${d.costMs}ms`;
+    document.getElementById('sqlCode').innerHTML =
+      `<span class="cm">-- 该 SQL 由查询构建器生成，参数走 PreparedStatement</span>\n` +
+      DG.ui.esc(d.sql).replace(/\$\{[^}]+\}/g, mm => `<span class="pm">${mm}</span>`);
+    DG.ui.toast(`查询完成：返回 ${d.rows.length} 行，用时 ${d.costMs}ms`, 'ok');
+  }
+
+  function openSaveAs() {
+    DG.ui.formModal({
+      title: '保存为数据集',
+      fields: [{ key: 'name', label: '数据集名称', required: true, placeholder: '如：DS_采油厂日产汇总' }],
+      onSubmit: v => {
+        DS_LIST.unshift({ id: 'DS' + Math.floor(Math.random() * 900 + 100), name: v.name, type: 'SQL', source: '华北油田生产库', params: [], cache: '10 分钟', refs: 0, update: '李明 · 刚刚' });
+        renderList();
+        DG.ui.toast(`已保存为数据集「${v.name}」，可在列表中查看`, 'ok');
+      }
+    });
+  }
+
+  /* SQL 逃生舱：构建器 ↔ 纯 SQL 视图互换 */
+  let sqlMode = false;
+  function bindBuilderButtons() {
+    document.getElementById('btnRunQ').onclick = e => runPreview(e.currentTarget);
+    document.getElementById('btnSqlEscape').onclick = enterSqlEscape;
+    document.getElementById('btnSaveAs').onclick = openSaveAs;
+  }
+  function enterSqlEscape() {
+    if (sqlMode) return;
+    sqlMode = true;
+    const pane = document.getElementById('slotPane');
+    pane.dataset.builderHtml = pane.innerHTML;
+    const curSql = document.getElementById('sqlCode').textContent;
+    pane.innerHTML = `
+      <div class="p-title">${DG.ICONS.api}SQL 逃生舱</div>
+      <textarea class="textarea" id="sqlTa" rows="11" style="font-family:var(--font-mono);font-size:12px">${DG.ui.esc(curSql)}</textarea>
+      <div class="bound-bar" style="margin-top:10px">
+        ${DG.ICONS.alert}
+        <span><b>提示</b>：双向同步冲突时以 SQL 为准（SDS 异常降级策略）。</span>
+      </div>
+      <button class="btn primary" style="width:100%;justify-content:center;margin-top:10px" id="btnRunSql">运行 SQL</button>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:8px" id="btnBackBuilder">返回构建器</button>`;
+    pane.querySelector('#btnRunSql').onclick = e => {
+      document.getElementById('sqlCode').textContent = pane.querySelector('#sqlTa').value;
+      runPreview(e.currentTarget);
+    };
+    pane.querySelector('#btnBackBuilder').onclick = () => {
+      sqlMode = false;
+      pane.innerHTML = pane.dataset.builderHtml;
+      renderSlots();
+      bindBuilderButtons();
+    };
+  }
+  bindBuilderButtons();
+
+  /* ================= 自助数据准备 ================= */
+  const STEP_TYPES = ['过滤', '关联', '派生列', '去重', '排序'];
+  let stepNo = 5;
+  document.getElementById('prepAdd').onclick = () => {
+    stepNo++;
+    const s = DG.ui.el(`<div class="prep-step">
+      <span class="p-no">STEP ${stepNo}</span>
+      <button class="p-x" title="删除步骤">${DG.ICONS.x}</button>
+      <div class="p-name">${DG.ICONS.spark}<span>新步骤</span></div>
+      <div class="p-detail">
+        步骤类型：<select class="select" style="margin-top:6px;padding:5px 26px 5px 10px;font-size:12px">
+          ${STEP_TYPES.map(t => `<option>${t}</option>`).join('')}
+        </select>
+      </div>
+    </div>`);
+    s.querySelector('.p-x').onclick = () => { s.remove(); DG.ui.toast('步骤已删除', 'ok'); };
+    s.querySelector('select').onchange = e => { s.querySelector('.p-name span').textContent = e.target.value; };
+    document.getElementById('prepFlow').insertBefore(s, document.getElementById('prepAdd'));
+    DG.ui.toast(`已添加 STEP ${stepNo}，请选择步骤类型`, 'ok');
+  };
+  document.getElementById('prepSave').onclick = () => {
+    DG.ui.formModal({
+      title: '保存为数据集',
+      fields: [{ key: 'name', label: '输出数据集名称', required: true, value: 'DS_吨油成本分析' }],
+      onSubmit: v => DG.ui.toast(`流水线已发布为「${v.name}」，可授权给指标中心引用`, 'ok')
+    });
+  };
+
+  /* ================= Tabs ================= */
+  function switchPane(p) {
+    document.querySelectorAll('#dstTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.pane === p));
+    document.querySelectorAll('.tab-pane').forEach(x => x.classList.toggle('show', x.dataset.pane === p));
+    window.dispatchEvent(new Event('resize'));
+  }
+  document.querySelectorAll('#dstTabs .tab').forEach(tab => tab.addEventListener('click', () => switchPane(tab.dataset.pane)));
+
+  loadList();
+
+  /* #demo：自动打开首个数据集详情抽屉 */
+  if (location.hash === '#demo') setTimeout(() => { if (DS_LIST[0]) openDsDrawer(DS_LIST[0]); }, 600);
 </script>
 </body>
 </html>

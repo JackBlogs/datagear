@@ -51,6 +51,31 @@
   .chk-chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chk-chips .tag { cursor: pointer; padding: 5px 12px; font-size: 12px; }
   .chk-chips .tag.on { background: var(--brand-soft); color: var(--brand); border-color: var(--brand-line); }
+  .link { color: var(--brand); cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+  .link:hover { color: #FFB25E; }
+  .link.danger { color: var(--danger); }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px dashed rgba(255,255,255,.06); font-size: 13px; }
+  .kv .k { color: var(--tx-3); flex: none; }
+  .kv .v { color: var(--tx-1); text-align: right; word-break: break-all; }
+  /* 向导 */
+  .steps { display: flex; align-items: center; gap: 8px; margin: 4px 0 20px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tx-3); }
+  .step .s-dot { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line-2); display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-family: var(--font-num); color: var(--tx-3); background: var(--bg-glass); }
+  .step.active { color: var(--brand); font-weight: 600; }
+  .step.active .s-dot { background: var(--brand-grad); color: #241105; border: none; box-shadow: var(--shadow-glow-brand); }
+  .step.done { color: var(--ok); }
+  .step.done .s-dot { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+  .step-line { flex: 1; height: 1px; background: var(--line-2); min-width: 24px; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+  .chk-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chk-row label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--tx-2); background: var(--bg-glass-2); border: 1px solid var(--line-1); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .chk-row input { accent-color: var(--brand); }
+  .path-prefix { display: flex; align-items: center; }
+  .path-prefix .pp { background: var(--bg-glass-3); border: 1px solid var(--line-2); border-right: none; border-radius: var(--r-m) 0 0 var(--r-m); padding: 8px 10px; font-family: var(--font-mono); font-size: 12.5px; color: var(--gas); white-space: nowrap; }
+  .path-prefix .input { border-radius: 0 var(--r-m) var(--r-m) 0; }
+  .sec-label { font-size: 12px; color: var(--tx-3); letter-spacing: 1px; margin: 16px 0 10px; display: flex; align-items: center; gap: 6px; }
+  .sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line-1); }
+  .tool-chip { cursor: pointer; }
 </style>
 </head>
 <body data-page="api">
@@ -62,8 +87,8 @@
       <div class="page-desc">指标/数据集发布为 REST API、签名嵌入集成、MCP Server 与项目导入导出（PRD 10.13）</div>
     </div>
     <div class="page-actions">
-      <button class="btn" onclick="DG.toast('原型演示：打开 OpenAPI 在线文档')">OpenAPI 文档</button>
-      <button class="btn primary" onclick="DG.toast('原型演示：从指标中心选择指标发布 API')"><span id="plusIco" style="display:flex"></span>发布 API</button>
+      <button class="btn" onclick="DG.ui.toast('OpenAPI 在线文档属 Phase 2 交付物，见 PRD 10.13 · FR-EXCH-06','warn')">OpenAPI 文档</button>
+      <button class="btn primary" id="btnPubApi"><span id="plusIco" style="display:flex"></span>发布 API</button>
     </div>
   </div>
 
@@ -78,7 +103,7 @@
   <!-- 数据 API -->
   <div class="tab-pane show" data-pane="api">
     <div class="grid" style="grid-template-columns:1fr 340px;gap:14px;align-items:start">
-      <div class="table-wrap">
+      <div class="table-wrap" id="apiWrap">
         <table class="tbl">
           <thead><tr><th>API 名称</th><th>端点</th><th>来源</th><th>限流</th><th>今日调用</th><th>状态</th><th style="width:130px">操作</th></tr></thead>
           <tbody id="apiTbody"></tbody>
@@ -107,7 +132,7 @@
   <div class="tab-pane" data-pane="embed">
     <div class="card mb-3">
       <div class="card-title"><span class="bar"></span>签名 Token 嵌入 · 五步接入
-        <span class="more" onclick="DG.toast('原型演示：下载 Embed JS SDK')">下载 SDK ›</span>
+        <span class="more" onclick="DG.ui.toast('Embed JS SDK 下载属 Phase 2 交付物，见 PRD 10.13 · FR-EMBED-03','warn')">下载 SDK ›</span>
       </div>
       <div class="embed-flow">
         <div class="embed-step"><span class="e-no">STEP 1</span><div class="e-name">生成嵌入密钥</div><div class="e-desc">在系统管理创建 <code>embed_secret</code>，绑定可嵌入资源范围</div></div>
@@ -117,6 +142,20 @@
         <div class="embed-step"><span class="e-no">STEP 5</span><div class="e-name">权限透传</div><div class="e-desc">行级 / 列级权限随 JWT 自动生效，业务系统零改造</div></div>
       </div>
     </div>
+
+    <!-- 嵌入密钥管理（GET /embed/key/list） -->
+    <div class="card mb-3">
+      <div class="card-title"><span class="bar"></span>嵌入密钥
+        <span class="more" id="btnNewEk">新建密钥 ›</span>
+      </div>
+      <div class="table-wrap" style="border:none" id="ekWrap">
+        <table class="tbl">
+          <thead><tr><th>密钥名称</th><th>白名单域名</th><th>过期时间</th><th>近 30 日调用</th><th>状态</th></tr></thead>
+          <tbody id="ekTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="grid g-2" style="align-items:start">
       <div class="card">
         <div class="card-title"><span class="bar"></span>接入代码示例</div>
@@ -158,9 +197,9 @@
   <div class="tab-pane" data-pane="keys">
     <div class="flex-between mb-2">
       <div class="sm tx-3">Key 仅创建时完整展示一次，前缀 + 哈希存储，可随时吊销</div>
-      <button class="btn primary sm" onclick="DG.toast('原型演示：新建 Key（弹窗展示完整密钥一次）')">新建 Key</button>
+      <button class="btn primary sm" id="btnNewKey">新建 Key</button>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap" id="keyWrap">
       <table class="tbl">
         <thead><tr><th>Key 名称</th><th>前缀</th><th>权限范围</th><th>限流</th><th>最近调用</th><th>状态</th><th>创建时间</th><th style="width:110px">操作</th></tr></thead>
         <tbody id="keyTbody"></tbody>
@@ -176,27 +215,14 @@
         <div class="sm tx-2" style="line-height:1.9;margin-bottom:12px">
           基于 Model Context Protocol 暴露指标查询、看板清单、数据集 Schema 等工具，Claude / Kimi / 自研 Agent 可直接调用语义层，口径与权限由指标中心统一管控。
         </div>
-        <div class="kv" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:13px">
-          <span class="tx-3">服务端点</span><span class="mono" style="color:var(--gas)">https://bi.example.com/mcp</span>
-        </div>
-        <div class="kv" style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.06);font-size:13px">
-          <span class="tx-3">鉴权方式</span><span>API Key（dgak_*）· OAuth2 可选</span>
-        </div>
-        <div class="kv" style="display:flex;justify-content:space-between;padding:9px 0;font-size:13px">
-          <span class="tx-3">连接状态</span><span><span class="tag ok">在线 · 延迟 18ms</span></span>
-        </div>
-        <button class="btn primary mt-2" onclick="DG.toast('原型演示：复制 MCP 配置 JSON')">复制连接配置</button>
+        <div class="kv"><span class="tx-3">服务端点</span><span class="mono" style="color:var(--gas)">https://bi.example.com/mcp</span></div>
+        <div class="kv"><span class="tx-3">鉴权方式</span><span>API Key（dgak_*）· OAuth2 可选</span></div>
+        <div class="kv" style="border-bottom:none"><span class="tx-3">连接状态</span><span><span class="tag ok">在线 · 延迟 18ms</span></span></div>
+        <button class="btn primary mt-2" id="btnCopyMcp">复制连接配置</button>
       </div>
       <div class="card">
         <div class="card-title"><span class="bar"></span>已开放工具（Tools）</div>
-        <div class="flex wrap" style="gap:8px;margin-bottom:12px">
-          <span class="tag brand mono">query_metric</span>
-          <span class="tag brand mono">list_metrics</span>
-          <span class="tag info mono">list_dashboards</span>
-          <span class="tag info mono">get_dataset_schema</span>
-          <span class="tag info mono">run_dataset_query</span>
-          <span class="tag mono">get_lineage</span>
-        </div>
+        <div class="flex wrap" style="gap:8px;margin-bottom:12px" id="toolChips"></div>
         <div class="sm tx-3" style="margin-bottom:8px">最近调用记录</div>
         <div class="row-item"><div class="grow"><div style="font-size:12.5px" class="mono">query_metric(M-OIL-001, month=2026-08)</div><div class="sm tx-3">Kimi Agent · 今天 08:41 · 0.36s</div></div><span class="tag ok">成功</span></div>
         <div class="row-item"><div class="grow"><div style="font-size:12.5px" class="mono">get_dataset_schema(DS_管网输量)</div><div class="sm tx-3">Claude Desktop · 今天 08:12 · 0.08s</div></div><span class="tag ok">成功</span></div>
@@ -210,18 +236,18 @@
     <div class="grid g-2" style="align-items:start">
       <div class="card">
         <div class="card-title"><span class="bar"></span>项目导出 <span class="tag brand">.dgpkg</span></div>
-        <div class="form-label">导出范围</div>
+        <div class="form-label">导出范围（点击切换）</div>
         <div class="chk-chips mb-2" id="expChips">
           <span class="tag on">数据集 (148)</span><span class="tag on">图表 (312)</span><span class="tag on">看板 (64)</span>
           <span class="tag on">指标 (86)</span><span class="tag">数据源引用（不含密码）</span><span class="tag">告警规则 (28)</span>
         </div>
         <div class="sm tx-3 mb-2">数据源仅导出引用关系，密码与密钥不落盘；导入时重新绑定。</div>
-        <button class="btn primary" onclick="DG.toast('已导出 project_20260903.dgpkg（18.6 MB）')">导出项目包</button>
+        <button class="btn primary" id="btnExport">导出项目包</button>
       </div>
       <div class="flex-col" style="gap:14px">
         <div class="card">
           <div class="card-title"><span class="bar"></span>项目导入</div>
-          <div class="drop-zone" id="dropZone" onclick="DG.toast('原型演示：选择 .dgpkg 文件')">
+          <div class="drop-zone" id="dropZone">
             <div id="upIco" style="display:flex;justify-content:center"></div>
             拖拽 <b class="mono" style="color:var(--tx-2)">.dgpkg</b> 文件到此处，或点击选择<br/>
             <span class="sm">导入前自动校验版本兼容性与依赖完整性</span>
@@ -233,8 +259,8 @@
           <div class="flex-between sm" style="padding:6px 0"><span class="tx-3">最近备份</span><span class="mono">dg_backup_20260903_0200.zip · 96 MB</span></div>
           <div class="flex-between sm" style="padding:6px 0 12px"><span class="tx-3">备份位置</span><span class="mono">/data/datagear/backup</span></div>
           <div class="flex" style="gap:10px">
-            <button class="btn primary grow" style="justify-content:center" onclick="DG.toast('原型演示：立即备份任务已提交')">立即备份</button>
-            <button class="btn grow" style="justify-content:center" onclick="DG.toast('原型演示：恢复需管理员二次确认')">恢复…</button>
+            <button class="btn primary grow" style="justify-content:center" id="btnBackup">立即备份</button>
+            <button class="btn grow" style="justify-content:center" id="btnRestore">恢复…</button>
           </div>
         </div>
       </div>
@@ -245,31 +271,341 @@
 
 <script src="assets/js/vendor/echarts.min.js"></script>
 <script src="assets/js/shell.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/mock-api.js"></script>
 <script>
   document.getElementById('plusIco').innerHTML = DG.ICONS.plus;
   document.getElementById('upIco').innerHTML = DG.ICONS.up;
 
-  /* API 列表 */
-  const APIS = [
-    { n: '原油产量查询', ep: 'GET /api/v1/metrics/M-OIL-001', src: '指标', lim: '1000 次/分', today: '12,406', on: true },
-    { n: '管网输量实时值', ep: 'GET /api/v1/metrics/M-GAS-002', src: '指标', lim: '600 次/分', today: '8,862', on: true },
-    { n: '采油日报数据集', ep: 'GET /api/v1/datasets/DS_采油日报', src: '数据集', lim: '300 次/分', today: '3,214', on: true },
-    { n: '瓦斯浓度监测', ep: 'GET /api/v1/metrics/M-COAL-007', src: '指标', lim: '1200 次/分', today: '18,533', on: true },
-    { n: '甲醇产销存', ep: 'GET /api/v1/datasets/DS_甲醇产销存', src: '数据集', lim: '200 次/分', today: '486', on: true },
-    { n: '吨油成本分析', ep: 'GET /api/v1/metrics/M-OIL-021', src: '指标', lim: '300 次/分', today: '152', on: false },
-    { n: '区块档案目录', ep: 'GET /api/v1/datasets/DS_区块档案', src: '数据集', lim: '200 次/分', today: '968', on: true },
+  function copyText(text, label) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => DG.ui.toast(`${label}已复制`, 'ok'))
+        .catch(() => DG.ui.toast(`${label}：${text}（剪贴板不可用，请手动复制）`, 'warn'));
+    } else DG.ui.toast(`${label}：${text}（剪贴板不可用，请手动复制）`, 'warn');
+  }
+
+  /* ================= 数据 API（GET /openapi/api/list） ================= */
+  let APIS = [];
+  async function loadApis() {
+    const wrap = document.getElementById('apiWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/openapi/api/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadApis)); return; }
+    APIS = r.data.rows;
+    renderApis();
+  }
+  function renderApis() {
+    const tb = document.getElementById('apiTbody');
+    DG.ui.renderRows(tb, APIS, a => `
+      <tr data-id="${a.id}">
+        <td class="cell-main">${DG.ui.esc(a.name)} <span class="tag" style="margin-left:4px">${a.version}</span></td>
+        <td class="mono" style="color:var(--gas)">${a.path}</td>
+        <td><span class="tag ${a.source === '指标' ? 'brand' : 'info'}">${a.source}</span></td>
+        <td class="sm">${a.limit}</td>
+        <td class="num">${a.today.toLocaleString()}</td>
+        <td><label class="switch"><input type="checkbox" ${a.enabled ? 'checked' : ''} data-tg/><i></i></label></td>
+        <td>
+          <span class="link" data-act="doc">文档</span> ·
+          <span class="link" data-act="copy">复制</span>
+        </td>
+      </tr>`);
+    tb.querySelectorAll('tr[data-id]').forEach(tr => {
+      const a = APIS.find(x => x.id === tr.dataset.id);
+      tr.querySelector('[data-tg]').onchange = async e => {
+        const r = await DG.api.post('/openapi/api/toggle', { id: a.id });
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); e.target.checked = !e.target.checked; return; }
+        DG.ui.toast(`API「${a.name}」已${r.data.enabled ? '上线' : '下线'}`, 'ok');
+      };
+      tr.querySelector('[data-act="doc"]').onclick = () => openApiDoc(a);
+      tr.querySelector('[data-act="copy"]').onclick = () => copyText(a.path, '端点路径 ');
+    });
+  }
+
+  /* API 文档抽屉：参数表 + 响应示例 + 三语言代码 */
+  function openApiDoc(a) {
+    const body = DG.ui.el(`<div>
+      <div class="sec-label">请求参数</div>
+      <div class="table-wrap" style="border-radius:var(--r-m)">
+        <table class="tbl" style="font-size:12px">
+          <thead><tr><th>参数</th><th>位置</th><th>类型</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">page</td><td class="sm">query</td><td class="sm">int</td><td class="sm">页码，默认 1</td></tr>
+            <tr><td class="mono">size</td><td class="sm">query</td><td class="sm">int</td><td class="sm">每页行数，上限 5000</td></tr>
+            <tr><td class="mono">month</td><td class="sm">query</td><td class="sm">string</td><td class="sm">筛选参数，如 2026-08</td></tr>
+            <tr><td class="mono">Authorization</td><td class="sm">header</td><td class="sm">string</td><td class="sm">Bearer dgak_***</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="sec-label">响应示例</div>
+      <div class="mono-block">{
+  <span class="kw">"code"</span>: <span class="num">0</span>,
+  <span class="kw">"message"</span>: <span class="str">"success"</span>,
+  <span class="kw">"data"</span>: {
+    <span class="kw">"total"</span>: <span class="num">5</span>,
+    <span class="kw">"rows"</span>: [[<span class="str">"长庆采油厂"</span>, <span class="num">94.8</span>, <span class="str">"+12.3%"</span>], …],
+    <span class="kw">"costMs"</span>: <span class="num">36</span>
+  }
+}</div>
+      <div class="sec-label">调用示例</div>
+      <div class="tabs" style="margin-bottom:10px" id="codeTabs">
+        <div class="tab active" data-c="curl">cURL</div>
+        <div class="tab" data-c="js">JavaScript</div>
+        <div class="tab" data-c="py">Python</div>
+      </div>
+      <div class="mono-block" id="codeBox"></div>
+    </div>`);
+    const CODES = {
+      curl: `<span class="cm"># cURL</span>
+curl -H <span class="str">"Authorization: Bearer dgak_***"</span> \\
+  <span class="str">"https://bi.example.com${a.path}?month=2026-08&size=100"</span>`,
+      js: `<span class="cm">// JavaScript（fetch）</span>
+<span class="kw">const</span> r = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://bi.example.com${a.path}?month=2026-08'</span>, {
+  headers: { Authorization: <span class="str">'Bearer dgak_***'</span> }
+});
+<span class="kw">const</span> { data } = <span class="kw">await</span> r.<span class="fn">json</span>();`,
+      py: `<span class="cm"># Python（requests）</span>
+<span class="kw">import</span> requests
+r = requests.<span class="fn">get</span>(<span class="str">'https://bi.example.com${a.path}'</span>,
+  params={<span class="st">'month'</span>: <span class="st">'2026-08'</span>},
+  headers={<span class="st">'Authorization'</span>: <span class="st">'Bearer dgak_***'</span>})
+<span class="fn">print</span>(r.json()[<span class="st">'data'</span>][<span class="st">'rows'</span>])`
+    };
+    const codeBox = body.querySelector('#codeBox');
+    codeBox.innerHTML = CODES.curl;
+    body.querySelectorAll('#codeTabs .tab').forEach(t => t.onclick = () => {
+      body.querySelectorAll('#codeTabs .tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      codeBox.innerHTML = CODES[t.dataset.c];
+    });
+    DG.ui.drawer({ title: `API 文档 · ${a.name}`, width: 560, body, footer: true,
+      buttons: [{ label: '复制端点', primary: true, keepOpen: true, onClick: () => { copyText(a.path, '端点路径 '); } }] });
+  }
+
+  /* ================= 发布 API · 三步向导 ================= */
+  const RES_OPTS = {
+    '指标': ['原油产量 M-OIL-001', '吨油完全成本 M-OIL-002', '管输周转量 M-GAS-001', '瓦斯超限次数 M-COAL-003'],
+    '数据集': ['DS_采油日报', 'DS_管网输量', 'DS_煤矿瓦斯监测', 'DS_财务月报']
+  };
+  const FIELD_OPTS = ['采油厂', '日期', '日产油(吨)', '日产水(吨)', '含水率(%)'];
+  function openPubWizard() {
+    const st = { step: 1, srcType: '指标', res: RES_OPTS['指标'][0], path: '', method: 'GET', limit: '300', fields: FIELD_OPTS.slice(0, 3) };
+    const m = DG.ui.modal({ title: '发布数据 API', width: 640, footer: false, body: '<div id="wzBody"></div>' });
+    const body = m.body.querySelector('#wzBody');
+    const stepsBar = () => `<div class="steps">${['选来源', '定义端点', '返回字段'].map((s, i) =>
+      `<div class="step ${st.step === i + 1 ? 'active' : st.step > i + 1 ? 'done' : ''}"><span class="s-dot">${i + 1}</span>${s}</div>${i < 2 ? '<span class="step-line"></span>' : ''}`).join('')}</div>`;
+    function render() {
+      if (st.step === 1) {
+        body.innerHTML = stepsBar() + `
+          <div class="form-item"><label class="form-label">来源类型</label>
+            <select class="select" id="wzSrcT">${['指标', '数据集'].map(o => `<option ${o === st.srcType ? 'selected' : ''}>${o}</option>`).join('')}</select>
+            <div class="form-hint">发布指标 → 语义层统一口径；发布数据集 → 透传 SQL 结果集</div></div>
+          <div class="form-item"><label class="form-label">具体资源</label>
+            <select class="select" id="wzRes">${RES_OPTS[st.srcType].map(o => `<option>${o}</option>`).join('')}</select></div>
+          <div class="modal-foot"><button class="btn" data-x>取 消</button><button class="btn primary" data-next>下一步</button></div>`;
+        body.querySelector('#wzSrcT').onchange = e => {
+          st.srcType = e.target.value;
+          body.querySelector('#wzRes').innerHTML = RES_OPTS[st.srcType].map(o => `<option>${o}</option>`).join('');
+        };
+        body.querySelector('[data-x]').onclick = () => m.close();
+        body.querySelector('[data-next]').onclick = () => {
+          st.srcType = body.querySelector('#wzSrcT').value;
+          st.res = body.querySelector('#wzRes').value;
+          st.step = 2; render();
+        };
+      } else if (st.step === 2) {
+        const defPath = st.res.includes('M-') ? 'metrics/' + st.res.split(' ').pop() : 'datasets/' + st.res;
+        body.innerHTML = stepsBar() + `
+          <div class="form-item"><label class="form-label"><span class="req">*</span>端点路径</label>
+            <div class="path-prefix"><span class="pp">/api/v1/</span><input class="input" id="wzPath" value="${DG.ui.esc(st.path || defPath)}"/></div>
+            <div class="field-error hidden" id="ePath"></div></div>
+          <div class="grid g-2">
+            <div class="form-item"><label class="form-label">请求方法</label>
+              <select class="select" id="wzMethod"><option>GET</option><option>POST</option></select></div>
+            <div class="form-item"><label class="form-label">限流（次/分）</label>
+              <input class="input" id="wzLimit" type="number" value="${st.limit}"/></div>
+          </div>
+          <div class="modal-foot"><button class="btn" data-prev>上一步</button><button class="btn primary" data-next>下一步</button></div>`;
+        body.querySelector('[data-prev]').onclick = () => { st.step = 1; render(); };
+        body.querySelector('[data-next]').onclick = () => {
+          const p = body.querySelector('#wzPath').value.trim();
+          if (!p) { const e = body.querySelector('#ePath'); e.textContent = '端点路径不能为空'; e.classList.remove('hidden'); return; }
+          st.path = p.replace(/^\/+/, '');
+          st.method = body.querySelector('#wzMethod').value;
+          st.limit = body.querySelector('#wzLimit').value || '300';
+          st.step = 3; render();
+        };
+      } else {
+        body.innerHTML = stepsBar() + `
+          <div class="form-item"><label class="form-label">返回字段（勾选暴露给调用方的列）</label>
+            <div class="chk-row" id="wzFields">${FIELD_OPTS.map(f => `<label><input type="checkbox" value="${f}" ${st.fields.includes(f) ? 'checked' : ''}/>${f}</label>`).join('')}</div>
+            <div class="field-error hidden" id="eF"></div></div>
+          <div class="card" style="padding:10px 14px;background:var(--bg-glass-2);font-size:12.5px">
+            <span class="tx-3">端点摘要：</span><span class="mono" style="color:var(--gas)">${st.method} /api/v1/${DG.ui.esc(st.path)}</span> · 来源 ${DG.ui.esc(st.res)} · 限流 ${st.limit} 次/分
+          </div>
+          <div class="modal-foot"><button class="btn" data-prev>上一步</button><button class="btn primary" data-done>发布上线</button></div>`;
+        body.querySelector('[data-prev]').onclick = () => { st.step = 2; render(); };
+        body.querySelector('[data-done]').onclick = async e => {
+          const fs = [...body.querySelectorAll('#wzFields input:checked')].map(x => x.value);
+          if (!fs.length) { const el = body.querySelector('#eF'); el.textContent = '请至少勾选一个返回字段'; el.classList.remove('hidden'); return; }
+          const btn = e.currentTarget;
+          DG.ui.btnLoading(btn, true);
+          await new Promise(r => setTimeout(r, 600));
+          DG.ui.btnLoading(btn, false);
+          const row = { id: 'API-NEW', name: st.res, path: '/api/v1/' + st.path, source: st.srcType, limit: st.limit + ' 次/分', today: 0, enabled: true, version: 'v1' };
+          APIS.unshift(row); renderApis();
+          m.close();
+          DG.ui.toast(`API 已发布上线：${row.path}`, 'ok');
+        };
+      }
+    }
+    render();
+  }
+  document.getElementById('btnPubApi').onclick = openPubWizard;
+
+  /* ================= API Key（GET /openapi/key/list） ================= */
+  let KEYS = [];
+  async function loadKeys() {
+    const wrap = document.getElementById('keyWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/openapi/key/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadKeys)); return; }
+    KEYS = r.data;
+    renderKeys();
+  }
+  function renderKeys() {
+    const tb = document.getElementById('keyTbody');
+    DG.ui.renderRows(tb, KEYS, k => `
+      <tr data-id="${k.id}">
+        <td class="cell-main">${DG.ui.esc(k.name)}</td>
+        <td class="mono">${k.prefix}</td>
+        <td class="sm">${k.scope}</td>
+        <td class="sm num">${k.limit}</td>
+        <td class="sm tx-3">${k.last}</td>
+        <td class="st-cell">${k.enabled ? '<span class="tag ok">生效中</span>' : '<span class="tag danger">已吊销</span>'}</td>
+        <td class="sm tx-3">${k.created}</td>
+        <td>${k.enabled ? `<span class="link danger" data-act="revoke">吊销</span>` : '<span class="sm tx-4">—</span>'}</td>
+      </tr>`);
+    tb.querySelectorAll('[data-act="revoke"]').forEach(a => a.onclick = async () => {
+      const k = KEYS.find(x => x.id === a.closest('tr').dataset.id);
+      const ok = await DG.ui.confirm({
+        danger: true, title: '吊销 API Key', okLabel: '确认吊销',
+        content: `吊销后「<b>${DG.ui.esc(k.name)}</b>」（${k.prefix}）立即失效，正在使用该 Key 的调用将返回 401。`
+      });
+      if (!ok) return;
+      const r = await DG.api.post('/openapi/key/revoke', { id: k.id });
+      if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return; }
+      k.enabled = false; renderKeys();
+      DG.ui.toast(`Key「${k.name}」已吊销`, 'ok');
+    });
+  }
+  document.getElementById('btnNewKey').onclick = () => {
+    DG.ui.formModal({
+      title: '新建 API Key',
+      fields: [
+        { key: 'name', label: 'Key 名称', required: true, placeholder: '如：生产调度系统' },
+        { key: 'scope', label: '权限范围', type: 'select', options: ['只读', '只读 · 指标查询', '只读 · 指定API', 'MCP 工具集'].map(v => ({ v, t: v })) },
+        { key: 'limit', label: '限流（次/分）', value: '300', validate: v => isNaN(+v) || +v <= 0 ? '限流须为正整数' : null }
+      ],
+      onSubmit: async v => {
+        const r = await DG.api.post('/openapi/key/save', { name: v.name, scope: v.scope, limit: v.limit + '/分' });
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+        KEYS.push(r.data); renderKeys();
+        DG.ui.modal({
+          title: 'Key 创建成功', width: 480, maskClose: false,
+          body: `<div class="sm tx-3" style="margin-bottom:8px">完整 Key <b style="color:var(--danger)">仅本次展示</b>，请立即复制保存：</div>
+            <div class="mono-block" style="word-break:break-all;white-space:pre-wrap">${r.data.prefix.replace('****', 'x7f2m9q1p')}</div>
+            <div class="sm tx-3" style="margin-top:10px">服务端仅存储前缀 + 哈希，丢失需重新创建。</div>`,
+          buttons: [{ label: '我已保存', primary: true }]
+        });
+      }
+    });
+  };
+
+  /* ================= 嵌入密钥（GET /embed/key/list） ================= */
+  let EKS = [];
+  async function loadEks() {
+    const wrap = document.getElementById('ekWrap');
+    const stop = DG.ui.blockLoading(wrap);
+    const r = await DG.api.get('/embed/key/list');
+    stop();
+    if (r.code !== 0) { wrap.appendChild(DG.ui.errorBlock(r.message, loadEks)); return; }
+    EKS = r.data;
+    renderEks();
+  }
+  function renderEks() {
+    const tb = document.getElementById('ekTbody');
+    DG.ui.renderRows(tb, EKS, k => `
+      <tr>
+        <td class="cell-main">${DG.ui.esc(k.name)}</td>
+        <td class="mono sm">${DG.ui.esc(k.domains)}</td>
+        <td class="sm">${k.expire}</td>
+        <td class="num">${k.calls30d.toLocaleString()}</td>
+        <td>${k.enabled ? '<span class="tag ok">生效中</span>' : '<span class="tag danger">已停用</span>'}</td>
+      </tr>`);
+  }
+  document.getElementById('btnNewEk').onclick = () => {
+    DG.ui.formModal({
+      title: '新建嵌入密钥',
+      fields: [
+        { key: 'name', label: '密钥名称', required: true, placeholder: '如：集团门户嵌入密钥' },
+        { key: 'domains', label: '白名单域名', required: true, placeholder: 'portal.energy.local, 10.*.*.0/24' },
+        { key: 'expire', label: '过期时间', type: 'date', value: '2027-09-03' }
+      ],
+      onSubmit: async v => {
+        const r = await DG.api.post('/embed/key/save', v);
+        if (r.code !== 0) { DG.ui.toast(r.message, 'err'); return false; }
+        EKS.push(r.data); renderEks();
+        DG.ui.modal({
+          title: '嵌入密钥已创建', width: 480, maskClose: false,
+          body: `<div class="sm tx-3" style="margin-bottom:8px">共享密钥 <b style="color:var(--danger)">仅本次展示</b>，用于业务后端签发 JWT：</div>
+            <div class="mono-block" style="word-break:break-all;white-space:pre-wrap">${DG.ui.esc(r.data.secret)}</div>`,
+          buttons: [{ label: '我已保存', primary: true }]
+        });
+      }
+    });
+  };
+
+  /* ================= MCP Server ================= */
+  const TOOLS = [
+    ['query_metric', 'brand', '按指标编码查询语义层结果，自动套用行列权限'],
+    ['list_metrics', 'brand', '列出指标目录（域/状态筛选）'],
+    ['list_dashboards', 'info', '列出可见看板清单'],
+    ['get_dataset_schema', 'info', '获取数据集字段 Schema 与参数定义'],
+    ['run_dataset_query', 'info', '以参数执行数据集查询，返回行集'],
+    ['get_lineage', '', '查询对象的全链路血缘上下游'],
   ];
-  document.getElementById('apiTbody').innerHTML = APIS.map(a => `
-    <tr>
-      <td class="cell-main">${a.n}</td>
-      <td class="mono" style="color:var(--gas)">${a.ep}</td>
-      <td><span class="tag ${a.src === '指标' ? 'brand' : 'info'}">${a.src}</span></td>
-      <td class="sm">${a.lim}</td>
-      <td class="num">${a.today}</td>
-      <td><label class="switch"><input type="checkbox" ${a.on ? 'checked' : ''} onchange="DG.toast('原型演示：切换 API 上下线')"/><i></i></label></td>
-      <td><span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：在线调试控制台')">调试</span> ·
-          <span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：调用明细')">明细</span></td>
-    </tr>`).join('');
+  document.getElementById('toolChips').innerHTML = TOOLS.map((t, i) =>
+    `<span class="tag ${t[1]} mono tool-chip" data-i="${i}">${t[0]}</span>`).join('');
+  document.querySelectorAll('#toolChips .tool-chip').forEach(c => c.onclick = () =>
+    DG.ui.toast(`${TOOLS[+c.dataset.i][0]}：${TOOLS[+c.dataset.i][2]}`, 'ok'));
+  document.getElementById('btnCopyMcp').onclick = () =>
+    copyText(JSON.stringify({ mcpServers: { datagear: { url: 'https://bi.example.com/mcp', headers: { Authorization: 'Bearer dgak_***' } } } }, null, 2), 'MCP 连接配置 ');
+
+  /* ================= 导入导出 ================= */
+  document.querySelectorAll('#expChips .tag').forEach(c => c.addEventListener('click', () => c.classList.toggle('on')));
+  document.getElementById('btnExport').onclick = async e => {
+    const scope = [...document.querySelectorAll('#expChips .tag.on')].map(x => x.textContent.replace(/\s*\(\d+\)/, ''));
+    if (!scope.length) { DG.ui.toast('请至少选择一项导出内容', 'warn'); return; }
+    DG.ui.btnLoading(e.currentTarget, true);
+    const r = await DG.api.post('/project/pack/export', { name: '能源分析项目', scope });
+    DG.ui.btnLoading(e.currentTarget, false);
+    if (r.code === 0) DG.ui.toast(`已导出 ${r.data.file}（${r.data.size}）· 含 ${scope.length} 类资源`, 'ok');
+    else DG.ui.toast(r.message, 'err');
+  };
+  document.getElementById('dropZone').onclick = () => DG.ui.toast('原型演示：选择 .dgpkg 文件后自动校验版本兼容性', 'ok');
+  document.getElementById('btnBackup').onclick = async e => {
+    DG.ui.btnLoading(e.currentTarget, true);
+    const r = await DG.api.post('/deliv/backup/run');
+    DG.ui.btnLoading(e.currentTarget, false);
+    if (r.code === 0) DG.ui.toast(`备份完成：${r.data.file} · ${r.data.size}`, 'ok');
+    else DG.ui.toast(r.message, 'err');
+  };
+  document.getElementById('btnRestore').onclick = async () => {
+    const ok = await DG.ui.confirm({ danger: true, title: '恢复备份', content: '恢复将覆盖当前全部配置与数据，需管理员二次确认。原型演示不执行真实恢复。' });
+    if (ok) DG.ui.toast('备份恢复属运维高危操作，原型演示仅提示', 'warn');
+  };
 
   /* 调用量图 */
   DG.autoCharts({
@@ -286,40 +622,20 @@
     })
   });
 
-  /* API Key 表 */
-  const KEYS = [
-    { n: '集团 OA 门户嵌入', p: 'dgak_8f3****', scope: '只读 · 看板渲染', lim: '5000 次/分', last: '2 分钟前', on: true, t: '2026-03-12' },
-    { n: '能耗平台指标同步', p: 'dgak_2c7****', scope: '指标查询', lim: '1000 次/分', last: '11 分钟前', on: true, t: '2026-05-08' },
-    { n: '巡检 APP 报表拉取', p: 'dgak_9e1****', scope: '只读 · 报表', lim: '600 次/分', last: '今天 07:50', on: true, t: '2026-06-21' },
-    { n: 'Kimi Agent（MCP）', p: 'dgak_mcp****', scope: 'MCP 工具集', lim: '800 次/分', last: '今天 08:41', on: true, t: '2026-08-15' },
-    { n: '临时联调（外部厂商）', p: 'dgak_tmp****', scope: '指标查询 · 沙箱', lim: '60 次/分', last: '08-29 16:20', on: false, t: '2026-08-20' },
-  ];
-  document.getElementById('keyTbody').innerHTML = KEYS.map(k => `
-    <tr>
-      <td class="cell-main">${k.n}</td>
-      <td class="mono">${k.p}</td>
-      <td class="sm">${k.scope}</td>
-      <td class="sm num">${k.lim}</td>
-      <td class="sm tx-3">${k.last}</td>
-      <td><label class="switch"><input type="checkbox" ${k.on ? 'checked' : ''} onchange="DG.toast('原型演示：吊销 / 启用 Key')"/><i></i></label></td>
-      <td class="sm tx-3">${k.t}</td>
-      <td><span style="color:var(--brand);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：编辑权限范围')">编辑</span> ·
-          <span style="color:var(--danger);cursor:pointer;font-size:12.5px" onclick="DG.toast('原型演示：吊销需二次确认')">吊销</span></td>
-    </tr>`).join('');
+  /* ================= Tabs ================= */
+  function switchPane(p) {
+    document.querySelectorAll('#apiTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.pane === p));
+    document.querySelectorAll('.tab-pane').forEach(x => x.classList.toggle('show', x.dataset.pane === p));
+    if (p === 'embed') loadEks();
+    if (p === 'keys') loadKeys();
+    window.dispatchEvent(new Event('resize'));
+  }
+  document.querySelectorAll('#apiTabs .tab').forEach(tab => tab.addEventListener('click', () => switchPane(tab.dataset.pane)));
 
-  /* 导出范围 chips */
-  document.querySelectorAll('#expChips .tag').forEach(c => c.addEventListener('click', () => c.classList.toggle('on')));
+  loadApis();
 
-  /* Tabs */
-  document.querySelectorAll('#apiTabs .tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('#apiTabs .tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show'));
-      tab.classList.add('active');
-      document.querySelector(`.tab-pane[data-pane="${tab.dataset.pane}"]`).classList.add('show');
-      window.dispatchEvent(new Event('resize'));
-    });
-  });
+  /* #demo：自动打开首个 API 的文档抽屉 */
+  if (location.hash === '#demo') setTimeout(() => { if (APIS[0]) openApiDoc(APIS[0]); }, 600);
 </script>
 </body>
 </html>
