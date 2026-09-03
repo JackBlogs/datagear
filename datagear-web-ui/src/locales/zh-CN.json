@@ -1825,5 +1825,17 @@
   "userPage.selInfoSuffix": "项",
   "userPage.batchDelete": "批量删除",
   "userPage.migratePrompt": "删除用户需指定数据迁移目标用户 ID（留空则直接删除）",
-  "userPage.empty": "暂无用户"
+  "userPage.empty": "暂无用户",
+  "scr.title": "数据大屏",
+  "scr.desc": "数据大屏的创建、设计、发布与展示",
+  "scr.newScreen": "新建大屏",
+  "scr.theme": "主题",
+  "scr.totalPrefix": "共",
+  "scr.totalSuffix": "个大屏",
+  "scr.selectedPrefix": "已选",
+  "scr.selectedSuffix": "个大屏",
+  "scr.batchDelete": "批量删除",
+  "scr.confirmDelOne": "确定删除该数据大屏吗？",
+  "scr.confirmDelSelected": "确定删除选中的数据大屏吗？",
+  "scr.empty": "暂无数据大屏，点击右上角「新建大屏」创建"
 }

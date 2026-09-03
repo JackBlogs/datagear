@@ -6,6 +6,7 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsCoreOption } from 'echarts/core'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import DemoBadge from '@/components/DemoBadge.vue'
 
 use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -195,7 +196,7 @@ onBeforeUnmount(() => {
     <!-- 页头 -->
     <div class="page-head">
       <div>
-        <div class="page-title">移动端 H5 原型预览 <span class="tag tag-brand">演示数据</span></div>
+        <div class="page-title">移动端 H5 原型预览 <DemoBadge /></div>
         <div class="page-desc">H5 深化策略 · 不做原生 App：一套 H5 嵌入微信 / 企微 / 钉钉轻应用（PRD 10.11）</div>
       </div>
       <div class="page-actions">

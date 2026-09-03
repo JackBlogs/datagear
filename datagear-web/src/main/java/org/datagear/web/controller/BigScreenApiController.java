@@ -85,6 +85,13 @@ public class BigScreenApiController extends AbstractEntityApiController<BigScree
 			throw new IllegalInputException();
 	}
 
+	@RequestMapping(value = "/delete", produces = CONTENT_TYPE_JSON)
+	@ResponseBody
+	public ResponseEntity<OperationMessage> delete(HttpServletRequest request, @RequestBody String[] ids)
+	{
+		return deleteByIds(request, ids);
+	}
+
 	/**
 	 * 获取大屏设计产物 JSON。
 	 */

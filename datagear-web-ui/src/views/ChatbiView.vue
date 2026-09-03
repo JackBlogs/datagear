@@ -7,6 +7,7 @@ import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsCoreOption } from 'echarts/core'
+import DemoBadge from '@/components/DemoBadge.vue'
 
 use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -183,7 +184,7 @@ onBeforeUnmount(() => {
           <span class="tag tag-brand">DeepSeek-V3 · BYO-LLM 接入</span>
           <span class="tag tag-info">语义层已连接 · 86 指标</span>
           <span class="tag tag-ok">行级权限继承开启</span>
-          <span class="tag tag-demo">演示会话</span>
+          <DemoBadge />
         </div>
 
         <div ref="chatScrollEl" class="chat-scroll">

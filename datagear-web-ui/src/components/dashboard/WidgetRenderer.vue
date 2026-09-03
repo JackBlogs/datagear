@@ -59,6 +59,12 @@ function kpiValue(): string {
     <!-- 分隔线 -->
     <div v-else-if="widget.type === 'divider'" class="w-divider"></div>
 
+    <!-- 图表未绑定：空态引导 -->
+    <div v-else-if="widget.type === 'chart'" class="w-chart-empty">
+      <span class="wce-name">{{ st.title || widget.name }}</span>
+      <span class="wce-hint">选中部件，在右侧「数据」面板绑定图表后展示真实数据</span>
+    </div>
+
     <!-- 表格占位（静态示例列） -->
     <div v-else-if="widget.type === 'table'" class="w-table">
       <div v-if="st.title" class="wt-head">{{ st.title }}</div>
@@ -100,6 +106,13 @@ function kpiValue(): string {
 .w-divider { height: 2px; background: linear-gradient(90deg, transparent, var(--line-3), transparent); margin: auto 6px; }
 .wt-head { font-size: 12px; color: var(--tx-2); padding: 4px 6px; border-bottom: 1px solid var(--line-1); }
 .wt-empty { padding: 10px 6px; font-size: 11px; color: var(--tx-4); }
+.w-chart-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 6px; padding: 8px; text-align: center;
+  border: 1px dashed var(--line-2); border-radius: 8px;
+}
+.wce-name { font-size: 12.5px; color: var(--tx-2); font-weight: 600; }
+.wce-hint { font-size: 11px; color: var(--tx-4); line-height: 1.5; }
 .w-other { display: flex; align-items: center; justify-content: center; height: 100%; }
 .w-other-label { font-size: 12px; color: var(--tx-3); }
 </style>

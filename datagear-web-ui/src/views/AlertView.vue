@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import DemoBadge from '@/components/DemoBadge.vue'
 
 // 告警与订阅推送（能源暗域）：阈值告警规则 + 定时订阅 + 调度任务 + 多通道通知。
 // 注：后端尚无告警/订阅模块 API，当前为演示数据（参考 prototype/alert.html）。
@@ -93,7 +94,7 @@ function toggleChannel(c: Channel) {
     <!-- 页头 -->
     <div class="page-head">
       <div>
-        <div class="page-title">告警与订阅推送 <span class="tag tag-brand">演示数据</span></div>
+        <div class="page-title">告警与订阅推送 <DemoBadge /></div>
         <div class="page-desc">基于语义指标的阈值告警、定时订阅推送与多通道通知（PRD 10.9）</div>
       </div>
       <div class="page-actions">

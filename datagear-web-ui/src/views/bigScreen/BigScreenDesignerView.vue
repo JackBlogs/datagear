@@ -188,6 +188,16 @@ function addDemo() {
     { ...newWidget({ type: 'chart', n: 5 }), name: '产量趋势', x: 60, y: 330, w: 940, h: 340 },
     { ...newWidget({ type: 'chart', n: 6 }), name: '能耗分布', x: 1020, y: 330, w: 840, h: 340 },
   ]
+  // 示例图表部件绑定真实图表，画布立即呈现真实取数效果
+  items
+    .filter((it) => it.type === 'chart')
+    .forEach((cw, i) => {
+      const c = charts.value[i]
+      if (c) {
+        cw.chartId = c.id
+        cw.name = c.name
+      }
+    })
   widgets.value = items
   selectedId.value = items[1]?.id ?? null
   markDirty()
@@ -288,6 +298,14 @@ onMounted(async () => {
   --r-m: 12px;
   --r-l: 14px;
   --font-num: "Barlow","DIN Alternate","Bahnschrift","PingFang SC","Segoe UI",sans-serif;
+
+  /* 设计器是 MainLayout 之外的顶级路由，必须自带暗色底，否则玻璃面板落在浅色 body 上变白 */
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(255, 138, 61, 0.08), transparent 60%),
+    radial-gradient(900px 420px at -10% 110%, rgba(34, 211, 238, 0.06), transparent 60%),
+    #0a0e17;
+  color: var(--tx-1);
+
   display: flex;
   flex-direction: column;
   height: 100%;

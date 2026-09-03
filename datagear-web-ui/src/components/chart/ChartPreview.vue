@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { init, use, type EChartsType } from 'echarts/core'
 import { BarChart, LineChart, PieChart, GaugeChart, ScatterChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
@@ -163,6 +163,9 @@ async function load() {
   error.value = ''
   try {
     const d = await previewChart(props.chartId)
+    // 先关闭 loading 让 .canvas 挂载，再初始化 ECharts，否则 el 为 null 静默跳过渲染
+    loading.value = false
+    await nextTick()
     await render(d)
   } catch (e) {
     error.value = (e as Error).message || '预览失败'

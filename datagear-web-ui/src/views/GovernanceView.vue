@@ -6,6 +6,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsCoreOption } from 'echarts/core'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import DemoBadge from '@/components/DemoBadge.vue'
 
 use([LineChart, PieChart, GraphChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -234,7 +235,7 @@ onBeforeUnmount(() => {
     <!-- 页头 -->
     <div class="page-head">
       <div>
-        <div class="page-title">数据治理 <span class="tag tag-brand">演示数据</span></div>
+        <div class="page-title">数据治理 <DemoBadge /></div>
         <div class="page-desc">元数据采集、数据标准、质量校验、全链路血缘与敏感数据保护（PRD 10.4）</div>
       </div>
       <div class="page-actions">

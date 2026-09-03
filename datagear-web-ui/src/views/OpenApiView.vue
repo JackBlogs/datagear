@@ -6,6 +6,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsCoreOption } from 'echarts/core'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import DemoBadge from '@/components/DemoBadge.vue'
 
 use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -137,7 +138,7 @@ onBeforeUnmount(() => {
     <!-- 页头 -->
     <div class="page-head">
       <div>
-        <div class="page-title">数据交换、嵌入与开放 API <span class="tag tag-brand">演示数据</span></div>
+        <div class="page-title">数据交换、嵌入与开放 API <DemoBadge /></div>
         <div class="page-desc">指标/数据集发布为 REST API、签名嵌入集成、MCP Server 与项目导入导出（PRD 10.13）</div>
       </div>
       <div class="page-actions">

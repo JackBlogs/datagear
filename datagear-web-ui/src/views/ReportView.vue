@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import DemoBadge from '@/components/DemoBadge.vue'
 
 // 统计报表（能源暗域）：中国式复杂报表 —— 多级表头、合并单元格、小计合计、条件格式与填报。
 // 注：后端尚无报表模块 API，当前为演示数据（参考 prototype/report.html）。
@@ -49,7 +50,7 @@ function typeTag(r: Report): string {
     <!-- 页头 -->
     <div class="page-head">
       <div>
-        <div class="page-title">统计报表 <span class="tag tag-brand">演示数据</span></div>
+        <div class="page-title">统计报表 <DemoBadge /></div>
         <div class="page-desc">中国式复杂报表：多级表头、合并单元格、小计合计、条件格式与填报（PRD 10.10）</div>
       </div>
       <div class="page-actions">

@@ -6,6 +6,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsCoreOption } from 'echarts/core'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import DemoBadge from '@/components/DemoBadge.vue'
 
 use([LineChart, GraphChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -236,7 +237,7 @@ onBeforeUnmount(() => {
     <!-- 页头 -->
     <div class="page-head">
       <div>
-        <div class="page-title">指标中心 <span class="tag tag-brand">演示数据</span></div>
+        <div class="page-title">指标中心 <DemoBadge /></div>
         <div class="page-desc">指标的唯一定义与消费中心 —— 一个指标，一个口径（语义层核心）</div>
       </div>
       <div class="page-actions">
