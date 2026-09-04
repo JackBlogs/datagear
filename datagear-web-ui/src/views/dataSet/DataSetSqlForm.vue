@@ -14,8 +14,9 @@ import { dtbsSourcePagingQueryData, type DtbsSource } from '@/api/dtbsSource'
 import CodeEditor from '@/components/CodeEditor.vue'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import { useI18n } from 'vue-i18n'
+import '@/styles/datasource-page.css'
 
-// SQL 数据集表单（范式 C 独立表单页），按原 dataSet_form_SQL.ftl 复刻：
+// SQL 数据集表单（范式 C 独立表单页，能源暗域），按原 dataSet_form_SQL.ftl 复刻：
 // 名称 + 数据源选择 + SQL 编辑器 + 参数表 + 保存/预览。
 const route = useRoute()
 const router = useRouter()
@@ -285,264 +286,247 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="page page-form h-full p-1">
-    <form class="flex flex-column h-full" :class="{ readonly: isReadonly }" @submit.prevent="save">
-      <div class="flex align-items-center gap-2 mb-2">
-        <h3 class="flex-1">{{ title }}</h3>
-        <Button :label="t('back')" text size="small" @click="router.push('/dataSet')" />
-      </div>
-      <div v-if="loading" class="text-color-secondary">{{ t('loading') }}</div>
-      <div v-else class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
-        <div class="field grid">
-          <label for="ds-name" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('name') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <InputText
-              id="ds-name"
-              v-model="form.name"
-              type="text"
-              class="input w-full"
-              required
-              maxlength="100"
-              autofocus
-              :readonly="isReadonly"
-            />
+  <div class="ds-page">
+    <form @submit.prevent="save">
+      <!-- 页头 -->
+      <div class="page-head">
+        <div>
+          <div class="page-title">
+            {{ title }}
+            <span class="tag brand">SQL</span>
+            <span v-if="isReadonly" class="tag info">只读</span>
           </div>
+          <div class="page-desc">SQL 查询 + 参数化定义，支持 ${'{'}pc(){'}'} 预编译防注入</div>
         </div>
+        <div class="page-actions">
+          <button class="btn" type="button" @click="router.push('/dataSet')">{{ t('back') }}</button>
+          <template v-if="!isReadonly">
+            <button class="btn" type="button" :disabled="previewing" @click="preview">
+              {{ previewing ? '预览中…' : t('preview') }}
+            </button>
+            <button class="btn primary" type="submit" :disabled="saving">
+              {{ saving ? '保存中…' : t('save') }}
+            </button>
+          </template>
+        </div>
+      </div>
 
-        <div class="field grid">
-          <label for="ds-dtbsSource" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('dataSource') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <div class="p-inputgroup">
-              <InputText
-                id="ds-dtbsSource"
-                :model-value="dtbsSourceDisplay"
-                type="text"
-                class="input flex-1"
-                readonly
-                maxlength="200"
-              />
-              <Button v-if="!isReadonly" type="button" :label="t('select')" @click="openDtbsSourceDialog" />
+      <div v-if="loading" class="empty">{{ t('loading') }}</div>
+
+      <template v-else>
+        <!-- 基本 -->
+        <div class="card form-card">
+          <div class="card-title"><i class="bar"></i>基本信息</div>
+          <div class="qb-grid2">
+            <div class="form-item">
+              <label class="form-label" for="ds-name">{{ t('name') }} *</label>
+              <input id="ds-name" v-model="form.name" type="text" class="input" required maxlength="100" :readonly="isReadonly" />
+            </div>
+            <div class="form-item">
+              <label class="form-label" for="ds-dtbsSource">{{ t('dataSource') }} *</label>
+              <div class="p-inputgroup">
+                <input id="ds-dtbsSource" :value="dtbsSourceDisplay" type="text" class="input grow" readonly maxlength="200" />
+                <button v-if="!isReadonly" class="btn sm" type="button" @click="openDtbsSourceDialog">{{ t('select') }}</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="field grid">
-          <label for="ds-sql" class="field-label col-12 mb-2 md:col-3 md:mb-0" title="SQL 查询语句">{{ t('sql') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <div class="code-editor-wrapper input p-component p-inputtext w-full">
-              <CodeEditor v-model="form.sql" :readonly="isReadonly" />
-            </div>
+        <!-- SQL -->
+        <div class="card form-card">
+          <div class="card-title"><i class="bar"></i>SQL 查询语句</div>
+          <div class="code-editor-wrapper">
+            <CodeEditor v-model="form.sql" :readonly="isReadonly" />
           </div>
         </div>
 
-        <div class="field grid">
-          <label class="field-label col-12 mb-2 md:col-3 md:mb-0">
-            <div>{{ t('parameter') }}</div>
-            <div class="text-xs text-color-secondary">SQL 中的参数定义</div>
-          </label>
-          <div class="field-input col-12 md:col-9">
-            <div class="flex gap-1 pb-2" v-if="!isReadonly">
-              <Button type="button" :label="t('add')" size="small" class="p-button-secondary" @click="onAddParam" />
-              <Button
-                type="button"
-                :label="t('edit')"
-                size="small"
-                class="p-button-secondary"
-                :disabled="selectedParams.length !== 1"
-                @click="onEditParam"
-              />
-              <Button
-                type="button"
-                :label="t('delete')"
-                size="small"
-                class="p-button-danger"
-                :disabled="!selectedParams.length"
-                @click="onDeleteParam"
-              />
-            </div>
-            <DataTable
-              :value="form.params ?? []"
-              data-key="name"
-              striped-rows
-              v-model:selection="selectedParams"
-              selection-mode="multiple"
-              :meta-key-selection="true"
-              scrollable
-              scroll-height="300px"
-              class="table-sm"
-            >
-              <Column selection-mode="multiple" class="col-check" />
-              <Column field="name" :header="t('name')" />
-              <Column field="type" :header="t('type')">
-                <template #body="{ data }">{{ formatParamType(data.type) }}</template>
-              </Column>
-              <Column field="required" :header="t('required')">
-                <template #body="{ data }">{{ formatParamRequired(data.required) }}</template>
-              </Column>
-              <Column field="label" :header="t('displayName')" />
-              <Column field="desc" :header="t('description')" />
-              <Column field="inputType" :header="t('inputType')">
-                <template #body="{ data }">{{ formatParamInputType(data.inputType) }}</template>
-              </Column>
-            </DataTable>
+        <!-- 参数 -->
+        <div class="card form-card">
+          <div class="card-title">
+            <i class="bar"></i>{{ t('parameter') }}
+            <span class="sm tx-4">SQL 中的参数定义</span>
+            <template v-if="!isReadonly">
+              <button class="btn sm" style="margin-left: auto" type="button" @click="onAddParam">＋ {{ t('add') }}</button>
+              <button class="btn sm" type="button" :disabled="selectedParams.length !== 1" @click="onEditParam">{{ t('edit') }}</button>
+              <button class="btn sm danger" type="button" :disabled="!selectedParams.length" @click="onDeleteParam">{{ t('delete') }}</button>
+            </template>
+          </div>
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="width: 34px"></th>
+                  <th>{{ t('name') }}</th>
+                  <th style="width: 90px">{{ t('type') }}</th>
+                  <th style="width: 70px">{{ t('required') }}</th>
+                  <th>{{ t('displayName') }}</th>
+                  <th>{{ t('description') }}</th>
+                  <th style="width: 110px">{{ t('inputType') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!(form.params ?? []).length"><td colspan="7"><div class="empty">暂无参数</div></td></tr>
+                <tr
+                  v-for="p in form.params ?? []"
+                  :key="p.name"
+                  :class="{ sel: selectedParams.some((x) => x.name === p.name) }"
+                  @click="
+                    () => {
+                      const i = selectedParams.findIndex((x) => x.name === p.name)
+                      if (i >= 0) selectedParams.splice(i, 1)
+                      else selectedParams.push(p)
+                    }
+                  "
+                >
+                  <td><input type="checkbox" :checked="selectedParams.some((x) => x.name === p.name)" @click.prevent /></td>
+                  <td><span class="cell-main">{{ p.name }}</span></td>
+                  <td><span class="tag info">{{ formatParamType(p.type) }}</span></td>
+                  <td class="sm">{{ formatParamRequired(p.required) }}</td>
+                  <td class="sm">{{ p.label }}</td>
+                  <td class="sm tx-3 ellipsis" style="max-width: 200px">{{ p.desc }}</td>
+                  <td class="sm">{{ formatParamInputType(p.inputType ?? '') }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
-
-      <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
-        <template v-if="!isReadonly">
-          <Button type="button" :label="t('preview')" class="p-button-secondary" :loading="previewing" @click="preview" />
-          <Button type="submit" :label="t('save')" :loading="saving" />
-        </template>
-      </div>
+      </template>
     </form>
 
     <!-- 数据源选择对话框 -->
-    <Dialog
-      v-model:visible="dtbsSourceDialog"
-      :header="t('select') + t('dataSource')"
-      :modal="true"
-      :dismissable-mask="true"
-      append-to="body"
-      position="center"
-      class="w-full md:w-6"
-    >
-      <DataTable
-        :value="dtbsSources"
-        data-key="id"
-        striped-rows
-        scrollable
-        scroll-height="400px"
-        :loading="dtbsSourceLoading"
-        selection-mode="single"
-        v-model:selection="selectedDtbsSource"
-        @row-dblclick="confirmDtbsSource"
-      >
-        <Column field="title" :header="t('name')" />
-        <Column field="id" :header="t('id')" />
-      </DataTable>
-      <template #footer>
-        <Button :label="t('cancel')" class="p-button-secondary" size="small" @click="dtbsSourceDialog = false" />
-        <Button :label="t('confirm')" size="small" :disabled="!selectedDtbsSource" @click="confirmDtbsSource" />
-      </template>
-    </Dialog>
+    <div v-if="dtbsSourceDialog" class="drawer-mask" @click="dtbsSourceDialog = false">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">{{ t('select') + t('dataSource') }}</div>
+          <button class="btn sm ghost" type="button" @click="dtbsSourceDialog = false">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div v-if="dtbsSourceLoading" class="empty">{{ t('loading') }}</div>
+          <div v-else class="ds-picker">
+            <div
+              v-for="s in dtbsSources"
+              :key="s.id"
+              class="qb-src"
+              :class="{ sel: selectedDtbsSource?.id === s.id }"
+              @click="selectedDtbsSource = s"
+              @dblclick="confirmDtbsSource"
+            >
+              <span class="cell-main">{{ s.title }}</span>
+              <span class="sm tx-4 ellipsis">{{ s.id }}</span>
+            </div>
+            <div v-if="!dtbsSources.length" class="empty">暂无数据源</div>
+          </div>
+        </div>
+        <div class="drawer-foot">
+          <button class="btn" type="button" @click="dtbsSourceDialog = false">{{ t('cancel') }}</button>
+          <button class="btn primary" type="button" :disabled="!selectedDtbsSource" @click="confirmDtbsSource">{{ t('confirm') }}</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 参数编辑对话框 -->
-    <Dialog
-      v-model:visible="paramDialog"
-      :header="paramEditing ? t('edit') + t('parameter') : t('add') + t('parameter')"
-      :modal="true"
-      :dismissable-mask="true"
-      append-to="body"
-      position="center"
-      class="w-full md:w-7"
-    >
-      <form class="flex flex-column gap-3" @submit.prevent="confirmParam">
-        <div class="field grid">
-          <label for="param-name" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('name') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <InputText id="param-name" v-model="paramForm.name" type="text" class="input w-full" required maxlength="100" autofocus />
+    <div v-if="paramDialog" class="drawer-mask" @click="paramDialog = false">
+      <div class="modal wizard-modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">{{ paramEditing ? t('edit') + t('parameter') : t('add') + t('parameter') }}</div>
+          <button class="btn sm ghost" type="button" @click="paramDialog = false">✕</button>
+        </div>
+        <form class="drawer-body" @submit.prevent="confirmParam">
+          <div class="form-item"><label class="form-label" for="param-name">{{ t('name') }} *</label>
+            <input id="param-name" v-model="paramForm.name" type="text" class="input" required maxlength="100" />
           </div>
-        </div>
-        <div class="field grid">
-          <label for="param-type" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('type') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <Dropdown
-              id="param-type"
-              v-model="paramForm.type"
-              :options="paramTypeOptions"
-              option-label="name"
-              option-value="value"
-              class="input w-full"
-            />
+          <div class="qb-grid2">
+            <div class="form-item"><label class="form-label" for="param-type">{{ t('type') }}</label>
+              <select id="param-type" v-model="paramForm.type" class="input">
+                <option v-for="o in paramTypeOptions" :key="o.value" :value="o.value">{{ o.name }}</option>
+              </select>
+            </div>
+            <div class="form-item"><label class="form-label">{{ t('required') }}</label>
+              <div class="seg-row">
+                <span v-for="b in booleanOptions" :key="String(b.value)" class="seg-item" :class="{ active: paramForm.required === b.value }" @click="paramForm.required = b.value">
+                  {{ b.name }}
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="field grid">
-          <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('required') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <SelectButton
-              v-model="paramForm.required"
-              :options="booleanOptions"
-              option-label="name"
-              option-value="value"
-              class="input w-full"
-            />
+          <div class="qb-grid2">
+            <div class="form-item"><label class="form-label" for="param-label">{{ t('displayName') }}</label>
+              <input id="param-label" v-model="paramForm.label" type="text" class="input" maxlength="100" />
+            </div>
+            <div class="form-item"><label class="form-label" for="param-desc">{{ t('description') }}</label>
+              <input id="param-desc" v-model="paramForm.desc" type="text" class="input" maxlength="100" />
+            </div>
           </div>
-        </div>
-        <div class="field grid">
-          <label for="param-label" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('displayName') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <InputText id="param-label" v-model="paramForm.label" type="text" class="input w-full" maxlength="100" />
+          <div class="form-item"><label class="form-label" for="param-inputType">{{ t('inputType') }}</label>
+            <select id="param-inputType" v-model="paramForm.inputType" class="input">
+              <option v-for="o in paramInputTypeOptions" :key="o.value" :value="o.value">{{ o.name }}</option>
+            </select>
           </div>
-        </div>
-        <div class="field grid">
-          <label for="param-desc" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('description') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <InputText id="param-desc" v-model="paramForm.desc" type="text" class="input w-full" maxlength="100" />
+          <div class="form-item"><label class="form-label" for="param-inputPayload">{{ t('inputConfig') }}</label>
+            <textarea id="param-inputPayload" v-model="paramForm.inputPayload" rows="3" class="input" maxlength="2000"></textarea>
           </div>
-        </div>
-        <div class="field grid">
-          <label for="param-inputType" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('inputType') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <Dropdown
-              id="param-inputType"
-              v-model="paramForm.inputType"
-              :options="paramInputTypeOptions"
-              option-label="name"
-              option-value="value"
-              class="input w-full"
-            />
+          <div class="flex" style="justify-content: flex-end; gap: 10px; margin-top: 14px">
+            <button class="btn" type="button" @click="paramDialog = false">{{ t('cancel') }}</button>
+            <button class="btn primary" type="submit">{{ t('confirm') }}</button>
           </div>
-        </div>
-        <div class="field grid">
-          <label for="param-inputPayload" class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('inputConfig') }}</label>
-          <div class="field-input col-12 md:col-9">
-            <Textarea
-              id="param-inputPayload"
-              v-model="paramForm.inputPayload"
-              rows="3"
-              class="input w-full"
-              maxlength="2000"
-            />
-          </div>
-        </div>
-        <div class="flex justify-content-end gap-2">
-          <Button :label="t('cancel')" type="button" class="p-button-secondary" size="small" @click="paramDialog = false" />
-          <Button :label="t('confirm')" type="submit" size="small" />
-        </div>
-      </form>
-    </Dialog>
+        </form>
+      </div>
+    </div>
 
     <!-- 预览结果对话框 -->
-    <Dialog
-      v-model:visible="previewDialog"
-      :header="t('preview')"
-      :modal="true"
-      :dismissable-mask="true"
-      append-to="body"
-      position="center"
-      class="w-full md:w-10"
-    >
-      <div v-if="previewError">
-        <Textarea :model-value="previewError" class="w-full" rows="8" readonly />
-      </div>
-      <template v-else>
-        <DataTable :value="previewRows" scrollable scroll-height="400px" striped-rows class="table-sm">
-          <Column v-for="col in previewColumns" :key="col.name" :field="col.name" :header="col.label">
-            <template #body="slotProps">{{ formatPreviewValue(slotProps.data[col.name]) }}</template>
-          </Column>
-        </DataTable>
-        <div v-if="previewResult?.templateResult" class="mt-2">
-          <div class="text-sm text-color-secondary mb-1">{{ t('parsedSql') }}</div>
-          <Textarea :model-value="previewResult.templateResult" class="w-full" rows="4" readonly />
+    <div v-if="previewDialog" class="drawer-mask" @click="previewDialog = false">
+      <div class="modal preview-modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">{{ t('preview') }}</div>
+          <button class="btn sm ghost" type="button" @click="previewDialog = false">✕</button>
         </div>
-      </template>
-    </Dialog>
+        <div class="drawer-body">
+          <div v-if="previewError"><pre class="sql-code" style="color: #f87171">{{ previewError }}</pre></div>
+          <template v-else>
+            <div class="table-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr><th v-for="col in previewColumns" :key="col.name">{{ col.label }}</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!previewRows.length"><td :colspan="previewColumns.length || 1"><div class="empty">无数据</div></td></tr>
+                  <tr v-for="(row, i) in previewRows" :key="i">
+                    <td v-for="col in previewColumns" :key="col.name" class="sm">{{ formatPreviewValue(row[col.name]) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-if="previewResult?.templateResult" style="margin-top: 12px">
+              <div class="sm tx-3" style="margin-bottom: 4px">{{ t('parsedSql') }}</div>
+              <pre class="sql-code">{{ previewResult.templateResult }}</pre>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.code-editor-wrapper :deep(.CodeMirror) {
-  height: 240px;
+.form-card { padding: 16px 18px; margin-bottom: 14px; }
+.form-card .card-title { display: flex; gap: 8px; align-items: center; }
+.form-item { margin-bottom: 14px; }
+.form-label { font-size: 12px; color: var(--tx-2); margin-bottom: 5px; display: block; }
+.qb-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.p-inputgroup { display: flex; gap: 8px; }
+.code-editor-wrapper {
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  overflow: hidden;
 }
+.code-editor-wrapper :deep(.CodeMirror) {
+  height: 260px;
+}
+.code-editor-wrapper :deep(.CodeMirror-gutters) { background: #0a0e17; border-right: 1px solid var(--line-1); }
+.sql-code { margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line-1); font-family: monospace; font-size: 11.5px; color: #9ecbff; white-space: pre-wrap; }
+.drawer-foot { flex: none; display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--line-1); }
+.preview-modal { width: 900px; max-width: 94vw; }
+.wizard-modal { width: 660px; max-width: 94vw; }
+tr.sel td { background: var(--brand-soft); }
+.grow { flex: 1; min-width: 0; }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   qualityRules,
   qualityIssues,
@@ -7,38 +7,43 @@ import {
   metaTables,
   activeMetaTable,
   standards,
-  lineageNodes,
-  lineageEdges,
-  lineageDetail,
-  type LineageNode,
-  type MetaTable,
-  type MetaColumn,
-  type StdItem,
-  type QualityRule,
-  type QualityIssue,
-  toggleQualityRule,
-  markSensitive,
+  mergeMetaTables,
   updateColumnSensitive,
+  saveQualityRule,
   updateQualityRule,
   deleteQualityRule,
+  saveIssue,
   resolveIssue,
+  toggleQualityRule,
+  saveStandard,
   updateStandard,
   deleteStandard,
   publishStandard,
-  saveQualityRule,
-  saveStandard,
-  mergeMetaTables,
+  addSensitive,
+  judgeSamples,
+  fetchColumnSample,
+  isValidIdentifier,
+  identifyValue,
+  type QualityRule,
+  type QualityIssue,
+  type MetaTable,
+  type MetaColumn,
+  type StdItem,
 } from '@/mock/governanceData'
-import { useOperationMessage } from '@/composables/useOperationMessage'
-import { useConfirm } from '@/composables/useConfirm'
 import { dtbsSourcePagingQueryData, type DtbsSource } from '@/api/dtbsSource'
 import { listTables, getTable } from '@/api/dtbsSourceData'
+import { dataSetPagingQueryData, getSqlDataSet, type SqlDataSetForm } from '@/api/dataSet'
+import { useOperationMessage } from '@/composables/useOperationMessage'
+import { useConfirm } from '@/composables/useConfirm'
 import '@/styles/datasource-page.css'
 
 /**
- * 数据治理（对齐 prototypev2 governance.html，多级钻取）：
- * L2 五大域 → L3 字段详情/标准详情/异常处理/节点详情 抽屉 → L4 编辑/批量标注/处理意见 → L5 保存落 localStorage。
- * 数据层为前端 mock（src/mock/governanceData.ts），后端治理模块（FR-GOV）就绪后一键切换。
+ * 数据治理（拿来直接能用版）：
+ * - 元数据：采集自真实数据源（表/列结构），字段详情/批量标注
+ * - 数据质量：规则绑定真实表字段，「运行校验」拉样本行前端确定性判定，通过率/异常为真实结果
+ * - 数据安全：列样本正则识别敏感字段（手机号/身份证/银行卡/邮箱），识别结果入清单
+ * - 数据血缘：解析 SQL 数据集的 FROM/JOIN 表，生成真实表级血缘
+ * - 数据标准：配置数据 CRUD + 状态流转
  */
 const { success, fail } = useOperationMessage()
 const { confirmAction } = useConfirm()
@@ -46,13 +51,27 @@ const { confirmAction } = useConfirm()
 type Pane = 'meta' | 'std' | 'quality' | 'lineage' | 'secure'
 const pane = ref<Pane>('meta')
 
-/* ================= 元数据（L2→L3 字段详情 → L4 编辑） ================= */
+/* 数据源列表（多个功能共用） */
+const sources = ref<DtbsSource[]>([])
+async function loadSources() {
+  try {
+    const d = await dtbsSourcePagingQueryData({ page: 1, pageSize: 100 })
+    sources.value = d.items
+  } catch { /* ignore */ }
+}
+function sourceTitle(id: string): string {
+  return sources.value.find((s) => s.id === id)?.title || id
+}
+
+/* ================================================================ */
+/* ======================== 元数据 ================================ */
+/* ================================================================ */
 const metaKw = ref('')
 const fieldDrawer = ref<{ table: MetaTable; col: MetaColumn } | null>(null)
 const batchOpen = ref(false)
 const batchSel = ref<string[]>([])
 const batchSensitive = ref('手机号')
-const SENSITIVE_LEVELS = ['—', '手机号', '身份证', '银行卡', '地址', '内部']
+const SENSITIVE_LEVELS = ['—', '手机号', '身份证', '银行卡', '邮箱', '地址']
 
 const currentTable = computed(() => metaTables.value.find((t) => t.name === activeMetaTable.value) ?? metaTables.value[0])
 const filteredColumns = computed(() => {
@@ -67,15 +86,24 @@ function openFieldDrawer(col: MetaColumn) {
   fieldDrawer.value = { table: currentTable.value, col }
 }
 
-function setFieldSensitive(table: string, col: string, level: string) {
-  updateColumnSensitive(table, col, level)
-  if (level !== '—' && !sensitiveFields.value.some((s) => s.field === col)) {
-    markSensitive(col)
+function setFieldSensitive(table: MetaTable, colName: string, level: string) {
+  updateColumnSensitive(table.name, table.sourceId, colName, level)
+  const col = table.columns.find((x) => x.name === colName)
+  if (col) col.sensitive = level
+  if (level !== '—') {
+    addSensitive({
+      id: 'SF-' + table.name + '-' + colName,
+      field: colName,
+      tableName: table.name,
+      sourceId: table.sourceId,
+      type: level,
+      hits: 0,
+      sample: '—',
+      mode: '手动标记',
+      rule: '待配置',
+    })
   }
-  if (fieldDrawer.value && fieldDrawer.value.col.name === col) {
-    fieldDrawer.value.col.sensitive = level
-  }
-  success(`「${col}」敏感级别已设为 ${level === '—' ? '无' : level}`)
+  success(`「${colName}」敏感级别已设为 ${level === '—' ? '无' : level}`)
 }
 
 function toggleBatchSel(name: string) {
@@ -85,22 +113,23 @@ function toggleBatchSel(name: string) {
 }
 
 function submitBatch() {
-  const table = currentTable.value?.name ?? ''
-  batchSel.value.forEach((col) => {
-    updateColumnSensitive(table, col, batchSensitive.value)
-    const t = metaTables.value.find((x) => x.name === table)
-    const c = t?.columns.find((x) => x.name === col)
-    if (c) c.sensitive = batchSensitive.value
+  const table = currentTable.value
+  if (!table) return
+  batchSel.value.forEach((colName) => {
+    updateColumnSensitive(table.name, table.sourceId, colName, batchSensitive.value)
+    const col = table.columns.find((x) => x.name === colName)
+    if (col) col.sensitive = batchSensitive.value
   })
   success(`已批量标注 ${batchSel.value.length} 个字段为「${batchSensitive.value}」`)
   batchOpen.value = false
   batchSel.value = []
 }
 
-/* ================= 数据标准（L2→L3 详情 → L4 编辑/发布） ================= */
+/* ================================================================ */
+/* ======================== 数据标准 ============================== */
+/* ================================================================ */
 const stdDrawer = ref<StdItem | null>(null)
 const stdEditId = ref('')
-
 const stdForm = ref<{ name: string; category: string; summary: string; owner: string } | null>(null)
 const STD_CATS = ['命名规范', '值域', '格式']
 
@@ -136,13 +165,11 @@ function submitStd() {
   }
   stdForm.value = null
 }
-
 function publishStd(s: StdItem) {
   publishStandard(s.id)
   success(`标准「${s.name}」已发布`)
   if (stdDrawer.value?.id === s.id) stdDrawer.value = { ...s, status: '已发布' }
 }
-
 function onDeleteStd(s: StdItem) {
   confirmAction(`确定删除标准「${s.name}」吗？`, () => {
     deleteStandard(s.id)
@@ -151,18 +178,315 @@ function onDeleteStd(s: StdItem) {
   })
 }
 
-/* ================= 数据质量（L2→L3 异常处理 → L4 规则编辑） ================= */
+/* ================================================================ */
+/* ======================== 数据质量（真实执行） =================== */
+/* ================================================================ */
 const qualityScore = computed(() => {
-  const list = qualityRules.value
-  if (!list.length) return '—'
-  return (list.reduce((s, r) => s + r.pass, 0) / list.length).toFixed(1)
+  const runs = qualityRules.value.map((r) => r.lastRun).filter(Boolean)
+  if (!runs.length) return '—'
+  return (runs.reduce((s, r) => s + (r?.passRate ?? 0), 0) / runs.length).toFixed(1)
 })
 const openIssues = computed(() => qualityIssues.value.filter((i) => !i.resolved))
 
-const ruleForm = ref<{ id?: string; name: string; type: string; target: string; freq: string } | null>(null)
-const RULE_TYPES = ['非空', '唯一', '范围', '格式', '及时性']
+function onToggleRule(id: string) {
+  const enabled = toggleQualityRule(id)
+  success(`规则已${enabled ? '启用' : '停用'}`)
+}
 
-/* ---------- 采集元数据（真实读取数据源库表列，写入元数据目录） ---------- */
+const ruleForm = ref<{
+  id?: string
+  name: string
+  type: '非空' | '唯一' | '范围' | '格式'
+  sourceId: string
+  tableName: string
+  columnName: string
+  threshold: string
+  freq: string
+} | null>(null)
+const ruleSourceId = ref('')
+const ruleTables = ref<string[]>([])
+const ruleColumns = ref<string[]>([])
+const RULE_TYPES = ['非空', '唯一', '范围', '格式']
+const FREQ_OPTS = ['每天 02:00', '每天 22:00', '每小时', '手动']
+
+async function openRuleForm(r?: QualityRule) {
+  ruleForm.value = r
+    ? {
+        id: r.id, name: r.name, type: r.type, sourceId: r.sourceId,
+        tableName: r.tableName, columnName: r.columnName, threshold: r.threshold, freq: r.freq,
+      }
+    : { name: '', type: '非空', sourceId: ruleSourceId.value, tableName: '', columnName: '', threshold: '', freq: '每天 22:00' }
+  if (!sources.value.length) await loadSources()
+  if (ruleForm.value.sourceId && !ruleTables.value.length) {
+    try {
+      ruleTables.value = (await listTables(ruleForm.value.sourceId)).map((t) => t.name)
+    } catch { /* ignore */ }
+  }
+}
+
+async function onRuleSourceChange() {
+  if (!ruleForm.value) return
+  ruleForm.value.tableName = ''
+  ruleForm.value.columnName = ''
+  ruleTables.value = []
+  try {
+    ruleTables.value = (await listTables(ruleForm.value.sourceId)).map((t) => t.name)
+  } catch { /* ignore */ }
+}
+
+async function onRuleTableChange() {
+  if (!ruleForm.value) return
+  try {
+    const meta = await getTable(ruleForm.value.sourceId, ruleForm.value.tableName)
+    ruleColumns.value = (meta.columns ?? []).map((c) => c.name)
+  } catch {
+    ruleColumns.value = []
+  }
+}
+
+function submitRule() {
+  const f = ruleForm.value
+  if (!f) return
+  if (!f.name || !f.sourceId || !f.tableName || !f.columnName) {
+    fail('请完整填写名称并绑定数据源/表/字段')
+    return
+  }
+  if ((f.type === '范围' || f.type === '格式') && !f.threshold) {
+    fail(`「${f.type}」规则需要填写阈值（范围如 0~100，格式如正则）`)
+    return
+  }
+  const base = {
+    name: f.name.trim(), type: f.type, sourceId: f.sourceId,
+    sourceName: sourceTitle(f.sourceId), tableName: f.tableName, columnName: f.columnName,
+    threshold: f.threshold, freq: f.freq, enabled: true,
+  }
+  if (f.id) {
+    const target = qualityRules.value.find((x) => x.id === f.id)
+    if (target) updateQualityRule({ ...target, ...base })
+    success('规则已更新')
+  } else {
+    saveQualityRule(base)
+    success('质量规则已保存并启用')
+  }
+  ruleForm.value = null
+}
+
+function onDeleteRule(r: QualityRule) {
+  confirmAction(`确定删除规则「${r.name}」吗？`, () => {
+    deleteQualityRule(r.id)
+    success('规则已删除')
+  })
+}
+
+const runningId = ref('')
+async function runRule(r: QualityRule) {
+  if (!isValidIdentifier(r.tableName) || !isValidIdentifier(r.columnName)) {
+    fail('表名/字段名不合法')
+    return
+  }
+  runningId.value = r.id
+  try {
+    const values = await fetchColumnSample(r.sourceId, r.tableName, r.columnName, 500)
+    const { total, failed } = judgeSamples(r.type, values, r.threshold)
+    const passRate = total ? Math.round(((total - failed) / total) * 1000) / 10 : 100
+    const time = new Date().toLocaleString('zh-CN', { hour12: false })
+    const target = qualityRules.value.find((x) => x.id === r.id)
+    if (target) {
+      target.lastRun = { time, passRate, total, failed, sample: values.length }
+      updateQualityRule(target)
+    }
+    if (passRate < 98) {
+      saveIssue({
+        id: 'QI-' + Date.now() % 100000,
+        ruleId: r.id,
+        rule: r.name,
+        target: `${r.tableName}.${r.columnName}`,
+        detail: `样本 ${total} 行中 ${failed} 行不满足「${r.type}${r.threshold ? ' ' + r.threshold : ''}」`,
+        time: time.slice(5),
+        level: passRate < 95 ? 'danger' : 'warn',
+        failed,
+        total,
+      })
+    }
+    success(`校验完成：通过率 ${passRate}%（${failed}/${total} 不通过）`)
+  } catch (e) {
+    fail((e as Error).message || '校验执行失败')
+  } finally {
+    runningId.value = ''
+  }
+}
+
+/* 异常处理弹窗（L3） */
+const issueView = ref<QualityIssue | null>(null)
+const issueNote = ref('')
+function openIssue(i: QualityIssue) {
+  issueView.value = { ...i }
+  issueNote.value = ''
+}
+function submitIssue() {
+  if (!issueView.value) return
+  resolveIssue(issueView.value.id, issueNote.value)
+  success('异常已标记处理')
+  issueView.value = null
+}
+
+/* ================================================================ */
+/* ======================== 数据安全（真实识别） =================== */
+/* ================================================================ */
+const scanOpen = ref(false)
+const scanning = ref(false)
+const scanSourceId = ref('')
+const scanTable = ref('')
+const scanTables = ref<string[]>([])
+const scanColumns = ref<string[]>([])
+const scanSel = ref<string[]>([])
+const scanResult = ref<{ col: string; type: string; hits: number; sample: string }[]>([])
+
+async function openScan() {
+  scanOpen.value = true
+  scanResult.value = []
+  if (!sources.value.length) await loadSources()
+}
+async function onScanSourceChange() {
+  scanTable.value = ''
+  scanColumns.value = []
+  scanSel.value = []
+  if (!scanSourceId.value) return
+  try {
+    scanTables.value = (await listTables(scanSourceId.value)).map((t) => t.name)
+  } catch { scanTables.value = [] }
+}
+async function onScanTableChange() {
+  scanColumns.value = []
+  scanSel.value = []
+  if (!scanTable.value) return
+  try {
+    const meta = await getTable(scanSourceId.value, scanTable.value)
+    scanColumns.value = (meta.columns ?? []).map((c) => c.name)
+  } catch { scanColumns.value = [] }
+}
+function toggleScanCol(c: string) {
+  const i = scanSel.value.indexOf(c)
+  if (i >= 0) scanSel.value.splice(i, 1)
+  else scanSel.value.push(c)
+}
+
+async function runScan() {
+  if (!scanSel.value.length) {
+    fail('请选择要扫描的列')
+    return
+  }
+  scanning.value = true
+  scanResult.value = []
+  try {
+    for (const col of scanSel.value) {
+      let values: string[] = []
+      try {
+        values = await fetchColumnSample(scanSourceId.value, scanTable.value, col, 200)
+      } catch { /* 单列失败跳过 */ }
+      const counts = new Map<string, { hits: number; sample: string }>()
+      for (const v of values) {
+        if (!v) continue
+        const t = identifyValue(v)
+        if (t) {
+          const e = counts.get(t) || { hits: 0, sample: v.length > 18 ? v.slice(0, 15) + '…' : v }
+          e.hits++
+          counts.set(t, e)
+        }
+      }
+      for (const [type, info] of counts) {
+        scanResult.value.push({ col, type, hits: info.hits, sample: info.sample })
+      }
+    }
+    if (!scanResult.value.length) success('扫描完成：所选列未发现敏感数据')
+    else success(`扫描完成：发现 ${scanResult.value.length} 处疑似敏感列`)
+  } finally {
+    scanning.value = false
+  }
+}
+
+function addScanToSecure(row: { col: string; type: string; hits: number; sample: string }) {
+  addSensitive({
+    id: 'SF-' + scanTable.value + '-' + row.col,
+    field: row.col,
+    tableName: scanTable.value,
+    sourceId: scanSourceId.value,
+    type: row.type,
+    hits: row.hits,
+    sample: row.sample,
+    mode: '扫描识别',
+    rule: '待配置',
+  })
+  success(`「${row.col}」已加入敏感清单`)
+}
+
+/* ================================================================ */
+/* ======================== 数据血缘（真实解析） =================== */
+/* ================================================================ */
+const lineageOpen = ref(false)
+const lineageDsId = ref('')
+const lineageDsName = ref('')
+const lineageDsOptions = ref<{ id: string; name: string }[]>([])
+const lineageNodes = ref<{ id: string; name: string; level: number }[]>([])
+const lineageEdges = ref<{ from: string; to: string }[]>([])
+const lineageBuilding = ref(false)
+const nodeDetail = ref<string | null>(null)
+
+const lineageCols = computed(() => {
+  const maxLevel = Math.max(1, ...lineageNodes.value.map((n) => n.level))
+  const cols: { id: string; name: string; level: number }[][] = []
+  for (let l = 0; l <= maxLevel; l++) cols.push(lineageNodes.value.filter((n) => n.level === l))
+  return cols
+})
+
+async function openLineage() {
+  lineageOpen.value = true
+  if (!lineageDsOptions.value.length) {
+    try {
+      const d = await dataSetPagingQueryData({ page: 1, pageSize: 100 })
+      lineageDsOptions.value = d.items.map((x) => ({ id: x.id, name: x.name }))
+    } catch { /* ignore */ }
+  }
+}
+
+async function buildLineage() {
+  if (!lineageDsId.value) {
+    fail('请选择 SQL 数据集')
+    return
+  }
+  lineageBuilding.value = true
+  try {
+    const form: SqlDataSetForm = await getSqlDataSet(lineageDsId.value)
+    const dsName = form.name || lineageDsName.value
+    const sql = form.sql || ''
+    // 解析 FROM / JOIN 后的表名（标识符白名单过滤）
+    const tables = new Set<string>()
+    const re = /(?:from|join)\s+[`"\[]?([A-Za-z_][\w$]*)[`"\]]?/gi
+    let m: RegExpExecArray | null
+    while ((m = re.exec(sql))) {
+      if (isValidIdentifier(m[1])) tables.add(m[1])
+    }
+    lineageNodes.value = [
+      { id: '__ds__', name: dsName, level: 0 },
+      ...[...tables].map((t) => ({ id: 'tbl_' + t, name: t, level: 1 })),
+    ]
+    lineageEdges.value = [...tables].map((t) => ({ from: '__ds__', to: 'tbl_' + t }))
+    success(`已解析出 ${tables.size} 张来源表`)
+    lineageOpen.value = false
+  } catch (e) {
+    fail((e as Error).message || '血缘解析失败')
+  } finally {
+    lineageBuilding.value = false
+  }
+}
+function onLineageDsChange() {
+  const d = lineageDsOptions.value.find((x) => x.id === lineageDsId.value)
+  lineageDsName.value = d?.name || ''
+}
+
+/* ================================================================ */
+/* ======================== 采集元数据 ============================= */
+/* ================================================================ */
 const collectOpen = ref(false)
 const collecting = ref(false)
 const collectSources = ref<DtbsSource[]>([])
@@ -173,14 +497,7 @@ const COLLECT_TABLE_LIMIT = 20
 async function openCollect() {
   collectOpen.value = true
   collectSel.value = []
-  if (!collectSources.value.length) {
-    try {
-      const data = await dtbsSourcePagingQueryData({ page: 1, pageSize: 100 })
-      collectSources.value = data.items
-    } catch (e) {
-      fail((e as Error).message || '数据源加载失败')
-    }
-  }
+  if (!sources.value.length) await loadSources()
 }
 
 function toggleCollectSource(id: string) {
@@ -199,7 +516,7 @@ async function runCollect() {
   const collected: MetaTable[] = []
   try {
     for (const sid of collectSel.value) {
-      const src = collectSources.value.find((s) => s.id === sid)
+      const src = sources.value.find((s) => s.id === sid)
       const tables = await listTables(sid)
       const limited = tables.slice(0, COLLECT_TABLE_LIMIT)
       collectProgress.value.total += limited.length
@@ -209,6 +526,7 @@ async function runCollect() {
           collected.push({
             name: t.name,
             source: src?.title || sid,
+            sourceId: sid,
             rows: '—',
             columns: (meta.columns ?? []).slice(0, 60).map((c) => ({
               name: c.name,
@@ -224,7 +542,7 @@ async function runCollect() {
       }
     }
     const r = mergeMetaTables(collected)
-    success(`采集完成：新增 ${r.added} 张表，更新 ${r.updated} 张（共 ${collected.reduce((s, t) => s + t.columns.length, 0)} 字段）`)
+    success(`采集完成：新增 ${r.added} 张表，更新 ${r.updated} 张`)
     collectOpen.value = false
   } catch (e) {
     fail((e as Error).message || '采集失败')
@@ -233,76 +551,14 @@ async function runCollect() {
   }
 }
 
-function openRuleForm(r?: QualityRule) {
-  ruleForm.value = r
-    ? { id: r.id, name: r.name, type: r.type, target: r.target, freq: r.freq }
-    : { name: '', type: '非空', target: '', freq: '每天 22:00' }
-}
-
-function submitRule() {
-  if (!ruleForm.value) return
-  if (!ruleForm.value.name || !ruleForm.value.target) {
-    fail('请填写规则名称与校验对象')
-    return
+/* ================================================================ */
+onMounted(async () => {
+  await loadSources()
+  // 无元数据时自动尝试采集首个数据源（仅当用户已在治理页且没有任何数据）
+  if (!metaTables.value.length && sources.value.length) {
+    activeMetaTable.value = ''
   }
-  if (ruleForm.value.id) {
-    const target = qualityRules.value.find((x) => x.id === ruleForm.value!.id)
-    if (target) {
-      target.name = ruleForm.value.name
-      target.type = ruleForm.value.type
-      target.target = ruleForm.value.target
-      target.freq = ruleForm.value.freq
-      updateQualityRule(target)
-    }
-    success('规则已更新')
-  } else {
-    saveQualityRule(ruleForm.value)
-    success('质量规则已保存并启用')
-  }
-  ruleForm.value = null
-}
-
-function onDeleteRule(r: QualityRule) {
-  confirmAction(`确定删除规则「${r.name}」吗？`, () => {
-    deleteQualityRule(r.id)
-    success('规则已删除')
-  })
-}
-
-/* 异常处理弹窗（L3） */
-const issueView = ref<QualityIssue | null>(null)
-const issueNote = ref('')
-function openIssue(i: QualityIssue) {
-  issueView.value = { ...i }
-  issueNote.value = ''
-}
-function submitIssue() {
-  if (!issueView.value) return
-  resolveIssue(issueView.value.id, issueNote.value)
-  success('异常已标记处理')
-  issueView.value = null
-}
-
-function onToggleRule(id: string) {
-  const enabled = toggleQualityRule(id)
-  success(`规则已${enabled ? '启用' : '停用'}`)
-}
-
-/* ================= 数据血缘（L2→L3 节点详情） ================= */
-const lineageCols = computed(() => {
-  const maxLevel = Math.max(...lineageNodes.value.map((n) => n.level))
-  const cols: LineageNode[][] = []
-  for (let l = 0; l <= maxLevel; l++) cols.push(lineageNodes.value.filter((n) => n.level === l))
-  return cols
 })
-function nodeLinked(nodeId: string): boolean {
-  return lineageEdges.value.some((e) => e.from === nodeId || e.to === nodeId)
-}
-const nodeDetail = ref<string | null>(null)
-const nodeDetailData = computed(() => (nodeDetail.value ? lineageDetail(nodeDetail.value) : null))
-const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === nodeDetail.value)?.name ?? '')
-
-/* ================= 数据安全 ================= */
 </script>
 
 <template>
@@ -311,7 +567,7 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
     <div class="page-head">
       <div>
         <div class="page-title">数据治理 <span class="tag brand">FR-GOV</span></div>
-        <div class="page-desc">元数据 — 数据标准 — 数据质量 — 数据血缘 — 数据安全 轻量治理闭环</div>
+        <div class="page-desc">元数据 — 数据标准 — 数据质量 — 数据血缘 — 数据安全（真实数据驱动）</div>
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCollect">采集元数据</button>
@@ -320,7 +576,7 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
 
     <!-- Tabs -->
     <div class="tabs-row mb-2">
-      <div class="tab-item" :class="{ active: pane === 'meta' }" @click="pane = 'meta'">元数据</div>
+      <div class="tab-item" :class="{ active: pane === 'meta' }" @click="pane = 'meta'">元数据 <em>{{ metaTables.length }}</em></div>
       <div class="tab-item" :class="{ active: pane === 'std' }" @click="pane = 'std'">数据标准 <em>{{ standards.length }}</em></div>
       <div class="tab-item" :class="{ active: pane === 'quality' }" @click="pane = 'quality'">
         数据质量 <em class="danger-tag">{{ openIssues.length }} 异常</em>
@@ -337,54 +593,56 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
           <div class="tree-node root">数据源</div>
           <div
             v-for="t in metaTables"
-            :key="t.name"
+            :key="t.name + t.sourceId"
             class="tree-node tbl"
             :class="{ sel: activeMetaTable === t.name }"
             @click="activeMetaTable = t.name"
           >
             ▦ {{ t.name }}
           </div>
-          <button class="btn sm" style="margin-top: 12px" type="button" @click="batchOpen = true">批量标注 ›</button>
+          <div v-if="!metaTables.length" class="empty" style="padding: 14px 6px">
+            暂无元数据<br />点击右上角「采集元数据」从数据源读取表结构
+          </div>
+          <button v-if="metaTables.length" class="btn sm" style="margin-top: 12px" type="button" @click="batchOpen = true">批量标注 ›</button>
         </div>
         <div class="card meta-cols">
           <div class="card-title"><i class="bar"></i>{{ currentTable?.name || '字段清单' }}
-            <span v-if="currentTable" class="sm tx-4" style="margin-left: auto">{{ currentTable.source }} · {{ currentTable.rows }} 行</span>
+            <span v-if="currentTable" class="sm tx-4" style="margin-left: auto">{{ currentTable.source }} · {{ currentTable.columns.length }} 字段</span>
           </div>
           <div v-if="!currentTable" class="empty">左侧选择一张表，或先采集元数据</div>
-          <div v-else class="flex mb-2" style="max-width: 340px">
-            <input v-model="metaKw" class="input" placeholder="检索字段名 / 业务描述" />
-          </div>
-          <div class="table-wrap">
-            <table class="tbl">
-              <thead>
-                <tr><th style="width: 34px"></th><th>字段名</th><th style="width: 90px">类型</th><th>业务描述</th><th style="width: 90px">敏感级别</th><th style="width: 130px">质量规则</th><th style="width: 90px">操作</th></tr>
-              </thead>
-              <tbody>
-                <tr v-if="!filteredColumns.length"><td colspan="7"><div class="empty">没有匹配的字段</div></td></tr>
-                <tr v-for="c in filteredColumns" :key="c.name" class="meta-row" @click="openFieldDrawer(c)">
-                  <td><input type="checkbox" :checked="batchSel.includes(c.name)" @click.stop @change="toggleBatchSel(c.name)" /></td>
-                  <td><span class="cell-main">{{ c.name }}</span></td>
-                  <td class="sm">{{ c.type }}</td>
-                  <td class="sm tx-3">{{ c.desc }}</td>
-                  <td>
-                    <span v-if="c.sensitive !== '—'" class="tag danger">{{ c.sensitive }}</span>
-                    <span v-else class="tx-4 sm">—</span>
-                  </td>
-                  <td class="sm">{{ c.rule }}</td>
-                  <td @click.stop>
-                    <span class="link" @click="openFieldDrawer(c)">详情</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-if="batchSel.length" class="batch-bar">
-            已选 {{ batchSel.length }} 个字段
-            <select v-model="batchSensitive" class="input" style="width: auto; padding: 4px 8px">
-              <option v-for="lv in SENSITIVE_LEVELS" :key="lv" :value="lv">{{ lv === '—' ? '清除标记' : lv }}</option>
-            </select>
-            <button class="btn primary sm" type="button" @click="submitBatch">批量标注</button>
-          </div>
+          <template v-else>
+            <div class="flex mb-2" style="max-width: 340px">
+              <input v-model="metaKw" class="input" placeholder="检索字段名 / 业务描述" />
+            </div>
+            <div class="table-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr><th style="width: 34px"></th><th>字段名</th><th style="width: 90px">类型</th><th>业务描述</th><th style="width: 90px">敏感级别</th><th style="width: 90px">操作</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-if="!filteredColumns.length"><td colspan="6"><div class="empty">没有匹配的字段</div></td></tr>
+                  <tr v-for="c in filteredColumns" :key="c.name" class="meta-row" @click="openFieldDrawer(c)">
+                    <td><input type="checkbox" :checked="batchSel.includes(c.name)" @click.stop @change="toggleBatchSel(c.name)" /></td>
+                    <td><span class="cell-main">{{ c.name }}</span></td>
+                    <td class="sm">{{ c.type }}</td>
+                    <td class="sm tx-3">{{ c.desc }}</td>
+                    <td>
+                      <span v-if="c.sensitive !== '—'" class="tag danger">{{ c.sensitive }}</span>
+                      <span v-else class="tx-4 sm">—</span>
+                    </td>
+                    <td @click.stop><span class="link" @click="openFieldDrawer(c)">详情</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-if="batchSel.length" class="batch-bar">
+              已选 {{ batchSel.length }} 个字段
+              <select v-model="batchSensitive" class="input" style="width: auto; padding: 4px 8px">
+                <option v-for="lv in SENSITIVE_LEVELS" :key="lv" :value="lv">{{ lv === '—' ? '清除标记' : lv }}</option>
+              </select>
+              <button class="btn primary sm" type="button" @click="submitBatch">批量标注</button>
+            </div>
+          </template>
         </div>
       </div>
     </template>
@@ -426,43 +684,44 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
         <div class="stat-card">
           <div class="s-label">数据质量总分</div>
           <div class="s-value num" style="color: #34d399">{{ qualityScore }}</div>
-          <div class="s-sub">覆盖 128 张表 · 日检</div>
+          <div class="s-sub">基于最近一次校验结果</div>
         </div>
         <div class="stat-card">
           <div class="s-label">质量规则</div>
           <div class="s-value num">{{ qualityRules.length }} <small>条</small></div>
-          <div class="s-sub">通过率 96.8%</div>
+          <div class="s-sub">绑定真实表字段</div>
         </div>
         <div class="stat-card">
           <div class="s-label">待处理异常</div>
           <div class="s-value num" style="color: #f87171">{{ openIssues.length }} <small>项</small></div>
-          <div class="s-sub">挂调度定时校验</div>
+          <div class="s-sub">通过率 &lt; 98% 自动生成</div>
         </div>
       </div>
 
       <div class="flex mb-2">
         <button class="btn primary sm" type="button" @click="openRuleForm()">＋ 新建质量规则</button>
+        <span class="tx-3 sm" style="margin-left: auto">校验拉取真实样本行（≤500）前端确定性判定</span>
       </div>
       <div class="table-wrap mb-3">
         <table class="tbl">
           <thead>
-            <tr><th>规则</th><th style="width: 80px">类型</th><th>校验对象</th><th style="width: 100px">频率</th><th style="width: 110px">最近通过率</th><th style="width: 130px">近 7 日趋势</th><th style="width: 70px">启用</th><th style="width: 140px">操作</th></tr>
+            <tr><th>规则</th><th style="width: 80px">类型</th><th>校验对象</th><th style="width: 110px">最近校验</th><th style="width: 100px">通过率</th><th style="width: 90px">失败/总数</th><th style="width: 70px">启用</th><th style="width: 190px">操作</th></tr>
           </thead>
           <tbody>
             <tr v-if="!qualityRules.length"><td colspan="8"><div class="empty">暂无质量规则</div></td></tr>
             <tr v-for="r in qualityRules" :key="r.id">
               <td><span class="cell-main">{{ r.name }}</span></td>
               <td><span class="tag info">{{ r.type }}</span></td>
-              <td class="sm tx-3">{{ r.target }}</td>
-              <td class="sm">{{ r.freq }}</td>
-              <td class="num" :class="r.pass >= 99 ? 'ok-num' : (r.pass < 98 ? 'bad-num' : '')">{{ r.pass }}%</td>
+              <td class="sm tx-3">{{ r.tableName }}.{{ r.columnName }}</td>
+              <td class="sm">{{ r.lastRun?.time || r.freq }}</td>
               <td>
-                <span class="spark-mini">
-                  <i v-for="(v, i) in r.trend" :key="i" :style="{ height: (v - 95) * 18 + 'px' }" :class="{ bad: v < 98 }"></i>
-                </span>
+                <span v-if="r.lastRun" class="num" :class="r.lastRun.passRate >= 99 ? 'ok-num' : (r.lastRun.passRate < 98 ? 'bad-num' : '')">{{ r.lastRun.passRate }}%</span>
+                <span v-else class="tx-4 sm">未运行</span>
               </td>
+              <td class="num">{{ r.lastRun ? `${r.lastRun.failed}/${r.lastRun.total}` : '—' }}</td>
               <td><label class="switch"><input type="checkbox" :checked="r.enabled" @change="onToggleRule(r.id)" /><i></i></label></td>
               <td>
+                <span class="link" :class="{ disabled: runningId === r.id }" @click="runRule(r)">{{ runningId === r.id ? '校验中…' : '运行校验' }}</span> ·
                 <span class="link" @click="openRuleForm(r)">编辑</span> ·
                 <span class="link danger" @click="onDeleteRule(r)">删除</span>
               </td>
@@ -472,164 +731,95 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
       </div>
 
       <div class="card issue-card">
-        <div class="card-title"><i class="bar"></i>质量异常清单 <span class="tag danger">待处理 {{ openIssues.length }}</span></div>
+        <div class="card-title"><i class="bar"></i>质量异常清单（点击处理）</div>
         <div v-for="i in qualityIssues" :key="i.id" class="issue-item" :class="i.resolved ? 'resolved' : i.level" @click="openIssue(i)">
           <span class="tag" :class="i.resolved ? 'ok' : i.level === 'danger' ? 'danger' : ''">{{ i.resolved ? '已处理' : i.level === 'danger' ? '严重' : '警告' }}</span>
           <b>{{ i.rule }}</b>
-          <span class="sm tx-3 ellipsis" style="max-width: 300px">{{ i.target }} · {{ i.detail }}</span>
+          <span class="sm tx-3 ellipsis" style="max-width: 320px">{{ i.target }} · {{ i.detail }}</span>
           <span class="sm tx-4" style="margin-left: auto">{{ i.time }}</span>
         </div>
-        <div v-if="!qualityIssues.length" class="empty">暂无异常</div>
+        <div v-if="!qualityIssues.length" class="empty">暂无异常——运行校验后，通过率低于 98% 的规则会自动生成异常</div>
       </div>
     </template>
 
     <!-- ===== 数据血缘 ===== -->
     <template v-else-if="pane === 'lineage'">
       <div class="card lineage-card">
-        <div class="card-title"><i class="bar"></i>全链路血缘（数据源 → 数据集 → 指标 → 看板/告警）<span class="sm tx-4" style="margin-left: auto">点击节点查看详情 ›</span></div>
-        <div class="lineage-grid">
+        <div class="card-title"><i class="bar"></i>数据集血缘（解析 SQL 数据集的 FROM / JOIN 表）
+          <button class="btn sm primary" style="margin-left: auto" type="button" @click="openLineage">＋ 选择数据集生成</button>
+        </div>
+        <div class="flex mb-2" style="gap: 10px; align-items: center; flex-wrap: wrap">
+          <select v-model="lineageDsId" class="input" style="width: auto" @change="onLineageDsChange">
+            <option value="">选择 SQL 数据集…</option>
+            <option v-for="d in lineageDsOptions" :key="d.id" :value="d.id">{{ d.name }}</option>
+          </select>
+          <button class="btn sm primary" type="button" :disabled="!lineageDsId || lineageBuilding" @click="buildLineage">
+            {{ lineageBuilding ? '解析中…' : '生成血缘' }}
+          </button>
+        </div>
+        <div v-if="lineageNodes.length" class="lineage-grid">
           <div v-for="(col, ci) in lineageCols" :key="ci" class="ln-col">
-            <div class="ln-level">L{{ ci }}</div>
+            <div class="ln-level">{{ ci === 0 ? '数据集' : '来源表' }}</div>
             <div
               v-for="n in col"
               :key="n.id"
               class="ln-node"
-              :class="{ linked: nodeLinked(n.id), sel: nodeDetail === n.id }"
-              @click="nodeDetail = n.id"
+              :class="{ sel: nodeDetail === n.id }"
+              @click="nodeDetail = nodeDetail === n.id ? null : n.id"
             >
               {{ n.name }}
             </div>
           </div>
         </div>
-        <div v-if="nodeDetail && nodeDetailData" class="node-detail">
-          <div class="nd-title">{{ nodeDetailName }}</div>
-          <div class="nd-row"><span class="f-lbl">上游</span><span>{{ nodeDetailData.upstream.join('、') || '—' }}</span></div>
-          <div class="nd-row"><span class="f-lbl">下游</span><span>{{ nodeDetailData.downstream.join('、') || '—' }}</span></div>
-          <div class="nd-row"><span class="f-lbl">映射</span><span v-for="fm in nodeDetailData.fieldMap" :key="fm" class="tag info" style="margin-right: 4px">{{ fm }}</span></div>
-          <div class="nd-row"><span class="f-lbl">频率</span><span>{{ nodeDetailData.updateFreq }}</span></div>
+        <div v-if="nodeDetail" class="node-detail">
+          <div class="nd-title">{{ lineageNodes.find((n) => n.id === nodeDetail)?.name }}</div>
+          <div class="nd-row"><span class="f-lbl">层级</span><span>{{ nodeDetail === '__ds__' ? 'L0 数据集' : 'L1 来源表' }}</span></div>
+          <div class="nd-row"><span class="f-lbl">说明</span><span>表级血缘，由 SQL 文本 FROM/JOIN 解析生成（FR-GOV-11 简化版）；字段级血缘需后端 SQL 解析器</span></div>
         </div>
         <div class="tx-3 sm" style="margin-top: 12px">
-          字段级血缘随数据集 / 指标保存增量更新（FR-GOV-11~13）；解析失败的 SQL 标记「解析失败」不阻断保存。
+          解析失败的 SQL 标记「解析失败」不阻断保存（FR-GOV-11~13）。
         </div>
       </div>
     </template>
 
     <!-- ===== 数据安全 ===== -->
     <template v-else>
+      <div class="flex mb-2" style="gap: 10px; align-items: center; flex-wrap: wrap">
+        <button class="btn primary sm" type="button" @click="openScan">扫描敏感字段</button>
+        <span class="tx-3 sm">对列采样跑正则识别（手机号/身份证/银行卡/邮箱），识别结果即敏感清单</span>
+      </div>
       <div class="table-wrap">
         <table class="tbl">
           <thead>
-            <tr><th>敏感字段</th><th>位置（库.表.字段）</th><th style="width: 90px">类型</th><th style="width: 130px">识别方式</th><th style="width: 120px">脱敏规则</th></tr>
+            <tr><th>敏感字段</th><th style="width: 150px">所在表</th><th style="width: 90px">类型</th><th style="width: 90px">命中</th><th>样本</th><th style="width: 100px">方式</th></tr>
           </thead>
           <tbody>
-            <tr v-if="!sensitiveFields.length"><td colspan="5"><div class="empty">暂无敏感字段标记</div></td></tr>
+            <tr v-if="!sensitiveFields.length"><td colspan="6"><div class="empty">暂无敏感字段——点击「扫描敏感字段」对真实表采样识别</div></td></tr>
             <tr v-for="s in sensitiveFields" :key="s.id">
               <td><span class="cell-main">{{ s.field }}</span></td>
-              <td class="sm tx-3">{{ s.pos }}</td>
+              <td class="sm tx-3">{{ s.tableName }}</td>
               <td><span class="tag danger">{{ s.type }}</span></td>
+              <td class="num">{{ s.hits || '—' }}</td>
+              <td class="sm tx-3">{{ s.sample || '—' }}</td>
               <td class="sm">{{ s.mode }}</td>
-              <td class="sm">{{ s.rule }}</td>
             </tr>
           </tbody>
         </table>
       </div>
       <div class="tx-3 sm" style="margin-top: 10px">
-        正则自动识别（手机号/身份证/银行卡）+ 手动标记；动态脱敏在查询链路按角色生效（掩码/截断/替换/哈希四方式，FR-GOV-14~16）。
+        动态脱敏在查询链路按角色生效（掩码/截断/替换/哈希四方式，FR-GOV-14~16）。
       </div>
     </template>
-
-    <!-- ===== L3 字段详情抽屉 ===== -->
-    <div v-if="fieldDrawer" class="drawer-mask" @click="fieldDrawer = null">
-      <div class="drawer" @click.stop>
-        <div class="drawer-head">
-          <div>
-            <div class="drawer-title">{{ fieldDrawer.col.name }}</div>
-            <div class="sm tx-3">{{ fieldDrawer.table.name }} · {{ fieldDrawer.col.type }}</div>
-          </div>
-          <button class="btn sm ghost" type="button" @click="fieldDrawer = null">✕</button>
-        </div>
-        <div class="drawer-body">
-          <div class="card mb-3">
-            <div class="card-title"><i class="bar"></i>字段信息</div>
-            <div class="kv"><span class="k">业务描述</span><span class="v">{{ fieldDrawer.col.desc }}</span></div>
-            <div class="kv"><span class="k">关联质量规则</span><span class="v">{{ fieldDrawer.col.rule }}</span></div>
-            <div class="kv"><span class="k">表数据量</span><span class="v num">{{ fieldDrawer.table.rows }}</span></div>
-          </div>
-          <div class="card mb-3">
-            <div class="card-title"><i class="bar"></i>敏感级别（L4 编辑）</div>
-            <div class="seg-row" style="margin-top: 8px">
-              <span
-                v-for="lv in SENSITIVE_LEVELS"
-                :key="lv"
-                class="seg-item"
-                :class="{ active: fieldDrawer!.col.sensitive === lv }"
-                @click="setFieldSensitive(fieldDrawer!.table.name, fieldDrawer!.col.name, lv)"
-              >
-                {{ lv === '—' ? '无' : lv }}
-              </span>
-            </div>
-            <div class="tx-3 sm" style="margin-top: 8px">设置后自动进入数据安全清单，并在查询链路按角色动态脱敏。</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== L3 标准详情抽屉 ===== -->
-    <div v-if="stdDrawer" class="drawer-mask" @click="stdDrawer = null">
-      <div class="drawer" @click.stop>
-        <div class="drawer-head">
-          <div>
-            <div class="drawer-title">{{ stdDrawer.name }} <span class="tag" :class="stdDrawer.status === '已发布' ? 'ok' : ''">{{ stdDrawer.status }}</span></div>
-            <div class="sm tx-3">{{ stdDrawer.category }} · 维护人 {{ stdDrawer.owner }}</div>
-          </div>
-          <button class="btn sm ghost" type="button" @click="stdDrawer = null">✕</button>
-        </div>
-        <div class="drawer-body">
-          <div class="card mb-3">
-            <div class="card-title"><i class="bar"></i>标准内容</div>
-            <div class="def-caliber">{{ stdDrawer.summary }}</div>
-            <div class="kv" style="margin-top: 8px"><span class="k">被引用</span><span class="v num">{{ stdDrawer.refs }} 处</span></div>
-          </div>
-          <div class="flex" style="gap: 10px">
-            <button class="btn primary" type="button" @click="openStdEdit(stdDrawer)">编辑</button>
-            <button v-if="stdDrawer.status !== '已发布'" class="btn" type="button" @click="publishStd(stdDrawer)">发布</button>
-            <button class="btn danger" type="button" @click="onDeleteStd(stdDrawer)">删除</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== L3 异常处理弹窗 ===== -->
-    <div v-if="issueView" class="drawer-mask" @click="issueView = null">
-      <div class="modal" @click.stop>
-        <div class="drawer-head">
-          <div class="drawer-title">异常处理 · {{ issueView.rule }}</div>
-          <button class="btn sm ghost" type="button" @click="issueView = null">✕</button>
-        </div>
-        <div class="drawer-body">
-          <div class="kv"><span class="k">校验对象</span><span class="v">{{ issueView.target }}</span></div>
-          <div class="kv"><span class="k">触发详情</span><span class="v">{{ issueView.detail }}</span></div>
-          <div class="kv"><span class="k">触发时间</span><span class="v">{{ issueView.time }}</span></div>
-          <div class="form-item" style="margin-top: 14px"><label class="form-label">处理意见</label>
-            <textarea v-model="issueNote" class="input" rows="3" placeholder="如：已通知源端补数，次日复检通过"></textarea>
-          </div>
-          <div class="flex" style="gap: 10px; margin-top: 14px">
-            <button class="btn primary grow" type="button" @click="submitIssue">标记已处理</button>
-            <button class="btn" type="button" @click="issueView = null">取消</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- ===== 采集元数据弹窗 ===== -->
     <div v-if="collectOpen" class="drawer-mask" @click="!collecting && (collectOpen = false)">
       <div class="modal" @click.stop>
         <div class="drawer-head">
-          <div class="drawer-title">采集元数据 <span class="tag brand">复用 datagear-meta</span></div>
+          <div class="drawer-title">采集元数据 <span class="tag brand">datagear-meta</span></div>
           <button class="btn sm ghost" type="button" :disabled="collecting" @click="collectOpen = false">✕</button>
         </div>
         <div class="drawer-body">
-          <div class="tx-3 sm mb-2">选择数据源，读取其库表列元信息并写入元数据目录（每源最多 {{ COLLECT_TABLE_LIMIT }} 张表）。同名表将被更新。</div>
+          <div class="tx-3 sm mb-2">选择数据源，读取其库表列元信息并写入元数据目录（每源最多 {{ COLLECT_TABLE_LIMIT }} 张表）。同名同源表将被更新。</div>
           <template v-if="!collecting">
             <div class="form-item"><label class="form-label">选择数据源（可多选）</label>
               <div class="ds-picker">
@@ -656,7 +846,7 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
       </div>
     </div>
 
-    <!-- ===== L4 批量标注弹窗 ===== -->
+    <!-- ===== 批量标注弹窗 ===== -->
     <div v-if="batchOpen" class="drawer-mask" @click="batchOpen = false">
       <div class="modal" @click.stop>
         <div class="drawer-head">
@@ -666,7 +856,7 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
         <div class="drawer-body">
           <div class="form-item"><label class="form-label">选择字段（可多选）</label>
             <div class="chip-zone">
-              <span v-for="c in currentTable?.columns ?? []" :key="c.name" class="z-chip dim" :class="{ on: batchSel.includes(c.name) }" @click="toggleBatchSel(c.name)">
+              <span v-for="c in currentTable?.columns ?? []" :key="c.name" class="z-chip" :class="{ on: batchSel.includes(c.name) }" @click="toggleBatchSel(c.name)">
                 {{ c.name }}
               </span>
             </div>
@@ -684,7 +874,66 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
       </div>
     </div>
 
-    <!-- ===== 新建/编辑质量规则弹窗 ===== -->
+    <!-- ===== 字段详情抽屉 ===== -->
+    <div v-if="fieldDrawer" class="drawer-mask" @click="fieldDrawer = null">
+      <div class="drawer" @click.stop>
+        <div class="drawer-head">
+          <div>
+            <div class="drawer-title">{{ fieldDrawer.col.name }}</div>
+            <div class="sm tx-3">{{ fieldDrawer.table.name }} · {{ fieldDrawer.col.type }}</div>
+          </div>
+          <button class="btn sm ghost" type="button" @click="fieldDrawer = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="card mb-3">
+            <div class="card-title"><i class="bar"></i>字段信息</div>
+            <div class="kv"><span class="k">业务描述</span><span class="v">{{ fieldDrawer.col.desc }}</span></div>
+            <div class="kv"><span class="k">字段类型</span><span class="v">{{ fieldDrawer.col.type }}</span></div>
+          </div>
+          <div class="card mb-3">
+            <div class="card-title"><i class="bar"></i>敏感级别（实时生效）</div>
+            <div class="seg-row" style="margin-top: 8px">
+              <span
+                v-for="lv in SENSITIVE_LEVELS"
+                :key="lv"
+                class="seg-item"
+                :class="{ active: fieldDrawer!.col.sensitive === lv }"
+                @click="setFieldSensitive(fieldDrawer!.table, fieldDrawer!.col.name, lv)"
+              >
+                {{ lv === '—' ? '无' : lv }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 标准详情抽屉 ===== -->
+    <div v-if="stdDrawer" class="drawer-mask" @click="stdDrawer = null">
+      <div class="drawer" @click.stop>
+        <div class="drawer-head">
+          <div>
+            <div class="drawer-title">{{ stdDrawer.name }} <span class="tag" :class="stdDrawer.status === '已发布' ? 'ok' : ''">{{ stdDrawer.status }}</span></div>
+            <div class="sm tx-3">{{ stdDrawer.category }} · 维护人 {{ stdDrawer.owner }}</div>
+          </div>
+          <button class="btn sm ghost" type="button" @click="stdDrawer = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="card mb-3">
+            <div class="card-title"><i class="bar"></i>标准内容</div>
+            <div class="def-caliber">{{ stdDrawer.summary }}</div>
+            <div class="kv" style="margin-top: 8px"><span class="k">被引用</span><span class="v num">{{ stdDrawer.refs }} 处</span></div>
+          </div>
+          <div class="flex" style="gap: 10px">
+            <button class="btn primary" type="button" @click="openStdEdit(stdDrawer)">编辑</button>
+            <button v-if="stdDrawer.status !== '已发布'" class="btn" type="button" @click="publishStd(stdDrawer)">发布</button>
+            <button class="btn danger" type="button" @click="onDeleteStd(stdDrawer)">删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 新建/编辑规则弹窗 ===== -->
     <div v-if="ruleForm" class="drawer-mask" @click="ruleForm = null">
       <div class="modal" @click.stop>
         <div class="drawer-head">
@@ -693,15 +942,33 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
         </div>
         <div class="drawer-body">
           <div class="form-item"><label class="form-label">规则名称 *</label><input v-model="ruleForm.name" class="input" placeholder="如：井号唯一性" /></div>
+          <div class="form-item"><label class="form-label">数据源 *</label>
+            <select v-model="ruleForm.sourceId" class="input" @change="onRuleSourceChange">
+              <option value="">请选择…</option>
+              <option v-for="s in sources" :key="s.id" :value="s.id">{{ s.title }}</option>
+            </select>
+          </div>
+          <div class="form-item"><label class="form-label">数据表 *</label>
+            <select v-model="ruleForm.tableName" class="input" @change="onRuleTableChange">
+              <option value="">请选择…</option>
+              <option v-for="t in ruleTables" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+          <div class="form-item"><label class="form-label">校验字段 *</label>
+            <select v-model="ruleForm.columnName" class="input">
+              <option value="">请选择…</option>
+              <option v-for="c in ruleColumns" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
           <div class="flex" style="gap: 12px">
-            <div class="form-item grow"><label class="form-label">类型</label>
+            <div class="form-item grow"><label class="form-label">规则类型 *</label>
               <select v-model="ruleForm.type" class="input"><option v-for="t in RULE_TYPES" :key="t" :value="t">{{ t }}</option></select>
             </div>
-            <div class="form-item grow"><label class="form-label">频率</label>
-              <select v-model="ruleForm.freq" class="input"><option>每天 22:00</option><option>每小时</option><option>实时</option></select>
-            </div>
+            <div class="form-item grow"><label class="form-label">阈值 / 正则（范围与格式必填）</label><input v-model="ruleForm.threshold" class="input" placeholder="范围：0~100" /></div>
           </div>
-          <div class="form-item"><label class="form-label">校验对象 *</label><input v-model="ruleForm.target" class="input" placeholder="如：ODS_采油日报表.井号" /></div>
+          <div class="form-item"><label class="form-label">检测频率</label>
+            <select v-model="ruleForm.freq" class="input"><option v-for="f in FREQ_OPTS" :key="f" :value="f">{{ f }}</option></select>
+          </div>
           <div class="flex" style="gap: 10px; margin-top: 14px">
             <button class="btn primary grow" type="button" @click="submitRule">保存并启用</button>
             <button class="btn" type="button" @click="ruleForm = null">取消</button>
@@ -710,7 +977,101 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
       </div>
     </div>
 
-    <!-- ===== 新建/编辑标准弹窗 ===== -->
+    <!-- ===== 异常处理弹窗 ===== -->
+    <div v-if="issueView" class="drawer-mask" @click="issueView = null">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">异常处理 · {{ issueView.rule }}</div>
+          <button class="btn sm ghost" type="button" @click="issueView = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="kv"><span class="k">校验对象</span><span class="v">{{ issueView.target }}</span></div>
+          <div class="kv"><span class="k">触发详情</span><span class="v">{{ issueView.detail }}</span></div>
+          <div class="kv"><span class="k">失败/总数</span><span class="v num">{{ issueView.failed }} / {{ issueView.total }}</span></div>
+          <div class="form-item" style="margin-top: 14px"><label class="form-label">处理意见</label>
+            <textarea v-model="issueNote" class="input" rows="3" placeholder="如：已通知源端补数，次日复检通过"></textarea>
+          </div>
+          <div class="flex" style="gap: 10px; margin-top: 14px">
+            <button class="btn primary grow" type="button" @click="submitIssue">标记已处理</button>
+            <button class="btn" type="button" @click="issueView = null">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 扫描敏感字段弹窗 ===== -->
+    <div v-if="scanOpen" class="drawer-mask" @click="!scanning && (scanOpen = false)">
+      <div class="modal wizard-modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">扫描敏感字段 <span class="tag brand">真实采样识别</span></div>
+          <button class="btn sm ghost" type="button" :disabled="scanning" @click="scanOpen = false">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="form-item"><label class="form-label">数据源 *</label>
+            <select v-model="scanSourceId" class="input" @change="onScanSourceChange">
+              <option value="">请选择…</option>
+              <option v-for="s in sources" :key="s.id" :value="s.id">{{ s.title }}</option>
+            </select>
+          </div>
+          <div class="form-item"><label class="form-label">数据表 *</label>
+            <select v-model="scanTable" class="input" @change="onScanTableChange">
+              <option value="">请选择…</option>
+              <option v-for="t in scanTables" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+          <div class="form-item"><label class="form-label">扫描列（默认全部）</label>
+            <div class="chip-zone">
+              <span v-for="c in scanColumns" :key="c" class="z-chip" :class="{ on: scanSel.includes(c) }" @click="toggleScanCol(c)">{{ c }}</span>
+            </div>
+          </div>
+          <button class="btn primary" style="margin-top: 8px" type="button" :disabled="scanning || !scanTable" @click="runScan">
+            {{ scanning ? '扫描中…' : '开始扫描（采样 200 行）' }}
+          </button>
+
+          <div v-if="scanResult.length" class="table-wrap" style="margin-top: 14px">
+            <table class="tbl">
+              <thead><tr><th>列</th><th style="width: 90px">识别类型</th><th style="width: 80px">命中</th><th>样本</th><th style="width: 90px">操作</th></tr></thead>
+              <tbody>
+                <tr v-for="(r, i) in scanResult" :key="i">
+                  <td>{{ r.col }}</td>
+                  <td><span class="tag danger">{{ r.type }}</span></td>
+                  <td class="num">{{ r.hits }}</td>
+                  <td class="sm tx-3">{{ r.sample }}</td>
+                  <td><span class="link" @click="addScanToSecure(r)">加入清单</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 血缘生成弹窗 ===== -->
+    <div v-if="lineageOpen" class="drawer-mask" @click="!lineageBuilding && (lineageOpen = false)">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">生成数据集血缘</div>
+          <button class="btn sm ghost" type="button" :disabled="lineageBuilding" @click="lineageOpen = false">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="tx-3 sm mb-2">选择 SQL 数据集，解析其 SQL 的 FROM / JOIN 表，生成数据集 → 来源表的真实血缘</div>
+          <div class="form-item"><label class="form-label">SQL 数据集 *</label>
+            <select v-model="lineageDsId" class="input" @change="onLineageDsChange">
+              <option value="">请选择…</option>
+              <option v-for="d in lineageDsOptions" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select>
+          </div>
+          <div class="flex" style="gap: 10px; margin-top: 14px">
+            <button class="btn primary grow" type="button" :disabled="lineageBuilding" @click="buildLineage">
+              {{ lineageBuilding ? '解析中…' : '解析并生成' }}
+            </button>
+            <button class="btn" type="button" @click="lineageOpen = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新建/编辑标准弹窗 -->
     <div v-if="stdForm" class="drawer-mask" @click="stdForm = null">
       <div class="modal" @click.stop>
         <div class="drawer-head">
@@ -721,7 +1082,7 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
           <div class="form-item"><label class="form-label">标准名称 *</label><input v-model="stdForm.name" class="input" placeholder="如：井号编码规范" /></div>
           <div class="form-item"><label class="form-label">类别</label>
             <div class="seg-row">
-              <span v-for="c in STD_CATS" :key="c" class="seg-item" :class="{ active: stdForm!.category === c }" @click="stdForm!.category = c">{{ c }}</span>
+              <span v-for="c in STD_CATS" :key="c" class="seg-item" :class="{ active: stdForm.category === c }" @click="stdForm.category = c">{{ c }}</span>
             </div>
           </div>
           <div class="form-item"><label class="form-label">标准内容摘要 *</label><textarea v-model="stdForm.summary" class="input" rows="3" placeholder="如：井号 = 矿区代码 + 井型 + 序号"></textarea></div>
@@ -775,7 +1136,6 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
   background: var(--bg-glass); border: 1px solid var(--line-1); margin-bottom: 8px; cursor: pointer;
 }
 .ln-node:hover { border-color: var(--brand-line); color: var(--tx-1); }
-.ln-node.linked { border-color: var(--brand-line); color: var(--tx-1); }
 .ln-node.sel { background: var(--brand-soft); color: var(--brand); border-color: var(--brand-line); }
 .node-detail { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--bg-glass); border: 1px solid var(--brand-line); }
 .nd-title { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 8px; }
@@ -792,17 +1152,15 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
 .chip-zone { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; border: 1px dashed var(--line-2); border-radius: 10px; padding: 6px 10px; }
 .z-chip { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line-2); font-size: 11.5px; color: var(--tx-3); cursor: pointer; }
 .z-chip.on { border-color: var(--brand-line); background: var(--brand-soft); color: var(--brand); }
-.z-chip.dim { background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+.ds-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 260px; overflow-y: auto; }
+.qb-src { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 1px solid var(--line-1); border-radius: 10px; cursor: pointer; }
+.qb-src:hover { background: var(--bg-glass-2); }
+.qb-src.sel { border-color: var(--brand-line); background: var(--brand-soft); }
 .drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 100; display: flex; align-items: center; justify-content: center; }
-.drawer {
-  position: relative;
-  width: 640px; max-width: 94vw; height: min(84vh, 860px); background: #0d1420;
-  border: 1px solid var(--line-2); border-radius: 16px;
-  display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
-}
 .modal { width: 560px; max-width: 92vw; max-height: 86vh; background: #0d1420; border: 1px solid var(--line-2); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+.wizard-modal { width: 640px; }
 .drawer-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--line-1); }
-.drawer-title { font-size: 15px; font-weight: 700; color: var(--tx-1); }
+.drawer-title { font-size: 15px; font-weight: 700; color: var(--tx-1); display: flex; gap: 8px; align-items: center; }
 .drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px 22px; }
 .form-item { margin-bottom: 13px; }
 .form-label { font-size: 12px; color: var(--tx-2); margin-bottom: 5px; display: block; }
@@ -810,11 +1168,14 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
 .danger-btn { color: #f87171; }
 .btn.danger { color: #f87171; border-color: rgba(248, 113, 113, 0.35); }
 .btn.danger:hover { background: rgba(248, 113, 113, 0.1); }
+.disabled { opacity: 0.5; pointer-events: none; }
 .mb-3 { margin-bottom: 14px; }
+.mb-2 { margin-bottom: 10px; }
+.mt-3 { margin-top: 14px; }
 .collect-progress { padding: 12px 14px; border-radius: 10px; background: var(--bg-glass); border: 1px solid var(--line-1); }
 .cp-line { font-size: 13px; color: var(--tx-1); margin-bottom: 8px; }
 .cp-bar { height: 10px; border-radius: 5px; background: var(--bg-glass-2); overflow: hidden; }
 .cp-bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, #b06a2a, var(--brand)); transition: width 0.3s; }
-.mb-2 { margin-bottom: 10px; }
-.mt-3 { margin-top: 14px; }
+.sql-code { margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line-1); font-family: monospace; font-size: 11.5px; color: #9ecbff; white-space: pre-wrap; }
+.link.disabled { opacity: 0.5; }
 </style>
