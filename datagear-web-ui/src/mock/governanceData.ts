@@ -237,6 +237,24 @@ export const metaTables = ref<MetaTable[]>([
   },
 ])
 
+/** 采集结果合并：同名表覆盖，新表追加（采集元数据按钮用） */
+export function mergeMetaTables(tables: MetaTable[]): { added: number; updated: number } {
+  let added = 0
+  let updated = 0
+  for (const t of tables) {
+    const i = metaTables.value.findIndex((x) => x.name === t.name)
+    if (i >= 0) {
+      metaTables.value[i] = t
+      updated++
+    } else {
+      metaTables.value.push(t)
+      added++
+    }
+  }
+  persist()
+  return { added, updated }
+}
+
 export function updateColumnSensitive(tableName: string, colName: string, sensitive: string): void {
   const t = metaTables.value.find((x) => x.name === tableName)
   const c = t?.columns.find((x) => x.name === colName)

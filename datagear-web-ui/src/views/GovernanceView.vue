@@ -27,9 +27,12 @@ import {
   publishStandard,
   saveQualityRule,
   saveStandard,
+  mergeMetaTables,
 } from '@/mock/governanceData'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import { useConfirm } from '@/composables/useConfirm'
+import { dtbsSourcePagingQueryData, type DtbsSource } from '@/api/dtbsSource'
+import { listTables, getTable } from '@/api/dtbsSourceData'
 import '@/styles/datasource-page.css'
 
 /**
@@ -159,6 +162,77 @@ const openIssues = computed(() => qualityIssues.value.filter((i) => !i.resolved)
 const ruleForm = ref<{ id?: string; name: string; type: string; target: string; freq: string } | null>(null)
 const RULE_TYPES = ['非空', '唯一', '范围', '格式', '及时性']
 
+/* ---------- 采集元数据（真实读取数据源库表列，写入元数据目录） ---------- */
+const collectOpen = ref(false)
+const collecting = ref(false)
+const collectSources = ref<DtbsSource[]>([])
+const collectSel = ref<string[]>([])
+const collectProgress = ref({ done: 0, total: 0, tables: 0 })
+const COLLECT_TABLE_LIMIT = 20
+
+async function openCollect() {
+  collectOpen.value = true
+  collectSel.value = []
+  if (!collectSources.value.length) {
+    try {
+      const data = await dtbsSourcePagingQueryData({ page: 1, pageSize: 100 })
+      collectSources.value = data.items
+    } catch (e) {
+      fail((e as Error).message || '数据源加载失败')
+    }
+  }
+}
+
+function toggleCollectSource(id: string) {
+  const i = collectSel.value.indexOf(id)
+  if (i >= 0) collectSel.value.splice(i, 1)
+  else collectSel.value.push(id)
+}
+
+async function runCollect() {
+  if (!collectSel.value.length) {
+    fail('请至少选择一个数据源')
+    return
+  }
+  collecting.value = true
+  collectProgress.value = { done: 0, total: 0, tables: 0 }
+  const collected: MetaTable[] = []
+  try {
+    for (const sid of collectSel.value) {
+      const src = collectSources.value.find((s) => s.id === sid)
+      const tables = await listTables(sid)
+      const limited = tables.slice(0, COLLECT_TABLE_LIMIT)
+      collectProgress.value.total += limited.length
+      for (const t of limited) {
+        try {
+          const meta = await getTable(sid, t.name)
+          collected.push({
+            name: t.name,
+            source: src?.title || sid,
+            rows: '—',
+            columns: (meta.columns ?? []).slice(0, 60).map((c) => ({
+              name: c.name,
+              type: c.typeName || String(c.type),
+              desc: c.comment || '—',
+              sensitive: '—',
+              rule: '—',
+            })),
+          })
+        } catch { /* 单表读取失败不阻断整体 */ }
+        collectProgress.value.done++
+        collectProgress.value.tables = collected.length
+      }
+    }
+    const r = mergeMetaTables(collected)
+    success(`采集完成：新增 ${r.added} 张表，更新 ${r.updated} 张（共 ${collected.reduce((s, t) => s + t.columns.length, 0)} 字段）`)
+    collectOpen.value = false
+  } catch (e) {
+    fail((e as Error).message || '采集失败')
+  } finally {
+    collecting.value = false
+  }
+}
+
 function openRuleForm(r?: QualityRule) {
   ruleForm.value = r
     ? { id: r.id, name: r.name, type: r.type, target: r.target, freq: r.freq }
@@ -240,7 +314,7 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
         <div class="page-desc">元数据 — 数据标准 — 数据质量 — 数据血缘 — 数据安全 轻量治理闭环</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" type="button" @click="success('元数据采集任务已创建（复用 datagear-meta 解析）')">采集元数据</button>
+        <button class="btn primary" type="button" @click="openCollect">采集元数据</button>
       </div>
     </div>
 
@@ -546,6 +620,41 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
       </div>
     </div>
 
+    <!-- ===== 采集元数据弹窗 ===== -->
+    <div v-if="collectOpen" class="drawer-mask" @click="!collecting && (collectOpen = false)">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">采集元数据 <span class="tag brand">复用 datagear-meta</span></div>
+          <button class="btn sm ghost" type="button" :disabled="collecting" @click="collectOpen = false">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="tx-3 sm mb-2">选择数据源，读取其库表列元信息并写入元数据目录（每源最多 {{ COLLECT_TABLE_LIMIT }} 张表）。同名表将被更新。</div>
+          <template v-if="!collecting">
+            <div class="form-item"><label class="form-label">选择数据源（可多选）</label>
+              <div class="ds-picker">
+                <div v-for="s in collectSources" :key="s.id" class="qb-src" :class="{ sel: collectSel.includes(s.id) }" @click="toggleCollectSource(s.id)">
+                  <span class="cell-main">{{ s.title }}</span>
+                  <span class="sm tx-4 ellipsis">{{ s.url }}</span>
+                </div>
+                <div v-if="!collectSources.length" class="empty">暂无数据源，请先在「数据源」模块创建</div>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="collect-progress">
+              <div class="cp-line">采集中… 已读取 {{ collectProgress.done }} / {{ collectProgress.total }} 张表</div>
+              <div class="cp-bar"><i :style="{ width: collectProgress.total ? Math.round((collectProgress.done / collectProgress.total) * 100) + '%' : '0%' }"></i></div>
+              <div class="tx-3 sm">已入库 {{ collectProgress.tables }} 张表</div>
+            </div>
+          </template>
+          <div class="flex" style="gap: 10px; margin-top: 16px">
+            <button v-if="!collecting" class="btn primary grow" type="button" @click="runCollect">开始采集</button>
+            <button v-if="!collecting" class="btn" type="button" @click="collectOpen = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ===== L4 批量标注弹窗 ===== -->
     <div v-if="batchOpen" class="drawer-mask" @click="batchOpen = false">
       <div class="modal" @click.stop>
@@ -701,6 +810,10 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
 .btn.danger { color: #f87171; border-color: rgba(248, 113, 113, 0.35); }
 .btn.danger:hover { background: rgba(248, 113, 113, 0.1); }
 .mb-3 { margin-bottom: 14px; }
+.collect-progress { padding: 12px 14px; border-radius: 10px; background: var(--bg-glass); border: 1px solid var(--line-1); }
+.cp-line { font-size: 13px; color: var(--tx-1); margin-bottom: 8px; }
+.cp-bar { height: 10px; border-radius: 5px; background: var(--bg-glass-2); overflow: hidden; }
+.cp-bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, #b06a2a, var(--brand)); transition: width 0.3s; }
 .mb-2 { margin-bottom: 10px; }
 .mt-3 { margin-top: 14px; }
 </style>
