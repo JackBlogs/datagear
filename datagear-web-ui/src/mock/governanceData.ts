@@ -109,6 +109,37 @@ export function toggleQualityRule(id: string): boolean {
   return r?.enabled ?? false
 }
 
+export function saveQualityRule(body: { name: string; type: string; target: string; freq: string }): QualityRule {
+  const row: QualityRule = {
+    id: 'QR-' + String(qualityRules.value.length + 1).padStart(2, '0'),
+    name: body.name,
+    type: body.type,
+    target: body.target,
+    freq: body.freq || '每天 22:00',
+    pass: 100,
+    trend: [100, 100, 100, 100, 100, 100],
+    enabled: true,
+  }
+  qualityRules.value.push(row)
+  persist()
+  return row
+}
+
+export function saveStandard(body: { name: string; category: string; summary: string; owner: string }): StdItem {
+  const row: StdItem = {
+    id: 'ST-' + String(standards.value.length + 1).padStart(2, '0'),
+    name: body.name,
+    category: body.category,
+    summary: body.summary,
+    status: '试行',
+    refs: 0,
+    owner: body.owner || 'admin',
+  }
+  standards.value.push(row)
+  persist()
+  return row
+}
+
 export function markSensitive(field: string): void {
   if (!sensitiveFields.value.some((s) => s.field === field)) {
     sensitiveFields.value.push({

@@ -32,7 +32,29 @@ interface Msg {
   answer?: ChatAnswer
 }
 
-const sessions = ref(chatSessions.map((s) => ({ ...s })))
+const SESS_KEY = 'dg_chat_sessions'
+function loadSessions() {
+  try {
+    const raw = localStorage.getItem(SESS_KEY)
+    if (raw) return JSON.parse(raw) as typeof chatSessions
+  } catch { /* ignore */ }
+  return chatSessions.map((s) => ({ ...s }))
+}
+const sessions = ref(loadSessions())
+
+function persistSessions() {
+  try { localStorage.setItem(SESS_KEY, JSON.stringify(sessions.value)) } catch { /* ignore */ }
+}
+
+function deleteSession(id: string) {
+  sessions.value = sessions.value.filter((s) => s.id !== id)
+  if (activeSession.value === id) {
+    activeSession.value = sessions.value[0]?.id ?? ''
+    msgs.value = []
+  }
+  persistSessions()
+  success('会话已删除')
+}
 const activeSession = ref(sessions.value[0]?.id ?? '')
 const msgs = ref<Msg[]>([])
 const input = ref('')
@@ -112,6 +134,7 @@ function newSession() {
   sessions.value.unshift({ id, title: '新会话', time: '刚刚', turns: 0 })
   activeSession.value = id
   msgs.value = []
+  persistSessions()
   success('已新建问数会话')
 }
 
@@ -158,7 +181,7 @@ function onResize() {
           @click="loadSession(s.id)"
         >
           <div class="s-title ellipsis">{{ s.title }}</div>
-          <div class="s-meta">{{ s.time }} · {{ s.turns }} 轮</div>
+          <div class="s-meta">{{ s.time }} · {{ s.turns }} 轮<span class="s-del" title="删除会话" @click.stop="deleteSession(s.id)">✕</span></div>
         </div>
       </div>
       <div class="sess-foot">
@@ -282,7 +305,9 @@ function onResize() {
 .sess-item:hover { background: var(--bg-glass-2); }
 .sess-item.sel { border-color: var(--brand-line); background: var(--brand-soft); }
 .s-title { font-size: 12px; color: var(--tx-1); }
-.s-meta { font-size: 10.5px; color: var(--tx-4); margin-top: 2px; }
+.s-meta { font-size: 10.5px; color: var(--tx-4); margin-top: 2px; display: flex; justify-content: space-between; }
+.s-del { color: var(--tx-4); cursor: pointer; font-size: 10px; }
+.s-del:hover { color: #f87171; }
 .sess-foot { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--line-1); }
 .chat-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .chat-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line-1); color: var(--tx-1); }

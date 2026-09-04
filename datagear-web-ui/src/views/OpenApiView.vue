@@ -5,6 +5,7 @@ import {
   dataApis,
   apiKeys,
   embedKeys,
+  publishApi,
   toggleApi,
   saveApiKey,
   revokeKey,
@@ -12,6 +13,8 @@ import {
   apiCodeSamples,
   type DataApi,
 } from '@/mock/openApiData'
+import { metricPagingQueryData, type MetricEntity } from '@/api/metric'
+import { dataSetPagingQueryData } from '@/api/dataSet'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import { useConfirm } from '@/composables/useConfirm'
 import '@/styles/datasource-page.css'
@@ -47,6 +50,63 @@ function copyPath(path: string) {
 function openDoc(a: DataApi) {
   docApi.value = a
   docLang.value = 'cURL'
+}
+
+/* ---------- 发布 API（选指标/数据集 → 端点生成） ---------- */
+const pubOpen = ref(false)
+const pubForm = ref<{ name: string; source: '指标' | '数据集'; refId: string; limit: string } | null>(null)
+const pubOptions = ref<{ id: string; name: string }[]>([])
+const pubLoading = ref(false)
+
+async function openPublish(source: '指标' | '数据集') {
+  pubOpen.value = true
+  pubForm.value = { name: '', source, refId: '', limit: '300 次/分' }
+  pubLoading.value = true
+  try {
+    if (source === '指标') {
+      const d = await metricPagingQueryData({ page: 1, pageSize: 100 })
+      pubOptions.value = d.items.map((m: MetricEntity) => ({ id: m.id, name: m.name }))
+    } else {
+      const d = await dataSetPagingQueryData({ page: 1, pageSize: 100 })
+      pubOptions.value = d.items.map((d2) => ({ id: d2.id, name: d2.name }))
+    }
+  } catch (e) {
+    fail((e as Error).message || '选项加载失败')
+  } finally {
+    pubLoading.value = false
+  }
+}
+
+function switchPubSource(source: '指标' | '数据集') {
+  pubForm.value!.source = source
+  pubForm.value!.refId = ''
+  openPublishRefresh(source)
+}
+async function openPublishRefresh(source: '指标' | '数据集') {
+  pubLoading.value = true
+  try {
+    if (source === '指标') {
+      const d = await metricPagingQueryData({ page: 1, pageSize: 100 })
+      pubOptions.value = d.items.map((m: MetricEntity) => ({ id: m.id, name: m.name }))
+    } else {
+      const d = await dataSetPagingQueryData({ page: 1, pageSize: 100 })
+      pubOptions.value = d.items.map((d2) => ({ id: d2.id, name: d2.name }))
+    }
+  } finally {
+    pubLoading.value = false
+  }
+}
+
+function submitPublish() {
+  const f = pubForm.value
+  if (!f) return
+  if (!f.name.trim() || !f.refId) {
+    fail('请填写 API 名称并选择来源')
+    return
+  }
+  const row = publishApi(f)
+  pubOpen.value = false
+  success(`API 已发布：${row.path}`)
 }
 
 /* ---------- API Key ---------- */
@@ -105,7 +165,7 @@ function copyCode() {
       </div>
       <div class="page-actions">
         <button class="btn" type="button" @click="success('OpenAPI 文档已生成：/openapi.json')">OpenAPI 文档</button>
-        <button class="btn primary" type="button" @click="success('选择要发布的指标/数据集后即可发布为 API')">＋ 发布 API</button>
+        <button class="btn primary" type="button" @click="openPublish('指标')">＋ 发布 API</button>
       </div>
     </div>
 
@@ -365,6 +425,41 @@ function copyCode() {
         </div>
       </div>
     </div>
+  <!-- 发布 API 弹窗 -->
+  <div v-if="pubOpen" class="drawer-mask" @click="pubOpen = false">
+    <div class="modal" @click.stop>
+      <div class="drawer-head">
+        <div class="drawer-title">发布 API</div>
+        <button class="btn sm ghost" type="button" @click="pubOpen = false">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="form-item"><label class="form-label">来源类型</label>
+          <div class="seg-row">
+            <span class="seg-item" :class="{ active: pubForm!.source === '指标' }" @click="switchPubSource('指标')">指标</span>
+            <span class="seg-item" :class="{ active: pubForm!.source === '数据集' }" @click="switchPubSource('数据集')">数据集</span>
+          </div>
+        </div>
+        <div class="form-item"><label class="form-label">API 名称 *</label><input v-model="pubForm!.name" class="input" placeholder="如：原油产量查询" /></div>
+        <div class="form-item"><label class="form-label">选择{{ pubForm!.source }} *</label>
+          <div v-if="pubLoading" class="empty">加载中…</div>
+          <div v-else class="pub-opts">
+            <div v-for="o in pubOptions" :key="o.id" class="qb-src" :class="{ sel: pubForm!.refId === o.id }" @click="pubForm!.refId = o.id">
+              <span class="cell-main">{{ o.name }}</span>
+            </div>
+            <div v-if="!pubOptions.length" class="empty">暂无可选项</div>
+          </div>
+        </div>
+        <div class="form-item"><label class="form-label">限流</label>
+          <select v-model="pubForm!.limit" class="input"><option>100 次/分</option><option>300 次/分</option><option>600 次/分</option><option>1000 次/分</option></select>
+        </div>
+        <div v-if="pubForm!.refId" class="tx-3 sm">端点：<span class="path">{{ pubForm!.source === '指标' ? '/api/v1/metrics/' : '/api/v1/datasets/' }}{{ pubForm!.refId }}</span></div>
+        <div class="flex" style="gap: 10px; margin-top: 16px">
+          <button class="btn primary grow" type="button" @click="submitPublish">发布</button>
+          <button class="btn" type="button" @click="pubOpen = false">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
   </div>
 </template>
 
@@ -397,6 +492,7 @@ function copyCode() {
 .drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px 22px; }
 .sql-code { margin: 0; padding: 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line-1); font-family: monospace; font-size: 11.5px; color: #9ecbff; white-space: pre-wrap; }
 .grow { flex: 1; min-width: 0; }
+.pub-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 240px; overflow-y: auto; }
 .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 .db-card { border: 1px solid var(--line-1); border-radius: 14px; overflow: hidden; background: var(--bg-glass); }
 .c-body { padding: 16px; }

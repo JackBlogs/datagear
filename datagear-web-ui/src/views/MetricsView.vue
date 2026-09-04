@@ -12,6 +12,7 @@ import {
   type MetricQueryResult,
   type MetricVersion,
 } from '@/api/metric'
+import { alertRules } from '@/mock/alertData'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import '@/styles/datasource-page.css'
 
@@ -71,6 +72,17 @@ const stats = computed(() => ({
   draft: metrics.value.filter((m) => !m.certified).length,
   domains: domains.value.length,
 }))
+
+/* ---------- 消费引用（FR-SEM-09：指标→下游消费的真实统计） ---------- */
+const drawerRefs = computed(() => {
+  const m = drawerMetric.value
+  if (!m) return []
+  const alertCount = alertRules.value.filter((r) => r.metricId === m.id).length
+  return [
+    { kind: '告警规则', count: alertCount, to: '/alert' },
+    { kind: '看板/指标卡', count: 0, to: '/dashboard', note: '设计器拖入语义指标后自动计数' },
+  ]
+})
 
 /** 口径冲突检测（FR-SEM-03）：同名指标存在不同口径定义 */
 const conflictNames = computed(() => {
@@ -342,6 +354,15 @@ onMounted(load)
               <span class="tx-3 sm" style="margin-left: auto">{{ v.createTime }}</span>
             </div>
           </div>
+
+          <div class="card mb-3">
+            <div class="card-title"><i class="bar"></i>消费引用（FR-SEM-09）</div>
+            <div v-for="rf in drawerRefs" :key="rf.kind" class="ref-item" @click="router.push(rf.to)">
+              <span>{{ rf.kind }}</span>
+              <b class="num">{{ rf.count }}</b>
+            </div>
+            <div class="tx-4 sm" style="margin-top: 6px">反向血缘：下游消费该指标的资产计数；看板引用在设计器拖入语义指标后自动累计。</div>
+          </div>
         </div>
       </div>
     </div>
@@ -435,5 +456,8 @@ onMounted(load)
   font-family: monospace; font-size: 11.5px; color: #9ecbff; white-space: pre-wrap; word-break: break-all;
 }
 .version-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 12.5px; }
+.ref-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line-1); margin-bottom: 8px; font-size: 12.5px; color: var(--tx-2); cursor: pointer; }
+.ref-item:hover { background: var(--bg-glass-2); border-color: var(--brand-line); }
+.ref-item .num { color: var(--brand); }
 .grow { flex: 1; min-width: 0; }
 </style>

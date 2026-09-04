@@ -88,6 +88,24 @@ function persist() {
   saveDb({ apis: dataApis.value, keys: apiKeys.value, embeds: embedKeys.value })
 }
 
+/** 发布 API：指标/数据集一键生成端点（FR-EXCH-04） */
+export function publishApi(body: { name: string; source: '指标' | '数据集'; refId: string; limit?: string }): DataApi {
+  const path = body.source === '指标' ? `/api/v1/metrics/${body.refId}` : `/api/v1/datasets/${body.refId}`
+  const row: DataApi = {
+    id: 'API-' + String(dataApis.value.length + 1).padStart(2, '0'),
+    name: body.name,
+    path,
+    source: body.source,
+    limit: body.limit || '300 次/分',
+    today: 0,
+    enabled: true,
+    version: 'v1',
+  }
+  dataApis.value.push(row)
+  persist()
+  return row
+}
+
 export function toggleApi(id: string): boolean {
   const a = dataApis.value.find((x) => x.id === id)
   if (a) a.enabled = !a.enabled

@@ -14,6 +14,10 @@ import {
   markSensitive,
 } from '@/mock/governanceData'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import {
+  saveQualityRule,
+  saveStandard,
+} from '@/mock/governanceData'
 import '@/styles/datasource-page.css'
 
 /**
@@ -21,7 +25,7 @@ import '@/styles/datasource-page.css'
  * 5 tab —— 元数据（目录树+字段清单）/ 数据标准 / 数据质量（规则启停+异常清单）/ 数据血缘 / 数据安全（敏感字段）。
  * 数据层为前端 mock（src/mock/governanceData.ts），后端治理模块（FR-GOV）就绪后一键切换。
  */
-const { success } = useOperationMessage()
+const { success, fail } = useOperationMessage()
 
 type Pane = 'meta' | 'std' | 'quality' | 'lineage' | 'secure'
 const pane = ref<Pane>('meta')
@@ -41,6 +45,36 @@ function onToggleRule(id: string) {
 function onMark(field: string) {
   markSensitive(field)
   success(`已标记敏感字段「${field}」`)
+}
+
+/* ---------- 新建质量规则（弹窗） ---------- */
+const ruleForm = ref<{ name: string; type: string; target: string; freq: string } | null>(null)
+const RULE_TYPES = ['非空', '唯一', '范围', '格式', '及时性']
+
+function submitRule() {
+  if (!ruleForm.value) return
+  if (!ruleForm.value.name || !ruleForm.value.target) {
+    fail('请填写规则名称与校验对象')
+    return
+  }
+  saveQualityRule(ruleForm.value)
+  ruleForm.value = null
+  success('质量规则已保存并启用')
+}
+
+/* ---------- 新建数据标准（弹窗） ---------- */
+const stdForm = ref<{ name: string; category: string; summary: string; owner: string } | null>(null)
+const STD_CATS = ['命名规范', '值域', '格式']
+
+function submitStd() {
+  if (!stdForm.value) return
+  if (!stdForm.value.name || !stdForm.value.summary) {
+    fail('请填写标准名称与内容摘要')
+    return
+  }
+  saveStandard(stdForm.value)
+  stdForm.value = null
+  success('数据标准已保存（试行）')
 }
 
 /* 血缘：按层级分列展示 */
@@ -129,7 +163,7 @@ function nodeLinked(nodeId: string): boolean {
     <template v-else-if="pane === 'std'">
       <div class="flex mb-2">
         <span class="tx-3 sm">标准被数据集 / 指标引用后，字段命名与值域自动校验</span>
-        <button class="btn primary sm" style="margin-left: auto" type="button" @click="success('新建标准：命名规范 / 值域 / 格式')">新建标准 ›</button>
+        <button class="btn primary sm" style="margin-left: auto" type="button" @click="stdForm = { name: '', category: '命名规范', summary: '', owner: 'admin' }">新建标准 ›</button>
       </div>
       <div class="table-wrap">
         <table class="tbl">
@@ -170,6 +204,9 @@ function nodeLinked(nodeId: string): boolean {
         </div>
       </div>
 
+      <div class="flex mb-2">
+        <button class="btn primary sm" type="button" @click="ruleForm = { name: '', type: '非空', target: '', freq: '每天 22:00' }">＋ 新建质量规则</button>
+      </div>
       <div class="table-wrap mb-3">
         <table class="tbl">
           <thead>
@@ -243,8 +280,68 @@ function nodeLinked(nodeId: string): boolean {
         正则自动识别（手机号/身份证/银行卡）+ 手动标记；动态脱敏在查询链路按角色生效（掩码/截断/替换/哈希四方式，FR-GOV-14~16）。
       </div>
     </template>
+
+    <!-- 新建质量规则弹窗 -->
+    <div v-if="ruleForm" class="drawer-mask" @click="ruleForm = null">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">新建质量规则</div>
+          <button class="btn sm ghost" type="button" @click="ruleForm = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="form-item"><label class="form-label">规则名称 *</label><input v-model="ruleForm.name" class="input" placeholder="如：井号唯一性" /></div>
+          <div class="flex" style="gap: 12px">
+            <div class="form-item grow"><label class="form-label">类型</label>
+              <select v-model="ruleForm.type" class="input"><option v-for="t in RULE_TYPES" :key="t" :value="t">{{ t }}</option></select>
+            </div>
+            <div class="form-item grow"><label class="form-label">频率</label>
+              <select v-model="ruleForm.freq" class="input"><option>每天 22:00</option><option>每小时</option><option>实时</option></select>
+            </div>
+          </div>
+          <div class="form-item"><label class="form-label">校验对象 *</label><input v-model="ruleForm.target" class="input" placeholder="如：ODS_采油日报表.井号" /></div>
+          <div class="flex" style="gap: 10px; margin-top: 14px">
+            <button class="btn primary grow" type="button" @click="submitRule">保存并启用</button>
+            <button class="btn" type="button" @click="ruleForm = null">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新建标准弹窗 -->
+    <div v-if="stdForm" class="drawer-mask" @click="stdForm = null">
+      <div class="modal" @click.stop>
+        <div class="drawer-head">
+          <div class="drawer-title">新建数据标准</div>
+          <button class="btn sm ghost" type="button" @click="stdForm = null">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="form-item"><label class="form-label">标准名称 *</label><input v-model="stdForm.name" class="input" placeholder="如：井号编码规范" /></div>
+          <div class="form-item"><label class="form-label">类别</label>
+            <div class="seg-row">
+              <span v-for="c in STD_CATS" :key="c" class="seg-item" :class="{ active: stdForm.category === c }" @click="stdForm.category = c">{{ c }}</span>
+            </div>
+          </div>
+          <div class="form-item"><label class="form-label">标准内容摘要 *</label><textarea v-model="stdForm.summary" class="input" rows="3" placeholder="如：井号 = 矿区代码 + 井型 + 序号"></textarea></div>
+          <div class="form-item"><label class="form-label">维护人</label><input v-model="stdForm.owner" class="input" /></div>
+          <div class="flex" style="gap: 10px; margin-top: 14px">
+            <button class="btn primary grow" type="button" @click="submitStd">保存</button>
+            <button class="btn" type="button" @click="stdForm = null">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+<style scoped>
+.drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.modal { width: 560px; max-width: 92vw; max-height: 86vh; background: #0d1420; border: 1px solid var(--line-2); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+.drawer-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--line-1); }
+.drawer-title { font-size: 15px; font-weight: 700; color: var(--tx-1); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px 22px; }
+.form-item { margin-bottom: 13px; }
+.form-label { font-size: 12px; color: var(--tx-2); margin-bottom: 5px; display: block; }
+.grow { flex: 1; min-width: 0; }
+</style>
 
 <style scoped>
 .tabs-row { display: flex; gap: 4px; border-bottom: 1px solid var(--line-1); flex-wrap: wrap; }
