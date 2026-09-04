@@ -2,7 +2,7 @@
  * 统计报表前端演示数据层（对齐 prototypev2 mock-api：/report/list、/report/export）。
  * 报表引擎为 P3 企业版增值（FR-RPT）；开源版提供基础报表模板与预览。
  */
-
+import { ref } from 'vue'
 export interface ReportItem {
   id: string
   name: string
@@ -12,6 +12,10 @@ export interface ReportItem {
   subscribed: boolean
   /** 预览数据（中国式报表样例） */
   sheet: ReportSheet
+  /** 绑定的 SQL 数据集（新建报表时选择；预览时经 /dataSet/preview/SQL 实时取数） */
+  dataSetId?: string
+  dataSetName?: string
+  sql?: string
 }
 
 export interface ReportSheet {
@@ -27,7 +31,18 @@ export interface ReportSheet {
 
 export const REPORT_TYPES = ['分组报表', '交叉报表', '电子表格', '填报表单'] as const
 
-export const reports: ReportItem[] = [
+const LS_KEY = 'dg_mock_report_list'
+
+function loadReports(): ReportItem[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (raw) return JSON.parse(raw) as ReportItem[]
+  } catch { /* ignore */ }
+  return SEED
+}
+
+const SEED: ReportItem[] = [
+
   {
     id: 'RP-01',
     name: '原油产量月报',
@@ -111,6 +126,58 @@ export const reports: ReportItem[] = [
     },
   },
 ]
+
+export const reports = ref<ReportItem[]>(loadReports())
+
+function persist() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(reports.value)) } catch { /* ignore */ }
+}
+
+export function createReport(body: {
+  name: string
+  type: ReportItem['type']
+  org: string
+  owner: string
+  dataSetId: string
+  dataSetName: string
+  sql: string
+  columns: string[]
+  rows: string[][]
+}): ReportItem {
+  const now = new Date()
+  const row: ReportItem = {
+    id: 'RP-' + String(Date.now() % 100000),
+    name: body.name,
+    type: body.type,
+    updated: `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+    owner: body.owner || 'admin',
+    subscribed: false,
+    dataSetId: body.dataSetId,
+    dataSetName: body.dataSetName,
+    sql: body.sql,
+    sheet: {
+      title: body.name,
+      org: body.org || '—',
+      unit: '—',
+      no: `RPT-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      cols: body.columns,
+      rows: body.rows as unknown as ReportSheet['rows'],
+    },
+  }
+  reports.value.unshift(row)
+  persist()
+  return row
+}
+
+export function deleteReport(id: string) {
+  reports.value = reports.value.filter((r) => r.id !== id)
+  persist()
+}
+
+export function resetReports() {
+  reports.value = [...SEED]
+  persist()
+}
 
 export function exportReport(name: string, format: string): { file: string; size: string; watermark: boolean } {
   return { file: `${name}.${format.toLowerCase()}`, size: '1.2 MB', watermark: true }
