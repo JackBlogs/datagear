@@ -21,7 +21,9 @@ export interface QualityIssue {
   target: string
   detail: string
   time: string
-  level: 'danger' | 'warn'
+  level: 'danger' | 'warn' | 'ok'
+  resolved?: boolean
+  note?: string
 }
 
 export interface SensitiveField {
@@ -94,12 +96,25 @@ function saveDb(db: GovDb) {
 
 const db = loadDb()
 
+const EXTRA_KEY = 'dg_mock_gov_extra'
+function loadExtra(): { metaTables?: MetaTable[]; standards?: StdItem[] } {
+  try {
+    const raw = localStorage.getItem(EXTRA_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return {}
+}
+const extra = loadExtra()
+
 export const qualityRules = ref<QualityRule[]>(db.rules)
 export const qualityIssues = ref<QualityIssue[]>(db.issues)
 export const sensitiveFields = ref<SensitiveField[]>(db.sensitive)
 
 function persist() {
   saveDb({ rules: qualityRules.value, issues: qualityIssues.value, sensitive: sensitiveFields.value })
+  try {
+    localStorage.setItem('dg_mock_gov_extra', JSON.stringify({ metaTables: metaTables.value, standards: standards.value }))
+  } catch { /* ignore */ }
 }
 
 export function toggleQualityRule(id: string): boolean {
@@ -140,22 +155,117 @@ export function saveStandard(body: { name: string; category: string; summary: st
   return row
 }
 
-export function markSensitive(field: string): void {
-  if (!sensitiveFields.value.some((s) => s.field === field)) {
+export function updateQualityRule(body: QualityRule): void {
+  const i = qualityRules.value.findIndex((x) => x.id === body.id)
+  if (i >= 0) qualityRules.value[i] = { ...body }
+  persist()
+}
+
+export function deleteQualityRule(id: string): void {
+  qualityRules.value = qualityRules.value.filter((x) => x.id !== id)
+  persist()
+}
+
+export function resolveIssue(id: string, note: string): void {
+  const it = qualityIssues.value.find((x) => x.id === id)
+  if (it) {
+    it.resolved = true
+    it.note = note || '已处理'
+    it.level = 'ok'
+  }
+  persist()
+}
+
+export function markSensitive(field: string, type = '敏感'): void {
+  const exist = sensitiveFields.value.find((s) => s.field === field)
+  if (exist) {
+    exist.type = type
+  } else {
     sensitiveFields.value.push({
       id: 'SF-' + String(sensitiveFields.value.length + 1).padStart(2, '0'),
       field,
       pos: '手动标记',
-      type: '敏感',
+      type,
       mode: '手动标记',
       rule: '待配置',
     })
+  }
+  persist()
+}
+/* ---- 元数据（静态样例：ODS_采油日报字段清单） ---- */
+export interface MetaTable {
+  name: string
+  source: string
+  rows: string
+  columns: MetaColumn[]
+}
+
+export const metaTables = ref<MetaTable[]>([
+  {
+    name: 'ODS_采油日报',
+    source: '华北油田生产库',
+    rows: '12,842',
+    columns: [
+      { name: '井号', type: 'VARCHAR', desc: '生产井唯一标识', sensitive: '—', rule: '唯一性 QR-02' },
+      { name: '日产油量', type: 'DECIMAL', desc: '井口产油量（吨）', sensitive: '—', rule: '非空 QR-01' },
+      { name: '含水率', type: 'DECIMAL', desc: '产液量中水所占百分比', sensitive: '—', rule: '范围 QR-03' },
+      { name: '联系电话', type: 'VARCHAR', desc: '井场负责人电话', sensitive: '手机号', rule: '掩码 MK-01' },
+      { name: '数据时间', type: 'TIMESTAMP', desc: '采集时间', sensitive: '—', rule: '—' },
+    ],
+  },
+  {
+    name: 'ODS_管网输量',
+    source: '经营分析OLAP(GaussDB)',
+    rows: '3,205',
+    columns: [
+      { name: '管线编号', type: 'VARCHAR', desc: '输气管线唯一编号', sensitive: '—', rule: '—' },
+      { name: '输气量', type: 'DECIMAL', desc: '日输气量（亿方）', sensitive: '—', rule: '及时性 QR-04' },
+      { name: '门站压力', type: 'DECIMAL', desc: '门站实时压力（MPa）', sensitive: '—', rule: '—' },
+      { name: '数据时间', type: 'TIMESTAMP', desc: '采集时间', sensitive: '—', rule: '及时性 QR-04' },
+    ],
+  },
+  {
+    name: 'ODS_瓦斯监测',
+    source: '煤矿安全监测库(金仓)',
+    rows: '86,113',
+    columns: [
+      { name: '测点编号', type: 'VARCHAR', desc: '传感器测点编号', sensitive: '—', rule: '格式 QR-05' },
+      { name: '浓度值', type: 'DECIMAL', desc: '瓦斯浓度（%）', sensitive: '—', rule: '格式 QR-05' },
+      { name: '工作面', type: 'VARCHAR', desc: '采掘工作面编号', sensitive: '—', rule: '—' },
+      { name: '上报时间', type: 'TIMESTAMP', desc: '上报时间', sensitive: '—', rule: '—' },
+    ],
+  },
+])
+
+export function updateColumnSensitive(tableName: string, colName: string, sensitive: string): void {
+  const t = metaTables.value.find((x) => x.name === tableName)
+  const c = t?.columns.find((x) => x.name === colName)
+  if (c) {
+    c.sensitive = sensitive
     persist()
   }
 }
 
-/* ---- 元数据（静态样例：ODS_采油日报字段清单） ---- */
-export const metaColumns = ref<MetaColumn[]>([
+export const activeMetaTable = ref('ODS_采油日报')
+
+export function updateStandard(body: StdItem): void {
+  const i = standards.value.findIndex((x) => x.id === body.id)
+  if (i >= 0) standards.value[i] = { ...body }
+  persist()
+}
+
+export function deleteStandard(id: string): void {
+  standards.value = standards.value.filter((x) => x.id !== id)
+  persist()
+}
+
+export function publishStandard(id: string): void {
+  const s = standards.value.find((x) => x.id === id)
+  if (s) s.status = '已发布'
+  persist()
+}
+
+/* ---- 数据血缘 ----
   { name: '井号', type: 'VARCHAR', desc: '生产井唯一标识', sensitive: '—', rule: '唯一性 QR-02' },
   { name: '日产油量', type: 'DECIMAL', desc: '井口产油量（吨）', sensitive: '—', rule: '非空 QR-01' },
   { name: '含水率', type: 'DECIMAL', desc: '产液量中水所占百分比', sensitive: '—', rule: '范围 QR-03' },
@@ -163,10 +273,8 @@ export const metaColumns = ref<MetaColumn[]>([
   { name: '数据时间', type: 'TIMESTAMP', desc: '采集时间', sensitive: '—', rule: '—' },
 ])
 
-export const metaTables = ['ODS_采油日报', 'ODS_管网输量', 'ODS_瓦斯监测', 'ODS_化工质检']
-
 /* ---- 数据标准（静态样例） ---- */
-export const standards = ref<StdItem[]>([
+export const standards = ref<StdItem[]>(extra.standards ?? [
   { id: 'ST-01', name: '井号编码规范', category: '命名规范', summary: '井号 = 矿区代码 + 井型 + 序号（如 AN-07-023）', status: '已发布', refs: 26, owner: '张伟' },
   { id: 'ST-02', name: '产量计量单位', category: '值域', summary: '原油：万吨（保留 1 位小数）；天然气：亿方', status: '已发布', refs: 15, owner: '李秀兰' },
   { id: 'ST-03', name: '日期字段格式', category: '格式', summary: '统一 yyyy-MM-dd，时间戳字段 yyyy-MM-dd HH:mm:ss', status: '试行', refs: 41, owner: '张伟' },
@@ -183,6 +291,33 @@ export const lineageNodes = ref<LineageNode[]>([
   { id: 'b1', name: '华北油田生产日报', level: 3 },
   { id: 'a1', name: '日产油低于阈值', level: 3 },
 ])
+export interface LineageNodeDetail {
+  upstream: string[]
+  downstream: string[]
+  fieldMap: string[]
+  updateFreq: string
+}
+
+export function lineageDetail(nodeId: string): LineageNodeDetail {
+  const name = (id: string) => lineageNodes.value.find((n) => n.id === id)?.name ?? id
+  const upstream = lineageEdges.value.filter((e) => e.to === nodeId).map((e) => name(e.from))
+  const downstream = lineageEdges.value.filter((e) => e.from === nodeId).map((e) => name(e.to))
+  const mapByNode: Record<string, string[]> = {
+    src: ['全字段同步 · 增量 CDC'],
+    ds1: ['井号 → 井号', '日产油量 → 日产油量', '含水率 → 含水率'],
+    m1: ['SUM(日产油量) → 指标值'],
+    m2: ['AVG(含水率) → 指标值'],
+    b1: ['指标值 → KPI 卡/图表'],
+    a1: ['指标值 → 阈值比较'],
+  }
+  return {
+    upstream,
+    downstream,
+    fieldMap: mapByNode[nodeId] || ['—'],
+    updateFreq: '每天 22:00 增量',
+  }
+}
+
 export const lineageEdges = ref<LineageEdge[]>([
   { from: 'src', to: 'ds1' },
   { from: 'ds1', to: 'm1' },
