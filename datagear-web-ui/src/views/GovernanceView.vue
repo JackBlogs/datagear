@@ -347,10 +347,11 @@ const nodeDetailName = computed(() => lineageNodes.value.find((n) => n.id === no
           <button class="btn sm" style="margin-top: 12px" type="button" @click="batchOpen = true">批量标注 ›</button>
         </div>
         <div class="card meta-cols">
-          <div class="card-title"><i class="bar"></i>{{ currentTable?.name }} · 字段清单
-            <span class="sm tx-4" style="margin-left: auto">{{ currentTable?.source }} · {{ currentTable?.rows }} 行</span>
+          <div class="card-title"><i class="bar"></i>{{ currentTable?.name || '字段清单' }}
+            <span v-if="currentTable" class="sm tx-4" style="margin-left: auto">{{ currentTable.source }} · {{ currentTable.rows }} 行</span>
           </div>
-          <div class="flex mb-2" style="max-width: 340px">
+          <div v-if="!currentTable" class="empty">左侧选择一张表，或先采集元数据</div>
+          <div v-else class="flex mb-2" style="max-width: 340px">
             <input v-model="metaKw" class="input" placeholder="检索字段名 / 业务描述" />
           </div>
           <div class="table-wrap">

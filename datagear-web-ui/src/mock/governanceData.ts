@@ -200,42 +200,7 @@ export interface MetaTable {
   columns: MetaColumn[]
 }
 
-export const metaTables = ref<MetaTable[]>([
-  {
-    name: 'ODS_采油日报',
-    source: '华北油田生产库',
-    rows: '12,842',
-    columns: [
-      { name: '井号', type: 'VARCHAR', desc: '生产井唯一标识', sensitive: '—', rule: '唯一性 QR-02' },
-      { name: '日产油量', type: 'DECIMAL', desc: '井口产油量（吨）', sensitive: '—', rule: '非空 QR-01' },
-      { name: '含水率', type: 'DECIMAL', desc: '产液量中水所占百分比', sensitive: '—', rule: '范围 QR-03' },
-      { name: '联系电话', type: 'VARCHAR', desc: '井场负责人电话', sensitive: '手机号', rule: '掩码 MK-01' },
-      { name: '数据时间', type: 'TIMESTAMP', desc: '采集时间', sensitive: '—', rule: '—' },
-    ],
-  },
-  {
-    name: 'ODS_管网输量',
-    source: '经营分析OLAP(GaussDB)',
-    rows: '3,205',
-    columns: [
-      { name: '管线编号', type: 'VARCHAR', desc: '输气管线唯一编号', sensitive: '—', rule: '—' },
-      { name: '输气量', type: 'DECIMAL', desc: '日输气量（亿方）', sensitive: '—', rule: '及时性 QR-04' },
-      { name: '门站压力', type: 'DECIMAL', desc: '门站实时压力（MPa）', sensitive: '—', rule: '—' },
-      { name: '数据时间', type: 'TIMESTAMP', desc: '采集时间', sensitive: '—', rule: '及时性 QR-04' },
-    ],
-  },
-  {
-    name: 'ODS_瓦斯监测',
-    source: '煤矿安全监测库(金仓)',
-    rows: '86,113',
-    columns: [
-      { name: '测点编号', type: 'VARCHAR', desc: '传感器测点编号', sensitive: '—', rule: '格式 QR-05' },
-      { name: '浓度值', type: 'DECIMAL', desc: '瓦斯浓度（%）', sensitive: '—', rule: '格式 QR-05' },
-      { name: '工作面', type: 'VARCHAR', desc: '采掘工作面编号', sensitive: '—', rule: '—' },
-      { name: '上报时间', type: 'TIMESTAMP', desc: '上报时间', sensitive: '—', rule: '—' },
-    ],
-  },
-])
+export const metaTables = ref<MetaTable[]>(extra.metaTables ?? [])
 
 /** 采集结果合并：同名表覆盖，新表追加（采集元数据按钮用） */
 export function mergeMetaTables(tables: MetaTable[]): { added: number; updated: number } {
@@ -264,7 +229,7 @@ export function updateColumnSensitive(tableName: string, colName: string, sensit
   }
 }
 
-export const activeMetaTable = ref('ODS_采油日报')
+export const activeMetaTable = ref('')
 
 export function updateStandard(body: StdItem): void {
   const i = standards.value.findIndex((x) => x.id === body.id)
