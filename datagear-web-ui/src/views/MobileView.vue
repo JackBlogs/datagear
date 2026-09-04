@@ -327,7 +327,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.m-layout { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; }
+.m-layout { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
 .phone-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .seg-row { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--bg-glass); border: 1px solid var(--line-1); }
 .seg-item { padding: 5px 16px; border-radius: 8px; font-size: 12.5px; color: var(--tx-3); cursor: pointer; }
