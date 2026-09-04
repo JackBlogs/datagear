@@ -26,10 +26,27 @@ export default defineConfig(({ mode }) => {
         '/login': {
           target: backendTarget,
           changeOrigin: true,
+          // SPA 登录页由前端路由渲染（与 /dashboard 同模式）：整页导航回退 vite index.html，
+          // 仅登录 XHR（POST /login/doLogin 等）转发后端；否则后端返回托管 SPA HTML，
+          // 其 /assets/*.js 在 dev server 上 404 导致白屏，且会以旧构建覆盖新页面
+          bypass(req) {
+            const accept = String(req.headers.accept ?? '')
+            if (req.method === 'GET' && accept.includes('text/html')) {
+              return '/index.html'
+            }
+            return undefined
+          },
         },
         '/logout': {
           target: backendTarget,
           changeOrigin: true,
+          bypass(req) {
+            const accept = String(req.headers.accept ?? '')
+            if (req.method === 'GET' && accept.includes('text/html')) {
+              return '/index.html'
+            }
+            return undefined
+          },
         },
         '/checkCode': {
           target: backendTarget,

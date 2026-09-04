@@ -587,7 +587,7 @@ onBeforeUnmount(() => {
         <div v-if="loading" class="empty">数据加载中…</div>
         <div v-else-if="!pageRows.length" class="empty">该筛选条件下暂无指标</div>
 
-        <div v-for="m in pageRows" :key="m.id" class="card metric-card" :class="{ selected: drawerMetric?.id === m.id }" @click="openDrawer(m)">
+        <div v-for="m in pageRows" :key="m.id" class="card metric-card" :class="{ selected: drawerMetric?.id === m.id }" @click.stop="openDrawer(m)">
           <div class="mc-head">
             <span class="mc-name">{{ m.name }}</span>
             <span class="mc-code">{{ metricCode(m) }}</span>
@@ -655,6 +655,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- ===== 详情抽屉 ===== -->
+    <Teleport to="body">
     <div v-if="drawerMetric" class="drawer-mask">
       <div class="drawer" @click.stop>
         <div class="drawer-head">
@@ -689,6 +690,12 @@ onBeforeUnmount(() => {
               <dd><b class="num">{{ drawerValue?.value ?? '…' }}</b>　<span class="tx-3 sm">{{ drawerValue?.costMs }}ms</span></dd>
               <dt>业务域</dt>
               <dd>{{ drawerMetric.bizDomain || '未分类' }}</dd>
+              <dt>权限</dt>
+              <dd>
+                <span class="tag info">行级权限继承</span>
+                <span v-if="hasConflict(drawerMetric)" class="tag danger">口径冲突待仲裁</span>
+                <span v-else class="tag warn">单井级敏感</span>
+              </dd>
             </dl>
           </div>
 
@@ -763,8 +770,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    </Teleport>
     <!-- 版本对比 modal -->
-    <div v-if="compareOpen" class="drawer-mask" style="z-index: 130" @click="compareOpen = false">
+    <Teleport to="body">
+    <div v-if="compareOpen" class="drawer-mask" style="z-index: 130; padding: 0" @click="compareOpen = false">
       <div class="modal" style="width: 720px" @click.stop>
         <div class="drawer-head">
           <div class="drawer-title">版本口径对比 · v{{ compareOld?.versionNo }} ↔ 当前</div>
@@ -794,8 +803,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    </Teleport>
     <!-- 口径冲突 modal -->
-    <div v-if="conflictOpen" class="drawer-mask" style="z-index: 130" @click="conflictOpen = false">
+    <Teleport to="body">
+    <div v-if="conflictOpen" class="drawer-mask" style="z-index: 130; padding: 0" @click="conflictOpen = false">
       <div class="modal" style="width: 740px" @click.stop>
         <div class="drawer-head">
           <div class="drawer-title">口径冲突检测 · 同名不同口径</div>
@@ -837,8 +848,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    </Teleport>
     <!-- 新建 / 编辑指标 formModal -->
-    <div v-if="formOpen" class="drawer-mask" style="z-index: 130" @click="formOpen = false">
+    <Teleport to="body">
+    <div v-if="formOpen" class="drawer-mask" style="z-index: 130; padding: 0" @click="formOpen = false">
       <div class="modal" style="width: 600px" @click.stop>
         <div class="drawer-head">
           <div class="drawer-title">{{ form.id ? '编辑指标 · ' + form.name : '新建指标（FR-SEM-01 语义定义）' }}</div>
@@ -901,6 +914,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
@@ -931,7 +945,7 @@ onBeforeUnmount(() => {
 .metric-card.selected { border-color: var(--brand-line); }
 .mc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mc-name { font-size: 15px; font-weight: 700; }
-.mc-code { font-size: 11px; font-family: monospace; color: var(--tx-4); }
+.mc-code { font-size: 11px; font-family: var(--font-mono, monospace); color: var(--tx-4); }
 .mc-desc { font-size: 12.5px; color: var(--tx-3); margin-top: 6px; }
 .mc-body { display: flex; align-items: flex-end; gap: 16px; margin-top: 12px; }
 .mc-spark { width: 150px; height: 36px; flex: none; }
@@ -947,8 +961,8 @@ onBeforeUnmount(() => {
 }
 
 /* ---- 抽屉 ---- */
-.drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 95; display: flex; justify-content: flex-end; }
-.drawer { width: 620px; max-width: 94vw; height: 100%; background: #0d1420; border-left: 1px solid var(--line-2); display: flex; flex-direction: column; overflow: hidden; }
+.drawer-mask { position: fixed; inset: 0; background: rgba(4, 6, 10, 0.6); z-index: 95; display: flex; justify-content: flex-end; }
+.drawer { width: 460px; max-width: 94vw; height: 100%; background: #0d1420; border-left: 1px solid var(--line-2); box-shadow: 0 8px 30px rgba(0,0,0,.45); display: flex; flex-direction: column; overflow: hidden; }
 .drawer-head { flex: none; padding: 18px 20px 14px; border-bottom: 1px solid var(--line-1); display: flex; align-items: flex-start; gap: 10px; }
 .d-name-b { font-size: 16px; color: var(--tx-1); }
 .d-close { margin-left: auto; }
@@ -962,8 +976,8 @@ onBeforeUnmount(() => {
 .def-grid dd { color: var(--tx-1); margin: 0; }
 .code-block {
   background: rgba(5, 8, 14, 0.8); border: 1px solid var(--line-1); border-radius: 10px;
-  padding: 12px 14px; font-family: monospace; font-size: 11.5px; line-height: 1.7;
-  color: #c9d4e8; overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+  padding: 12px 14px; font-family: var(--font-mono, monospace); font-size: 11.5px; line-height: 1.7;
+  color: #c9d4e8; overflow-x: auto; white-space: pre;
 }
 .code-block :deep(.kw) { color: #ff8a3d; }
 .code-block :deep(.fn) { color: #22d3ee; }
@@ -971,7 +985,7 @@ onBeforeUnmount(() => {
 .code-block :deep(.pc) { color: #e8b33c; }
 .ver-item { display: flex; gap: 12px; padding: 8px 10px; border-radius: 8px; margin: 0 -10px; font-size: 12.5px; cursor: pointer; }
 .ver-item:hover { background: var(--bg-glass-2); }
-.ver-item .v-no { font-family: monospace; color: var(--brand); flex: none; width: 44px; }
+.ver-item .v-no { font-family: var(--font-mono, monospace); color: var(--brand); flex: none; width: 44px; }
 .lineage-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 0; flex-wrap: wrap; }
 .lineage-node {
   padding: 3px 10px; border-radius: 8px; border: 1px solid var(--line-2);
@@ -1008,4 +1022,57 @@ onBeforeUnmount(() => {
 .mb-2 { margin-bottom: 8px; }
 .mb-3 { margin-bottom: 14px; }
 @media (max-width: 1100px) { .metric-bench { grid-template-columns: 1fr; } }
+</style>
+
+<style>
+/* Teleport 弹层（body 下）脱离 .ds-page 作用域：此处补弹层内所需的组件类样式 */
+.drawer-mask .tag {
+  display: inline-flex; align-items: center;
+  font-size: 11px; line-height: 1.4; padding: 2px 9px; border-radius: 7px;
+  background: rgba(124, 136, 160, 0.16); color: #b9c2d4; border: 1px solid rgba(124, 136, 160, 0.3);
+  white-space: nowrap;
+}
+.drawer-mask .tag.ok { background: rgba(52, 211, 153, 0.13); color: #34d399; border-color: rgba(52, 211, 153, 0.35); }
+.drawer-mask .tag.warn { background: rgba(251, 191, 36, 0.13); color: #fbbf24; border-color: rgba(251, 191, 36, 0.35); }
+.drawer-mask .tag.danger { background: rgba(248, 113, 113, 0.13); color: #f87171; border-color: rgba(248, 113, 113, 0.35); }
+.drawer-mask .tag.info { background: rgba(96, 165, 250, 0.13); color: #60a5fa; border-color: rgba(96, 165, 250, 0.35); }
+.drawer-mask .tag.brand { background: rgba(255, 138, 61, 0.14); color: #ff8a3d; border-color: rgba(255, 138, 61, 0.35); }
+.drawer-mask .btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-family: inherit; font-weight: 500;
+  padding: 6px 14px; border-radius: 10px; cursor: pointer; transition: all 0.18s;
+  border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.06); color: #f2f5fa;
+  white-space: nowrap;
+}
+.drawer-mask .btn:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.18); }
+.drawer-mask .btn.primary { background: linear-gradient(135deg, #ffb25e 0%, #ff8a3d 45%, #f4633a 100%); border: none; color: #241105; font-weight: 600; }
+.drawer-mask .btn.danger { color: #f87171; }
+.drawer-mask .btn.ghost { background: transparent; border-color: transparent; }
+.drawer-mask .btn.ghost:hover { background: rgba(255, 255, 255, 0.06); }
+.drawer-mask .input, .drawer-mask .select {
+  width: 100%; background: rgba(255, 255, 255, 0.035); color: #f2f5fa;
+  border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px;
+  padding: 7px 10px; font-size: 12.5px; font-family: inherit; outline: none;
+}
+.drawer-mask .input:focus, .drawer-mask .select:focus { border-color: rgba(255, 138, 61, 0.35); }
+.drawer-mask .switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.drawer-mask .switch input { opacity: 0; position: absolute; width: 0; }
+.drawer-mask .switch i { width: 34px; height: 19px; background: rgba(255, 255, 255, 0.12); border-radius: 99px; display: block; position: relative; transition: 0.18s; }
+.drawer-mask .switch i::after { content: ""; width: 15px; height: 15px; background: #fff; border-radius: 50%; position: absolute; left: 2px; top: 2px; transition: 0.18s; }
+.drawer-mask .switch input:checked + i { background: #ff8a3d; }
+.drawer-mask .switch input:checked + i::after { left: 17px; }
+.drawer-mask .seg-row { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.07); }
+.drawer-mask .seg-item { padding: 5px 14px; border-radius: 8px; font-size: 12.5px; color: #7c88a0; cursor: pointer; }
+.drawer-mask .seg-item.active { background: rgba(255, 138, 61, 0.14); color: #ff8a3d; }
+.drawer-mask .chip-zone { display: flex; gap: 6px; flex-wrap: wrap; }
+.drawer-mask .z-chip { font-size: 11px; padding: 3px 10px; border-radius: 7px; background: rgba(255, 255, 255, 0.06); color: #b9c2d4; border: 1px solid rgba(255, 255, 255, 0.12); cursor: pointer; }
+.drawer-mask .z-chip.dim { background: rgba(96, 165, 250, 0.12); color: #60a5fa; border-color: rgba(96, 165, 250, 0.35); }
+.drawer-mask .p-inputgroup { display: flex; gap: 6px; }
+.drawer-mask .p-inputgroup .input { flex: 1; }
+.drawer-mask .empty { padding: 40px 20px; text-align: center; color: #7c88a0; font-size: 12.5px; }
+.drawer-mask .table-wrap { overflow-x: auto; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; }
+.drawer-mask .tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.drawer-mask .tbl th, .drawer-mask .tbl td { padding: 8px 12px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #b9c2d4; }
+.drawer-mask .tbl th { color: #7c88a0; font-weight: 600; font-size: 11.5px; white-space: nowrap; }
+.drawer-mask .cell-main { color: #f2f5fa; font-weight: 600; font-size: 12.5px; }
 </style>

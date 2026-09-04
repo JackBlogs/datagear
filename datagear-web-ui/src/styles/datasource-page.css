@@ -541,3 +541,45 @@
 }
 .ds-page .upload-zone:hover { border-color: var(--brand-line); color: var(--tx-2); }
 .ds-page .upload-zone svg { width: 26px; height: 26px; margin-bottom: 6px; color: var(--tx-4); }
+
+/* ============================================================
+   Teleport 弹层（挂载到 body 下，脱离 .ds-page 作用域）：
+   复制全套 token 到弹层根，避免 var(--tx-*) 等失效导致文字/边框不可见
+   ============================================================ */
+body > .drawer-mask {
+  --bg-0: #070A12;
+  --bg-1: #0A0E17;
+  --bg-2: #0D1420;
+  --bg-3: #111A2A;
+  --bg-4: #16223a;
+  --bg-glass: rgba(255,255,255,.035);
+  --bg-glass-2: rgba(255,255,255,.06);
+  --bg-glass-3: rgba(255,255,255,.09);
+  --line-1: rgba(255,255,255,.07);
+  --line-2: rgba(255,255,255,.12);
+  --line-3: rgba(255,255,255,.18);
+  --tx-1: #F2F5FA;
+  --tx-2: #B9C2D4;
+  --tx-3: #7C88A0;
+  --tx-4: #525D75;
+  --brand: #FF8A3D;
+  --brand-2: #F97316;
+  --brand-soft: rgba(255,138,61,.14);
+  --brand-line: rgba(255,138,61,.35);
+  --brand-grad: linear-gradient(135deg,#FFB25E 0%,#FF8A3D 45%,#F4633A 100%);
+  --oil:   #FF8A3D;  --oil-soft: rgba(255,138,61,.13);
+  --gas:   #22D3EE;  --gas-soft: rgba(34,211,238,.12);
+  --chem:  #A78BFA;  --chem-soft: rgba(167,139,250,.13);
+  --coal:  #E8B33C;  --coal-soft: rgba(232,179,60,.13);
+  --ok: #34D399;     --ok-soft: rgba(52,211,153,.13);
+  --warn: #FBBF24;   --warn-soft: rgba(251,191,36,.13);
+  --danger: #F87171; --danger-soft: rgba(248,113,113,.13);
+  --info: #60A5FA;   --info-soft: rgba(96,165,250,.13);
+  --r-s: 6px;  --r-m: 10px;  --r-l: 14px;  --r-xl: 20px;
+  --font: "PingFang SC","HarmonyOS Sans SC","Microsoft YaHei","Segoe UI",-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --font-num: "Barlow","DIN Alternate","Bahnschrift","PingFang SC","Segoe UI",sans-serif;
+  --font-mono: "JetBrains Mono","SF Mono","Cascadia Code",Consolas,"Courier New",monospace;
+  color: var(--tx-1);
+  font-family: var(--font);
+}
+body > .drawer-mask .num { font-family: var(--font-num); }
