@@ -7,6 +7,7 @@ import {
   exportReport,
   REPORT_TYPES,
   type ReportItem,
+  type ReportSheet,
 } from '@/mock/reportData'
 import { dataSetPagingQueryData, previewSqlDataSet, getSqlDataSet, type SqlDataSetForm } from '@/api/dataSet'
 import { useOperationMessage } from '@/composables/useOperationMessage'
@@ -101,6 +102,10 @@ function toggleSub(r: ReportItem) {
   )
 }
 
+function editSelected() {
+  if (selected.value) openWizard(selected.value)
+}
+
 /** 完成率着色（静态样张）：≥100 绿，<98 红 */
 function rateClass(v: string): string {
   const n = parseFloat(v)
@@ -139,10 +144,21 @@ interface DsOption {
 const dsOptions = ref<DsOption[]>([])
 const dsLoading = ref(false)
 
-async function openWizard() {
+const editingId = ref('')
+
+async function openWizard(r?: ReportItem) {
   wizardOpen.value = true
   wizardStep.value = 0
-  form.value = { name: '', type: '分组报表', org: '', owner: 'admin', dataSetId: '', dataSetName: '' }
+  editingId.value = r?.id || ''
+  if (r) {
+    form.value = { name: r.name, type: r.type, org: r.sheet.org, owner: r.owner, dataSetId: r.dataSetId || '', dataSetName: r.dataSetName || '' }
+    previewCols.value = r.sheet.cols
+    previewRows.value = r.sheet.rows.map((row) => [...row])
+  } else {
+    form.value = { name: '', type: '分组报表', org: '', owner: 'admin', dataSetId: '', dataSetName: '' }
+    previewCols.value = []
+    previewRows.value = []
+  }
   if (!dsOptions.value.length) {
     dsLoading.value = true
     try {
@@ -225,6 +241,30 @@ async function submitReport() {
       cols = (res.fields ?? []).map((f) => f.name || '')
       rows = data.slice(0, 8).map((row) => cols.map((c) => String(row[c] ?? '—')))
     }
+    if (editingId.value) {
+      const target = reports.value.find((r) => r.id === editingId.value)
+      if (target) {
+        target.name = form.value.name.trim()
+        target.type = form.value.type
+        target.owner = form.value.owner
+        target.sheet.org = form.value.org
+        target.sheet.title = form.value.name.trim()
+        if (form.value.dataSetId !== target.dataSetId || previewCols.value.length) {
+          target.dataSetId = form.value.dataSetId
+          target.dataSetName = form.value.dataSetName
+          if (previewCols.value.length) {
+            target.sheet.cols = previewCols.value
+            target.sheet.rows = previewRows.value as unknown as ReportSheet['rows']
+          }
+        }
+        target.updated = '刚刚'
+      }
+      wizardOpen.value = false
+      success('报表已更新')
+      selected.value = reports.value.find((r) => r.id === editingId.value) ?? selected.value
+      loadLive(selected.value)
+      return
+    }
     const created = createReport({
       name: form.value.name.trim(),
       type: form.value.type,
@@ -258,7 +298,7 @@ async function submitReport() {
         <div class="page-desc">中国式复杂报表 —— 分组 / 交叉 / 电子表格模板与定时推送（FR-RPT）</div>
       </div>
       <div class="page-actions">
-        <button class="btn primary" type="button" @click="openWizard">＋ 新建报表</button>
+        <button class="btn primary" type="button" @click="openWizard()">＋ 新建报表</button>
       </div>
     </div>
 
@@ -285,7 +325,7 @@ async function submitReport() {
           <div class="ri-meta">
             <span class="tag info">{{ r.type }}</span>
             <span class="sm tx-3">{{ r.updated }}</span>
-            <span class="ri-del" title="删除" @click.stop="onDelete(r)">✕</span>
+            <span class="ri-edit" title="编辑" @click.stop="openWizard(r)">✎</span><span class="ri-del" title="删除" @click.stop="onDelete(r)">✕</span>
           </div>
         </div>
         <div v-if="!filtered.length" class="empty">该类型暂无报表，点击右上角「新建报表」</div>
@@ -302,6 +342,7 @@ async function submitReport() {
           <button class="btn sm" type="button" @click="toggleSub(selected)">定时推送</button>
           <button class="btn sm" type="button" @click="success('条件格式为企业版增值能力')">条件格式</button>
           <button class="btn sm" type="button" @click="success('已调起打印预览')">打印</button>
+          <button class="btn sm" type="button" @click="editSelected">编辑</button>
           <span class="tx-3 sm" style="margin-left: auto">
             {{ selected?.dataSetId ? `数据集：${selected.dataSetName} · 预览实时取数` : '静态样张（未绑定数据集）' }}
           </span>
@@ -403,7 +444,7 @@ async function submitReport() {
     <div v-if="wizardOpen" class="drawer-mask" @click="wizardOpen = false">
       <div class="modal wizard-modal" @click.stop>
         <div class="drawer-head">
-          <div class="drawer-title">新建报表</div>
+          <div class="drawer-title">{{ editingId ? '编辑报表' : '新建报表' }}</div>
           <button class="btn sm ghost" type="button" @click="wizardOpen = false">✕</button>
         </div>
         <div class="drawer-body">
@@ -467,7 +508,7 @@ async function submitReport() {
             <button class="btn" type="button" :disabled="wizardStep === 0" @click="wizardStep--">‹ 上一步</button>
             <button v-if="wizardStep < 2" class="btn primary" type="button" @click="wizardNext">下一步 ›</button>
             <button v-else class="btn primary grow" type="button" :disabled="saving" @click="submitReport">
-              {{ saving ? '创建中…' : '创建报表' }}
+              {{ saving ? '保存中…' : editingId ? '保存修改' : '创建报表' }}
             </button>
           </div>
         </div>
@@ -489,6 +530,8 @@ async function submitReport() {
 .ri-name { font-size: 13px; font-weight: 600; color: var(--tx-1); }
 .ri-meta { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
 .ri-del { margin-left: auto; color: var(--tx-4); cursor: pointer; font-size: 11px; }
+.ri-edit { margin-left: auto; color: var(--tx-4); cursor: pointer; font-size: 11px; }
+.ri-del { margin-left: 0; }
 .ri-del:hover { color: #f87171; }
 .preview-card { padding: 14px; min-width: 0; }
 .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }

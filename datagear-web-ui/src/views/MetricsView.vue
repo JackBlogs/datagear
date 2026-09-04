@@ -412,10 +412,15 @@ onMounted(load)
 .d-bar { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #b06a2a, var(--brand)); transition: width 0.4s; }
 .d-val { width: 90px; flex: none; text-align: right; font-size: 12px; color: var(--tx-1); }
 .def-caliber { font-size: 13px; color: var(--tx-1); }
-.drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 100; display: flex; justify-content: flex-end; }
+.drawer-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 100; display: flex; align-items: center; justify-content: center; }
 .drawer {
-  width: 620px; max-width: 92vw; height: 100%; background: #0d1420; border-left: 1px solid var(--line-2);
-  display: flex; flex-direction: column; overflow: hidden;
+  /* 覆盖全局 .ds-page .drawer 滑入式抽屉定位（fixed/right:-480px/width 等），改为 flex 流内居中模态 */
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 720px; max-width: 94vw; height: min(86vh, 900px); background: #0d1420;
+  border: 1px solid var(--line-2); border-radius: 16px;
+  display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
 }
 .drawer-head {
   flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px;
