@@ -61,8 +61,10 @@ function patch(p: Partial<ChartStyle>) {
   font-weight: 600;
 }
 .cs-input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 4px 6px;
+  border: 1px solid var(--line-1, rgba(255,255,255,.07));
+  background: var(--bg-glass, rgba(255,255,255,.035));
+  color: var(--tx-1, #F2F5FA);
+  border-radius: 8px;
+  padding: 5px 9px;
 }
 </style>

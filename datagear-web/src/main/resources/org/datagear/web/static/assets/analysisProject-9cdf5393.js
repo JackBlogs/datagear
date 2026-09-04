@@ -1,0 +1,1 @@
+import{r as e,u as t}from"./request-75bcc4d1.js";import{b as o,m as r,a as n}from"./crud-05ad0da4.js";const l=a=>o("analysisProject",a),y=a=>r("analysisProject",a),u=a=>n("analysisProject",a);async function P(a){const s=await e.post("/api/analysisProject/pagingQueryData",a);return t(s)}export{P as a,u as d,l as g,y as s};

@@ -92,26 +92,44 @@ onMounted(loadPlugins)
 
 <style scoped>
 .cpp-tabs {
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line-1, rgba(255,255,255,.07));
+  margin-bottom: 10px;
+  display: flex;
+  gap: 4px;
 }
 .cpp-tab {
   border: 0;
   background: none;
-  padding: 8px 14px;
+  padding: 7px 12px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  color: var(--tx-3, #7C88A0);
+  font-size: 12.5px;
 }
+.cpp-tab:hover { color: var(--tx-1, #F2F5FA); }
 .cpp-tab.active {
-  border-bottom-color: #6366f1;
-  color: #6366f1;
+  border-bottom-color: var(--brand, #FF8A3D);
+  color: var(--brand, #FF8A3D);
   font-weight: 600;
 }
 .cpp-section {
-  padding: 4px 0;
+  padding: 6px 0;
 }
 .cpp-section label {
   margin-right: 8px;
   font-weight: 600;
+  color: var(--tx-2, #B9C2D4);
+  font-size: 12px;
 }
+.cpp-section select,
+.cpp-section :deep(select),
+.cpp-section input {
+  background: var(--bg-glass, rgba(255,255,255,.035));
+  color: var(--tx-1, #F2F5FA);
+  border: 1px solid var(--line-1, rgba(255,255,255,.07));
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+.text-color-secondary { color: var(--tx-3, #7C88A0); }
 </style>

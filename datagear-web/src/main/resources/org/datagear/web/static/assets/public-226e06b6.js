@@ -1,1 +1,0 @@
-import{r as t,u as e}from"./request-948ad71a.js";async function r(){const a=await t.get("/api/about");return e(a)}async function o(){const a=await t.get("/api/changelog");return e(a)??[]}export{o as a,r as g};

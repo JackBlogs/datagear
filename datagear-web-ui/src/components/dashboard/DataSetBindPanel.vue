@@ -246,7 +246,7 @@ function removeBind(index: number) {
 
 <style scoped>
 .dsb-bind {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--line-1, rgba(255,255,255,.07));
   border-radius: 6px;
   padding: 8px;
   margin-bottom: 8px;
@@ -260,7 +260,7 @@ function removeBind(index: number) {
 .dsb-section-title {
   font-weight: 700;
   font-size: 13px;
-  color: #555;
+  color: var(--tx-3, #7C88A0);
 }
 .dsb-sign {
   padding: 4px 0;

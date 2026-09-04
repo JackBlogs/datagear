@@ -39,6 +39,8 @@ import org.datagear.web.metric.MetricQueryEngine.MetricQuery;
 import org.datagear.web.metric.MetricQueryEngine.MetricQueryException;
 import org.datagear.web.metric.MetricQueryEngine.MetricQueryResult;
 import org.datagear.web.util.OperationMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -77,6 +79,8 @@ public class MetricApiController extends AbstractEntityApiController<MetricEntit
 
 	private ObjectMapper objectMapper = new ObjectMapper();
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(MetricApiController.class);
+
 	public MetricApiController()
 	{
 		super();
@@ -92,6 +96,27 @@ public class MetricApiController extends AbstractEntityApiController<MetricEntit
 	protected String getModuleName()
 	{
 		return "metric";
+	}
+
+	/**
+	 * 保存即版本快照（FR-SEM-05）：新增写「初始版本」，更新写「修改保存」，认证另写「指标认证」。
+	 */
+	@Override
+	protected void persistEntity(HttpServletRequest request, MetricEntity entity, boolean add)
+	{
+		super.persistEntity(request, entity, add);
+
+		try
+		{
+			String snapshot = this.objectMapper.writeValueAsString(entity);
+			this.metricService.insertVersion(entity.getId(), snapshot,
+					add ? "初始版本" : "修改保存", getCurrentUser().getId());
+		}
+		catch (Exception e)
+		{
+			// 快照失败不阻断保存主流程
+			LOGGER.warn("Write metric version snapshot failed", e);
+		}
 	}
 
 	@Override
