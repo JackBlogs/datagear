@@ -37,6 +37,12 @@ request.interceptors.response.use(
         router.push({ path: '/login', query: { redirectUrl } })
       })
     }
+    // 后端对部分业务异常（如数据源连接失败）以非 2xx 状态码返回 OperationMessage，
+    // 真实原因在 body.message 里：此处转译，避免页面只显示 "Request failed with status code 400"
+    const body = error?.response?.data
+    if (body && typeof body === 'object' && body.type === 'FAIL' && body.message) {
+      return Promise.reject(new Error(body.message))
+    }
     return Promise.reject(error)
   },
 )

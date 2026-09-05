@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import '@/styles/datasource-page.css'
 
-// 新建数据集类型选择页。
+// 新建数据集类型选择页（能源暗域）。
 const router = useRouter()
 const { t } = useI18n()
 
 const types = [
-  { type: 'SQL', label: t('module.dataSet.SQL'), desc: '基于 SQL 查询' },
-  { type: 'JsonValue', label: t('module.dataSet.JsonValue'), desc: '直接输入 JSON 文本' },
-  { type: 'JsonFile', label: t('module.dataSet.JsonFile'), desc: '从 JSON 文件读取' },
-  { type: 'Excel', label: t('module.dataSet.Excel'), desc: '从 Excel 文件读取' },
-  { type: 'CsvValue', label: t('module.dataSet.CsvValue'), desc: '直接输入 CSV 文本' },
-  { type: 'CsvFile', label: t('module.dataSet.CsvFile'), desc: '从 CSV 文件读取' },
-  { type: 'Http', label: t('module.dataSet.Http'), desc: '调用 HTTP 接口获取数据' },
+  { type: 'SQL', label: t('module.dataSet.SQL'), desc: '基于 SQL 查询', icon: '▤', hot: true },
+  { type: 'JsonValue', label: t('module.dataSet.JsonValue'), desc: '直接输入 JSON 文本', icon: '{}' },
+  { type: 'JsonFile', label: t('module.dataSet.JsonFile'), desc: '从 JSON 文件读取', icon: '{}' },
+  { type: 'Excel', label: t('module.dataSet.Excel'), desc: '从 Excel 文件读取', icon: '▤' },
+  { type: 'CsvValue', label: t('module.dataSet.CsvValue'), desc: '直接输入 CSV 文本', icon: '⋮' },
+  { type: 'CsvFile', label: t('module.dataSet.CsvFile'), desc: '从 CSV 文件读取', icon: '⋮' },
+  { type: 'Http', label: t('module.dataSet.Http'), desc: '调用 HTTP 接口获取数据', icon: '⇄' },
 ]
 
 function go(type: string) {
@@ -23,43 +24,47 @@ function go(type: string) {
 </script>
 
 <template>
-  <div class="p-4">
-    <div class="flex align-items-center gap-2 mb-3">
-      <h3 class="flex-1">{{ t('new') + t('module.dataSet') }}</h3>
-      <Button :label="t('back')" text @click="router.push('/dataSet')" />
+  <div class="ds-page">
+    <!-- 页头 -->
+    <div class="page-head">
+      <div>
+        <div class="page-title">{{ t('new') + t('module.dataSet') }} <span class="tag brand">7 种类型</span></div>
+        <div class="page-desc">选择数据集类型，SQL 数据集将进入独立编辑器</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn" type="button" @click="router.push('/dataSet')">{{ t('back') }}</button>
+      </div>
     </div>
-    <div class="grid">
+
+    <!-- 类型卡网格 -->
+    <div class="type-grid">
       <div v-for="t in types" :key="t.type" class="type-card" @click="go(t.type)">
-        <div class="type-label">{{ t.label }}</div>
-        <div class="type-desc">{{ t.desc }}</div>
+        <div class="tc-icon">{{ t.icon }}</div>
+        <div class="tc-body">
+          <div class="tc-label">{{ t.label }}</div>
+          <div class="tc-desc">{{ t.desc }}</div>
+        </div>
+        <i class="pi pi-arrow-right tc-arrow"></i>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-}
+.type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .type-card {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.15s;
+  display: flex; align-items: center; gap: 12px; padding: 16px;
+  border: 1px solid var(--line-1); border-radius: 12px; background: var(--bg-glass);
+  cursor: pointer; transition: border-color 0.15s, transform 0.15s;
 }
-.type-card:hover {
-  border-color: #6366f1;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.type-card:hover { border-color: var(--brand-line); background: var(--bg-glass-2); transform: translateY(-2px); }
+.tc-icon {
+  width: 42px; height: 42px; border-radius: 11px; flex: none;
+  background: rgba(255, 138, 61, 0.14); color: var(--brand);
+  display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;
 }
-.type-label {
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.type-desc {
-  color: #888;
-  font-size: 12px;
-}
+.tc-body { min-width: 0; flex: 1; }
+.tc-label { font-size: 13.5px; font-weight: 700; color: var(--tx-1); }
+.tc-desc { font-size: 11.5px; color: var(--tx-3); margin-top: 3px; }
+.tc-arrow { color: var(--tx-4); font-size: 12px; }
 </style>

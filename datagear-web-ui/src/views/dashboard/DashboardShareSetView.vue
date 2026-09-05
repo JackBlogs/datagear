@@ -4,8 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getDashboardShareSet, saveDashboardShareSet, type DashboardShareSet } from '@/api/dashboard'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import '@/styles/datasource-page.css'
 
-// 看板分享设置：启用密码 / 匿名可访问密码 / 密码。
+// 看板分享设置（能源暗域）：启用密码 / 匿名可访问密码 / 密码。
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
@@ -44,45 +45,54 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="page page-form h-full p-1">
-    <div class="flex align-items-center gap-2 mb-2">
-      <h3 class="flex-1">{{ t('dashboardShareSet') }}</h3>
-      <Button :label="t('back')" text size="small" @click="router.push('/dashboard')" />
-    </div>
-    <div v-if="loading" class="text-color-secondary">加载中…</div>
-    <div v-else class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
-      <div class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('enablePassword') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <Checkbox v-model="form.enablePassword" :binary="true" />
+  <div class="ds-page">
+    <form @submit.prevent="save">
+      <!-- 页头 -->
+      <div class="page-head">
+        <div>
+          <div class="page-title">{{ t('dashboardShareSet') }} <span class="tag brand">分享</span></div>
+          <div class="page-desc">设置看板分享密码与匿名访问，保障外发安全</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn" type="button" @click="router.push('/dashboard')">{{ t('back') }}</button>
+          <button class="btn primary" type="submit" :disabled="saving">
+            {{ saving ? '保存中…' : t('save') }}
+          </button>
         </div>
       </div>
-      <div class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('anonymousAccess') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <Checkbox v-model="form.anonymousPassword" :binary="true" />
+
+      <div v-if="loading" class="empty">{{ t('loading') }}</div>
+
+      <div v-else class="card form-card">
+        <div class="card-title"><i class="bar"></i>分享设置</div>
+        <div class="form-item">
+          <label class="form-label">{{ t('enablePassword') }}</label>
+          <div class="seg-row">
+            <span class="seg-item" :class="{ active: form.enablePassword }" @click="form.enablePassword = true">启用</span>
+            <span class="seg-item" :class="{ active: !form.enablePassword }" @click="form.enablePassword = false">关闭</span>
+          </div>
+        </div>
+        <div class="form-item">
+          <label class="form-label">{{ t('anonymousAccess') }}</label>
+          <div class="seg-row">
+            <span class="seg-item" :class="{ active: form.anonymousPassword }" @click="form.anonymousPassword = true">允许</span>
+            <span class="seg-item" :class="{ active: !form.anonymousPassword }" @click="form.anonymousPassword = false">禁止</span>
+          </div>
+        </div>
+        <div class="form-item">
+          <label class="form-label">{{ t('password') }}</label>
+          <input v-model="form.password" type="password" class="input" :placeholder="t('sharePassword')" autocomplete="new-password" />
         </div>
       </div>
-      <div class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('password') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <Password v-model="form.password" class="input w-full" :placeholder="t('sharePassword')" toggle-mask />
-        </div>
-      </div>
-    </div>
-    <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
-      <Button :label="t('save')" :loading="saving" @click="save" />
-    </div>
+    </form>
   </div>
 </template>
 
 <style scoped>
-.field-label {
-  font-weight: 600;
-}
-.input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
+.form-card { padding: 16px 18px; max-width: 560px; }
+.form-item { margin-bottom: 14px; }
+.form-label { font-size: 12px; color: var(--tx-2); margin-bottom: 5px; display: block; }
+.seg-row { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--bg-glass); border: 1px solid var(--line-1); }
+.seg-item { padding: 5px 18px; border-radius: 8px; font-size: 12.5px; color: var(--tx-3); cursor: pointer; }
+.seg-item.active { background: var(--brand-soft); color: var(--brand); }
 </style>

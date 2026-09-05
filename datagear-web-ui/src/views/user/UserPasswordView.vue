@@ -4,8 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { changeUserPassword } from '@/api/user'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import { useI18n } from 'vue-i18n'
+import '@/styles/datasource-page.css'
 
-// 管理员修改用户密码。
+// 管理员修改用户密码（能源暗域）。
 const route = useRoute()
 const router = useRouter()
 const { success, fail } = useOperationMessage()
@@ -34,32 +35,31 @@ async function save() {
 </script>
 
 <template>
-  <div class="page page-form h-full p-1">
-    <div class="flex align-items-center gap-2 mb-2">
-      <h3 class="flex-1">{{ t('changeUserPassword') }}</h3>
-      <Button :label="t('back')" text size="small" @click="router.push('/user')" />
-    </div>
-    <div class="page-form-content flex-grow-1 px-2 py-1 overflow-y-auto">
-      <div class="field grid">
-        <label class="field-label col-12 mb-2 md:col-3 md:mb-0">{{ t('newPassword') }}</label>
-        <div class="field-input col-12 md:col-9">
-          <Password v-model="password" class="input w-full" :placeholder="t('newPassword')" toggle-mask autofocus />
+  <div class="ds-page">
+    <form @submit.prevent="save">
+      <!-- 页头 -->
+      <div class="page-head">
+        <div>
+          <div class="page-title">{{ t('changeUserPassword') }} <span class="tag brand">安全</span></div>
+          <div class="page-desc">为用户设置新密码，保存后用户需使用新密码登录</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn" type="button" @click="router.push('/user')">{{ t('back') }}</button>
+          <button class="btn primary" type="submit" :disabled="saving">
+            {{ saving ? '保存中…' : t('save') }}
+          </button>
         </div>
       </div>
-    </div>
-    <div class="page-form-foot flex-grow-0 flex justify-content-center gap-2 pt-2">
-      <Button :label="t('save')" :loading="saving" @click="save" />
-    </div>
+
+      <div class="card form-card">
+        <div class="card-title"><i class="bar"></i>{{ t('newPassword') }}</div>
+        <input v-model="password" type="password" class="input" :placeholder="t('newPassword')" autocomplete="new-password" autofocus />
+      </div>
+    </form>
   </div>
 </template>
 
 <style scoped>
-.field-label {
-  font-weight: 600;
-}
-.input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
+.form-card { padding: 16px 18px; max-width: 560px; }
+.form-card .input { width: 100%; }
 </style>

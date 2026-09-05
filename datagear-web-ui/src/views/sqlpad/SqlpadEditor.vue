@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   executeSql,
@@ -23,6 +23,7 @@ import CodeEditor from '@/components/CodeEditor.vue'
 import '@/styles/datasource-page.css'
 
 const route = useRoute()
+const router = useRouter()
 const dtbsSourceId = route.params.dtbsSourceId as string
 const dtbsSourceTitle = (route.query.title as string) || '数据源'
 
@@ -266,6 +267,7 @@ onBeforeUnmount(stopPoll)
         <div class="page-desc">{{ t('sqlpad.desc') }}</div>
       </div>
       <div class="page-actions">
+        <button class="btn" type="button" @click="router.push(`/dtbsSource/${dtbsSourceId}`)">← 返回数据源</button>
         <button class="btn" type="button" @click="showHistory = !showHistory; showHistory && loadHistory()">{{ t('sqlpad.history') }}</button>
         <button class="btn" type="button" @click="showSettings = !showSettings">{{ t('sqlpad.settings') }}</button>
       </div>
