@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.datagear.management.domain.AuditLogEntity">
+
+	<insert id="insertAudit">
+		INSERT INTO DATAGEAR_AUDIT_LOG
+			(AL_ID, AL_OP, AL_USER, AL_TARGET, AL_IP, AL_RESULT, AL_TIME)
+		VALUES
+			(#{entity.id}, #{entity.op}, #{entity.user}, #{entity.target}, #{entity.ip}, #{entity.result}, #{entity.createTime})
+	</insert>
+
+	<insert id="insert">
+		INSERT INTO DATAGEAR_AUDIT_LOG
+			(AL_ID, AL_OP, AL_USER, AL_TARGET, AL_IP, AL_RESULT, AL_TIME)
+		VALUES
+			(#{entity.id}, #{entity.op}, #{entity.user}, #{entity.target}, #{entity.ip}, #{entity.result}, #{entity.createTime})
+	</insert>
+
+	<update id="update">
+		UPDATE DATAGEAR_AUDIT_LOG SET
+			AL_OP = #{entity.op},
+			AL_USER = #{entity.user},
+			AL_TARGET = #{entity.target},
+			AL_IP = #{entity.ip},
+			AL_RESULT = #{entity.result},
+			AL_TIME = #{entity.createTime}
+		WHERE
+			AL_ID = #{entity.id}
+	</update>
+
+	<delete id="deleteById">
+		DELETE FROM DATAGEAR_AUDIT_LOG
+		WHERE
+			AL_ID = #{id}
+	</delete>
+
+	<select id="getById" resultType="org.datagear.management.domain.AuditLogEntity">
+		SELECT
+			A.AL_ID AS ${_iq_}id${_iq_},
+			A.AL_OP AS ${_iq_}op${_iq_},
+			A.AL_USER AS ${_iq_}user${_iq_},
+			A.AL_TARGET AS ${_iq_}target${_iq_},
+			A.AL_IP AS ${_iq_}ip${_iq_},
+			A.AL_RESULT AS ${_iq_}result${_iq_},
+			A.AL_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_AUDIT_LOG A
+		WHERE
+			A.AL_ID = #{id}
+	</select>
+
+	<select id="query" resultType="org.datagear.management.domain.AuditLogEntity">
+		SELECT
+			A.AL_ID AS ${_iq_}id${_iq_},
+			A.AL_OP AS ${_iq_}op${_iq_},
+			A.AL_USER AS ${_iq_}user${_iq_},
+			A.AL_TARGET AS ${_iq_}target${_iq_},
+			A.AL_IP AS ${_iq_}ip${_iq_},
+			A.AL_RESULT AS ${_iq_}result${_iq_},
+			A.AL_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_AUDIT_LOG A
+		WHERE
+			1 = 1
+		<if test="queryKeyword != null">
+			AND (A.AL_USER LIKE #{queryKeyword} OR A.AL_TARGET LIKE #{queryKeyword})
+		</if>
+		ORDER BY
+			A.AL_TIME DESC
+	</select>
+
+	<select id="pagingQueryCount" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			DATAGEAR_AUDIT_LOG A
+		WHERE
+			1 = 1
+		<if test="queryKeyword != null">
+			AND (A.AL_USER LIKE #{queryKeyword} OR A.AL_TARGET LIKE #{queryKeyword})
+		</if>
+	</select>
+
+	<select id="pagingQuery" resultType="org.datagear.management.domain.AuditLogEntity">
+		<include refid="common.pagingQueryHead" />
+			SELECT
+				A.AL_ID AS ${_iq_}id${_iq_},
+				A.AL_OP AS ${_iq_}op${_iq_},
+				A.AL_USER AS ${_iq_}user${_iq_},
+				A.AL_TARGET AS ${_iq_}target${_iq_},
+				A.AL_IP AS ${_iq_}ip${_iq_},
+				A.AL_RESULT AS ${_iq_}result${_iq_},
+				A.AL_TIME AS ${_iq_}createTime${_iq_}
+			FROM
+				DATAGEAR_AUDIT_LOG A
+			WHERE
+				1 = 1
+			<if test="queryKeyword != null">
+				AND (A.AL_USER LIKE #{queryKeyword} OR A.AL_TARGET LIKE #{queryKeyword})
+			</if>
+			ORDER BY
+				A.AL_TIME DESC
+		<include refid="common.pagingQueryFoot" />
+	</select>
+
+	<select id="listByOp" resultType="org.datagear.management.domain.AuditLogEntity">
+		SELECT
+			*
+		FROM
+			(
+			SELECT
+				A.AL_ID AS ${_iq_}id${_iq_},
+				A.AL_OP AS ${_iq_}op${_iq_},
+				A.AL_USER AS ${_iq_}user${_iq_},
+				A.AL_TARGET AS ${_iq_}target${_iq_},
+				A.AL_IP AS ${_iq_}ip${_iq_},
+				A.AL_RESULT AS ${_iq_}result${_iq_},
+				A.AL_TIME AS ${_iq_}createTime${_iq_}
+			FROM
+				DATAGEAR_AUDIT_LOG A
+			WHERE
+				1 = 1
+			<if test="op != null">
+				AND A.AL_OP = #{op}
+			</if>
+			ORDER BY
+				A.AL_TIME DESC
+			) T
+	</select>
+</mapper>

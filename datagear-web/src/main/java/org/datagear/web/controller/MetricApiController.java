@@ -35,6 +35,7 @@ import org.datagear.management.service.DtbsSourceService;
 import org.datagear.management.service.MetricService;
 import org.datagear.management.service.PermissionDeniedException;
 import org.datagear.web.metric.MetricQueryEngine;
+import org.datagear.web.metric.DataPermissionService;
 import org.datagear.web.metric.MetricQueryEngine.MetricQuery;
 import org.datagear.web.metric.MetricQueryEngine.MetricQueryException;
 import org.datagear.web.metric.MetricQueryEngine.MetricQueryResult;
@@ -70,6 +71,9 @@ public class MetricApiController extends AbstractEntityApiController<MetricEntit
 
 	@Autowired
 	private MetricQueryEngine metricQueryEngine;
+
+	@Autowired
+	private DataPermissionService dataPermissionService;
 
 	@Autowired
 	private DtbsSourceService dtbsSourceService;
@@ -241,7 +245,26 @@ public class MetricApiController extends AbstractEntityApiController<MetricEntit
 
 		try
 		{
+			List<MetricQuery.Filter> permFilters = new ArrayList<MetricQuery.Filter>();
+			List<String> appliedRowPerms = this.dataPermissionService.applyRowFilters(getCurrentUser(),
+					metric.getTableName(), permFilters);
+
+			if (!permFilters.isEmpty())
+			{
+				if (query.getFilters() == null || query.getFilters().isEmpty())
+					query.setFilters(permFilters);
+				else
+				{
+					List<MetricQuery.Filter> merged = new ArrayList<MetricQuery.Filter>(query.getFilters());
+					merged.addAll(permFilters);
+					query.setFilters(merged);
+				}
+			}
+
 			result = this.metricQueryEngine.query(dtbsSource, metric, query);
+			result.setAppliedRowPerms(appliedRowPerms);
+			result.setAppliedMasks(
+					this.dataPermissionService.applyMasks(getCurrentUser(), metric.getTableName(), result));
 		}
 		catch (MetricQueryException e)
 		{
@@ -277,7 +300,26 @@ public class MetricApiController extends AbstractEntityApiController<MetricEntit
 
 		try
 		{
+			List<MetricQuery.Filter> permFilters = new ArrayList<MetricQuery.Filter>();
+			List<String> appliedRowPerms = this.dataPermissionService.applyRowFilters(getCurrentUser(),
+					metric.getTableName(), permFilters);
+
+			if (!permFilters.isEmpty())
+			{
+				if (query.getFilters() == null || query.getFilters().isEmpty())
+					query.setFilters(permFilters);
+				else
+				{
+					List<MetricQuery.Filter> merged = new ArrayList<MetricQuery.Filter>(query.getFilters());
+					merged.addAll(permFilters);
+					query.setFilters(merged);
+				}
+			}
+
 			result = this.metricQueryEngine.query(dtbsSource, metric, query);
+			result.setAppliedRowPerms(appliedRowPerms);
+			result.setAppliedMasks(
+					this.dataPermissionService.applyMasks(getCurrentUser(), metric.getTableName(), result));
 		}
 		catch (MetricQueryException e)
 		{
@@ -288,6 +330,8 @@ public class MetricApiController extends AbstractEntityApiController<MetricEntit
 		data.put("value", result.firstValue());
 		data.put("sql", result.getSql());
 		data.put("costMs", result.getCostMs());
+		data.put("appliedRowPerms", result.getAppliedRowPerms());
+		data.put("appliedMasks", result.getAppliedMasks());
 
 		OperationMessage<Map<String, Object>> om = OperationMessage.valueOfSuccess("operationSuccess",
 				getMessage(request, "operationSuccess"), data);
@@ -398,6 +442,16 @@ public class MetricApiController extends AbstractEntityApiController<MetricEntit
 	public void setMetricQueryEngine(MetricQueryEngine metricQueryEngine)
 	{
 		this.metricQueryEngine = metricQueryEngine;
+	}
+
+	public DataPermissionService getDataPermissionService()
+	{
+		return dataPermissionService;
+	}
+
+	public void setDataPermissionService(DataPermissionService dataPermissionService)
+	{
+		this.dataPermissionService = dataPermissionService;
 	}
 
 	public DtbsSourceService getDtbsSourceService()

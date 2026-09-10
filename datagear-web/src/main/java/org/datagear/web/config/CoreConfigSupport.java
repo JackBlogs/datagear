@@ -64,6 +64,11 @@ import org.datagear.management.service.AnalysisProjectAuthorizationListener;
 import org.datagear.management.service.AnalysisProjectService;
 import org.datagear.management.service.AuthorizationListener;
 import org.datagear.management.service.AuthorizationService;
+import org.datagear.management.service.AiMessageService;
+import org.datagear.management.service.GlossaryService;
+import org.datagear.management.service.GovernanceService;
+import org.datagear.management.service.AiSessionService;
+import org.datagear.management.service.AuditLogService;
 import org.datagear.management.service.CreateUserEntityService;
 import org.datagear.management.service.DashboardShareSetService;
 import org.datagear.management.service.DataPermissionEntityService;
@@ -75,7 +80,9 @@ import org.datagear.management.service.HtmlChartWidgetEntityService;
 import org.datagear.management.service.HtmlTplDashboardWidgetEntityService;
 import org.datagear.management.service.RoleService;
 import org.datagear.management.service.BigScreenService;
+import org.datagear.management.service.MaskRuleService;
 import org.datagear.management.service.MetricService;
+import org.datagear.management.service.RowPermService;
 import org.datagear.management.service.SqlHistoryService;
 import org.datagear.management.service.UserService;
 import org.datagear.management.service.impl.AbstractMybatisDataPermissionEntityService;
@@ -83,7 +90,16 @@ import org.datagear.management.service.impl.AbstractMybatisEntityService;
 import org.datagear.management.service.impl.AnalysisProjectAuthorizationListenerAware;
 import org.datagear.management.service.impl.AnalysisProjectServiceImpl;
 import org.datagear.management.service.impl.AuthorizationListenerAware;
+import org.datagear.management.service.impl.AiMessageServiceImpl;
+import org.datagear.management.service.impl.GlossaryServiceImpl;
+import org.datagear.management.service.impl.GovernanceServiceImpl;
+import org.datagear.management.service.impl.AiSessionServiceImpl;
+import org.datagear.management.service.impl.AuditLogServiceImpl;
+import org.datagear.management.service.impl.MaskRuleServiceImpl;
 import org.datagear.management.service.impl.MetricServiceImpl;
+import org.datagear.management.service.impl.RowPermServiceImpl;
+import org.datagear.web.ai.ChatService;
+import org.datagear.web.metric.DataPermissionService;
 import org.datagear.web.metric.MetricQueryEngine;
 import org.datagear.management.service.impl.AuthorizationServiceImpl;
 import org.datagear.management.service.impl.BundleAnalysisProjectAuthorizationListener;
@@ -796,6 +812,89 @@ public class CoreConfigSupport implements ApplicationListener<ContextRefreshedEv
 	{
 		MetricQueryEngine bean = new MetricQueryEngine();
 		bean.setConnectionSource(this.connectionSource());
+
+		return bean;
+	}
+
+	@Bean
+	public RowPermService rowPermService()
+	{
+		RowPermServiceImpl bean = new RowPermServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public MaskRuleService maskRuleService()
+	{
+		MaskRuleServiceImpl bean = new MaskRuleServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public AuditLogService auditLogService()
+	{
+		AuditLogServiceImpl bean = new AuditLogServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public AiSessionService aiSessionService()
+	{
+		AiSessionServiceImpl bean = new AiSessionServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public AiMessageService aiMessageService()
+	{
+		AiMessageServiceImpl bean = new AiMessageServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public ChatService chatService()
+	{
+		ChatService bean = new ChatService();
+		bean.setMetricService(this.metricService());
+		bean.setDtbsSourceService(this.dtbsSourceService());
+		bean.setMetricQueryEngine(this.metricQueryEngine());
+		bean.setDataPermissionService(this.dataPermissionService());
+		bean.setAiSessionService(this.aiSessionService());
+		bean.setAiMessageService(this.aiMessageService());
+		bean.setGlossaryService(this.glossaryService());
+		bean.setConnectionSource(this.connectionSource());
+
+		return bean;
+	}
+
+	@Bean
+	public GlossaryService glossaryService()
+	{
+		GlossaryServiceImpl bean = new GlossaryServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public GovernanceService governanceService()
+	{
+		GovernanceServiceImpl bean = new GovernanceServiceImpl(this.sqlSessionFactory(), this.mbSqlDialect());
+
+		return bean;
+	}
+
+	@Bean
+	public DataPermissionService dataPermissionService()
+	{
+		DataPermissionService bean = new DataPermissionService();
+		bean.setRowPermService(this.rowPermService());
+		bean.setMaskRuleService(this.maskRuleService());
+		bean.setAuditLogService(this.auditLogService());
 
 		return bean;
 	}

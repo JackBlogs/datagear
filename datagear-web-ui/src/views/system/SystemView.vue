@@ -1,24 +1,26 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { userPagingQueryData, type User } from '@/api/user'
 import {
-  rowPerms,
-  maskRules,
-  auditLogs,
-  orgTree,
-  toggleRowPerm,
-  saveRowPerm,
-  saveMask,
-  type RowPerm,
-} from '@/mock/systemData'
+  rowPermList,
+  saveRowPermApi,
+  toggleRowPermApi,
+  maskList,
+  saveMaskApi,
+  auditList,
+  type RowPermEntity,
+  type MaskRuleEntity,
+  type AuditLogEntity,
+} from '@/api/authData'
+import { orgTree } from '@/mock/systemData'
 import { useOperationMessage } from '@/composables/useOperationMessage'
 import '@/styles/datasource-page.css'
 
 /**
  * 系统管理（对齐 prototypev2 system.html）：
- * 6 tab —— 用户（真实 /api/user）/ 角色（真实 /role 入口）/ 组织 / 行列级权限 / 动态脱敏 / 审计日志。
- * 行列级权限与脱敏数据层为前端 mock（FR-AUTH-10/11 后端就绪后一键切换）。
+ * 6 tab —— 用户（真实 /api/user）/ 角色（真实 /role 入口）/ 组织 / 行列级权限（真实，FR-AUTH-10）
+ * / 动态脱敏（真实，FR-AUTH-11，查询结果侧生效）/ 审计日志（真实，FR-AUTH-12 权限变更自动留痕）。
  */
 const router = useRouter()
 const { success, fail } = useOperationMessage()
@@ -58,40 +60,146 @@ function roleNames(u: User): string {
 /* ---------- 组织 ---------- */
 const orgSelected = ref(orgTree.value[0]?.name ?? '')
 
-/* ---------- 行列级权限 ---------- */
-const rpForm = ref<{ name: string; resource: string; cond: string } | null>(null)
+/* ---------- 行列级权限（真实 API，FR-AUTH-10） ---------- */
+const rowPerms = ref<RowPermEntity[]>([])
+const rpLoading = ref(false)
 
-function submitRp() {
+function rpRoles(r: RowPermEntity): string[] {
+  try {
+    return JSON.parse(r.rolesJson || '[]')
+  } catch {
+    return []
+  }
+}
+
+async function loadRowPerms() {
+  rpLoading.value = true
+  try {
+    rowPerms.value = await rowPermList()
+  } catch (e) {
+    fail((e as Error).message || '行级权限加载失败')
+  } finally {
+    rpLoading.value = false
+  }
+}
+
+const rpForm = ref<{
+  name: string
+  resource: string
+  cond: string
+  tableName: string
+  fieldName: string
+} | null>(null)
+
+async function submitRp() {
   if (!rpForm.value) return
   if (!rpForm.value.name || !rpForm.value.resource || !rpForm.value.cond) {
     fail('规则名、资源与过滤条件不能为空')
     return
   }
-  saveRowPerm(rpForm.value)
-  rpForm.value = null
-  success('行级权限规则已保存并启用')
+  try {
+    await saveRowPermApi({
+      name: rpForm.value.name,
+      resource: rpForm.value.resource,
+      cond: rpForm.value.cond,
+      tableName: rpForm.value.tableName,
+      fieldName: rpForm.value.fieldName,
+      roles: ['业务人员'],
+    })
+    rpForm.value = null
+    success('行级权限规则已保存并启用（查询链路自动注入行过滤）')
+    await loadRowPerms()
+  } catch (e) {
+    fail((e as Error).message || '保存失败')
+  }
 }
 
-function onToggleRp(r: RowPerm) {
-  const enabled = toggleRowPerm(r.id)
-  success(`规则「${r.name}」已${enabled ? '启用' : '停用'}`)
+async function onToggleRp(r: RowPermEntity) {
+  try {
+    const enabled = await toggleRowPermApi(r.id)
+    r.enabled = enabled ? 1 : 0
+    success(`规则「${r.name}」已${enabled ? '启用' : '停用'}`)
+  } catch (e) {
+    fail((e as Error).message || '操作失败')
+  }
 }
 
-/* ---------- 动态脱敏 ---------- */
-const maskForm = ref<{ field: string; algo: string; sample: string; roles: string } | null>(null)
+/* ---------- 动态脱敏（真实 API，FR-AUTH-11） ---------- */
+const maskRules = ref<MaskRuleEntity[]>([])
+const maskLoading = ref(false)
 
-function submitMask() {
+async function loadMasks() {
+  maskLoading.value = true
+  try {
+    maskRules.value = await maskList()
+  } catch (e) {
+    fail((e as Error).message || '脱敏规则加载失败')
+  } finally {
+    maskLoading.value = false
+  }
+}
+
+const maskForm = ref<{
+  field: string
+  algo: string
+  sample: string
+  roles: string
+  tableName: string
+  fieldName: string
+} | null>(null)
+
+async function submitMask() {
   if (!maskForm.value) return
   if (!maskForm.value.field) {
     fail('请填写脱敏字段')
     return
   }
-  saveMask(maskForm.value)
-  maskForm.value = null
-  success('脱敏规则已保存')
+  try {
+    await saveMaskApi({
+      field: maskForm.value.field,
+      algo: maskForm.value.algo,
+      sample: maskForm.value.sample,
+      roles: maskForm.value.roles,
+      tableName: maskForm.value.tableName,
+      fieldName: maskForm.value.fieldName,
+    })
+    maskForm.value = null
+    success('脱敏规则已保存（查询结果侧生效）')
+    await loadMasks()
+  } catch (e) {
+    fail((e as Error).message || '保存失败')
+  }
 }
 
-/* ---------- 审计 ---------- */
+/* ---------- 审计日志（真实 API，FR-AUTH-12） ---------- */
+const auditLogs = ref<AuditLogEntity[]>([])
+const auditLoading = ref(false)
+
+async function loadAudit() {
+  auditLoading.value = true
+  try {
+    const data = await auditList()
+    auditLogs.value = data.rows
+  } catch (e) {
+    fail((e as Error).message || '审计日志加载失败')
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+function fmtAuditTime(t?: string): string {
+  if (!t) return '—'
+  const d = new Date(t.replace(' ', 'T'))
+  if (Number.isNaN(d.getTime())) return t
+  const now = new Date()
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const day = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`
+  if (day(d) === day(now)) return `今天 ${hm}`
+  const yd = new Date(now.getTime() - 86400000)
+  if (day(d) === day(yd)) return `昨天 ${hm}`
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${hm}`
+}
+
 const auditOp = ref('')
 const RISK_OPS = ['权限变更', '数据导出', '登录失败', '越权访问']
 function isRisk(op: string): boolean {
@@ -100,6 +208,12 @@ function isRisk(op: string): boolean {
 const filteredAudit = computed(() => {
   if (!auditOp.value) return auditLogs.value
   return auditLogs.value.filter((a) => a.op === auditOp.value)
+})
+
+watch(pane, (p) => {
+  if (p === 'rc' && !rowPerms.value.length) loadRowPerms()
+  else if (p === 'mask' && !maskRules.value.length) loadMasks()
+  else if (p === 'audit' && !auditLogs.value.length) loadAudit()
 })
 
 onMounted(loadUsers)
@@ -124,7 +238,7 @@ onMounted(loadUsers)
       <div class="tab-item" :class="{ active: pane === 'users' }" @click="pane = 'users'">用户 <em>{{ users.length }}</em></div>
       <div class="tab-item" :class="{ active: pane === 'roles' }" @click="pane = 'roles'">角色</div>
       <div class="tab-item" :class="{ active: pane === 'orgs' }" @click="pane = 'orgs'">组织</div>
-      <div class="tab-item" :class="{ active: pane === 'rc' }" @click="pane = 'rc'">行列级权限 <em class="brand-tag">核心</em></div>
+      <div class="tab-item" :class="{ active: pane === 'rc' }" @click="pane = 'rc'">行列级权限 <em>{{ rowPerms.length }}</em></div>
       <div class="tab-item" :class="{ active: pane === 'mask' }" @click="pane = 'mask'">动态脱敏 <em>{{ maskRules.length }}</em></div>
       <div class="tab-item" :class="{ active: pane === 'audit' }" @click="pane = 'audit'">审计日志</div>
     </div>
@@ -207,22 +321,26 @@ onMounted(loadUsers)
     <!-- ===== 行列级权限 ===== -->
     <template v-else-if="pane === 'rc'">
       <div class="flex mb-2">
-        <button class="btn primary sm" type="button" @click="rpForm = { name: '', resource: '', cond: '' }">＋ 新建规则 ›</button>
-        <span class="tx-3 sm" style="margin-left: auto">查询链路统一改写：最外层 WHERE 追加行过滤 → 列裁剪 → 动态脱敏（SDS 权限管道）</span>
+        <button class="btn primary sm" type="button" @click="rpForm = { name: '', resource: '', cond: '', tableName: '', fieldName: '' }">＋ 新建规则 ›</button>
+        <span class="tx-3 sm" style="margin-left: auto">查询链路统一改写：规则绑定物理表后，指标查询自动注入行过滤（PreparedStatement 参数化）→ 结果侧动态脱敏（SDS 权限管道）</span>
       </div>
       <div class="table-wrap">
         <table class="tbl">
           <thead>
-            <tr><th>规则名</th><th>生效资源</th><th>过滤条件</th><th>生效角色</th><th style="width: 70px">状态</th></tr>
+            <tr><th>规则名</th><th>生效资源</th><th>过滤条件</th><th>生效角色</th><th style="width: 90px">状态</th></tr>
           </thead>
           <tbody>
-            <tr v-if="!rowPerms.length"><td colspan="5"><div class="empty">暂无规则</div></td></tr>
+            <tr v-if="rpLoading"><td colspan="5"><div class="empty">加载中…</div></td></tr>
+            <tr v-else-if="!rowPerms.length"><td colspan="5"><div class="empty">暂无规则</div></td></tr>
             <tr v-for="r in rowPerms" :key="r.id">
               <td><span class="cell-main">{{ r.name }}</span></td>
-              <td class="sm">{{ r.resource }}</td>
+              <td class="sm">
+                {{ r.resource }}
+                <div v-if="r.tableName" class="tx-4" style="font-size: 10.5px">物理表 {{ r.tableName }}{{ r.fieldName ? ' · ' + r.fieldName : '' }}</div>
+              </td>
               <td><span class="cond">{{ r.cond }}</span></td>
-              <td><span v-for="role in r.roles" :key="role" class="tag info" style="margin-right: 4px">{{ role }}</span></td>
-              <td><label class="switch"><input type="checkbox" :checked="r.enabled" @change="onToggleRp(r)" /><i></i></label></td>
+              <td><span v-for="role in rpRoles(r)" :key="role" class="tag info" style="margin-right: 4px">{{ role }}</span></td>
+              <td><label class="switch"><input type="checkbox" :checked="r.enabled === 1" @change="onToggleRp(r)" /><i></i></label></td>
             </tr>
           </tbody>
         </table>
@@ -235,20 +353,25 @@ onMounted(loadUsers)
     <!-- ===== 动态脱敏 ===== -->
     <template v-else-if="pane === 'mask'">
       <div class="flex mb-2">
-        <button class="btn primary sm" type="button" @click="maskForm = { field: '', algo: '掩码', sample: '', roles: '业务人员' }">＋ 新建脱敏规则</button>
+        <button class="btn primary sm" type="button" @click="maskForm = { field: '', algo: '掩码', sample: '', roles: '业务人员', tableName: '', fieldName: '' }">＋ 新建脱敏规则</button>
       </div>
       <div class="table-wrap">
         <table class="tbl">
           <thead>
-            <tr><th>脱敏字段</th><th style="width: 90px">算法</th><th>原始值 → 展示值</th><th style="width: 130px">生效角色</th></tr>
+            <tr><th>脱敏字段</th><th style="width: 90px">算法</th><th>原始值 → 展示值</th><th style="width: 130px">生效角色</th><th style="width: 90px">状态</th></tr>
           </thead>
           <tbody>
-            <tr v-if="!maskRules.length"><td colspan="4"><div class="empty">暂无脱敏规则</div></td></tr>
+            <tr v-if="maskLoading"><td colspan="5"><div class="empty">加载中…</div></td></tr>
+            <tr v-else-if="!maskRules.length"><td colspan="5"><div class="empty">暂无脱敏规则</div></td></tr>
             <tr v-for="m in maskRules" :key="m.id">
-              <td><span class="cell-main">{{ m.field }}</span></td>
+              <td>
+                <span class="cell-main">{{ m.field }}</span>
+                <div v-if="m.tableName" class="tx-4" style="font-size: 10.5px">{{ m.tableName }}{{ m.fieldName ? ' · ' + m.fieldName : '' }}</div>
+              </td>
               <td><span class="tag info">{{ m.algo }}</span></td>
-              <td class="sm">{{ m.sample }}</td>
-              <td class="sm">{{ m.roles }}</td>
+              <td class="sm">{{ m.sample || '—' }}</td>
+              <td class="sm">{{ m.roles || '全部' }}</td>
+              <td><span class="tag" :class="m.enabled === 1 ? 'ok' : ''">{{ m.enabled === 1 ? '生效中' : '已停用' }}</span></td>
             </tr>
           </tbody>
         </table>
@@ -270,9 +393,10 @@ onMounted(loadUsers)
             <tr><th style="width: 130px">时间</th><th style="width: 100px">用户</th><th style="width: 110px">操作类型</th><th>对象</th><th style="width: 110px">来源 IP</th><th style="width: 120px">结果</th></tr>
           </thead>
           <tbody>
-            <tr v-if="!filteredAudit.length"><td colspan="6"><div class="empty">暂无日志</div></td></tr>
+            <tr v-if="auditLoading"><td colspan="6"><div class="empty">加载中…</div></td></tr>
+            <tr v-else-if="!filteredAudit.length"><td colspan="6"><div class="empty">暂无日志</div></td></tr>
             <tr v-for="a in filteredAudit" :key="a.id" :class="{ risk: isRisk(a.op) }">
-              <td class="sm tx-3">{{ a.time }}</td>
+              <td class="sm tx-3">{{ fmtAuditTime(a.createTime) }}</td>
               <td class="sm">{{ a.user }}</td>
               <td><span class="tag" :class="isRisk(a.op) ? 'danger' : 'info'">{{ a.op }}</span></td>
               <td class="sm">{{ a.target }}</td>
@@ -295,6 +419,10 @@ onMounted(loadUsers)
           <div class="form-item"><label class="form-label">规则名 *</label><input v-model="rpForm.name" class="input" placeholder="如：区域数据隔离" /></div>
           <div class="form-item"><label class="form-label">生效资源 *</label><input v-model="rpForm.resource" class="input" placeholder="如：华北油田生产日报看板" /></div>
           <div class="form-item"><label class="form-label">过滤条件 *（支持 ${'{'}currentUser{'}'} / ${'{'}currentOrg{'}'} 变量）</label><input v-model="rpForm.cond" class="input" placeholder="如 org_code = ${currentOrg}" /></div>
+          <div class="flex" style="gap: 10px">
+            <div class="form-item grow"><label class="form-label">作用物理表（选填，绑定后指标查询自动注入）</label><input v-model="rpForm.tableName" class="input" placeholder="如 DG_SALES_FACT" /></div>
+            <div class="form-item grow"><label class="form-label">物理字段（选填）</label><input v-model="rpForm.fieldName" class="input" placeholder="如 REGION" /></div>
+          </div>
           <div class="flex" style="gap: 10px; margin-top: 16px">
             <button class="btn primary grow" type="button" @click="submitRp">保存并启用</button>
             <button class="btn" type="button" @click="rpForm = null">取消</button>
@@ -313,9 +441,13 @@ onMounted(loadUsers)
         <div class="drawer-body">
           <div class="form-item"><label class="form-label">脱敏字段 *</label><input v-model="maskForm.field" class="input" placeholder="如：联系电话" /></div>
           <div class="form-item"><label class="form-label">算法</label>
-            <select v-model="maskForm.algo" class="input"><option>掩码</option><option>截断</option><option>替换</option><option>哈希</option></select>
+            <select v-model="maskForm.algo" class="input"><option>掩码</option><option>哈希</option><option>置空</option><option>截断</option></select>
           </div>
           <div class="form-item"><label class="form-label">示例（原始值 → 展示值）</label><input v-model="maskForm.sample" class="input" placeholder="如：13812345678 → 138****5678" /></div>
+          <div class="flex" style="gap: 10px">
+            <div class="form-item grow"><label class="form-label">作用物理表（选填，绑定后结果列自动匹配）</label><input v-model="maskForm.tableName" class="input" placeholder="如 DG_SALES_FACT" /></div>
+            <div class="form-item grow"><label class="form-label">物理字段（选填）</label><input v-model="maskForm.fieldName" class="input" placeholder="如 CONTACT" /></div>
+          </div>
           <div class="form-item"><label class="form-label">生效角色</label><input v-model="maskForm.roles" class="input" placeholder="如：业务人员" /></div>
           <div class="flex" style="gap: 10px; margin-top: 16px">
             <button class="btn primary grow" type="button" @click="submitMask">保存</button>

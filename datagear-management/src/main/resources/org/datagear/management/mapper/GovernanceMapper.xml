@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.datagear.management.domain.GovernanceSupport">
+
+	<!-- ==================== 元数据目录 ==================== -->
+	<sql id="metaView">
+		SELECT
+			A.MT_ID AS ${_iq_}id${_iq_},
+			A.MT_NAME AS ${_iq_}name${_iq_},
+			A.MT_SOURCE_ID AS ${_iq_}sourceId${_iq_},
+			A.MT_SOURCE AS ${_iq_}source${_iq_},
+			A.MT_ROWS AS ${_iq_}rows${_iq_},
+			A.MT_COLUMNS AS ${_iq_}columnsJson${_iq_},
+			A.MT_CREATE_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_GOV_META_TABLE A
+	</sql>
+
+	<select id="listMetaTables" resultType="org.datagear.management.domain.GovMetaTable">
+		SELECT T.* FROM (<include refid="metaView" />) T ORDER BY T.${_iq_}name${_iq_}
+	</select>
+
+	<select id="getMetaTable" resultType="org.datagear.management.domain.GovMetaTable">
+		SELECT T.* FROM (<include refid="metaView" />) T WHERE T.${_iq_}id${_iq_} = #{id}
+	</select>
+
+	<select id="getMetaTableByName" resultType="org.datagear.management.domain.GovMetaTable">
+		SELECT T.* FROM (<include refid="metaView" />) T WHERE T.${_iq_}name${_iq_} = #{name}
+	</select>
+
+	<insert id="insertMetaTable">
+		INSERT INTO DATAGEAR_GOV_META_TABLE
+			(MT_ID, MT_NAME, MT_SOURCE_ID, MT_SOURCE, MT_ROWS, MT_COLUMNS, MT_CREATE_TIME)
+		VALUES
+			(#{entity.id}, #{entity.name}, #{entity.sourceId}, #{entity.source}, #{entity.rows}, #{entity.columnsJson}, #{entity.createTime})
+	</insert>
+
+	<update id="updateMetaTable">
+		UPDATE DATAGEAR_GOV_META_TABLE SET
+			MT_NAME = #{entity.name},
+			MT_SOURCE_ID = #{entity.sourceId},
+			MT_SOURCE = #{entity.source},
+			MT_ROWS = #{entity.rows},
+			MT_COLUMNS = #{entity.columnsJson}
+		WHERE
+			MT_ID = #{entity.id}
+	</update>
+
+	<delete id="deleteMetaTable">
+		DELETE FROM DATAGEAR_GOV_META_TABLE WHERE MT_ID = #{id}
+	</delete>
+
+	<!-- ==================== 数据标准 ==================== -->
+	<sql id="stdView">
+		SELECT
+			A.GS_ID AS ${_iq_}id${_iq_},
+			A.GS_NAME AS ${_iq_}name${_iq_},
+			A.GS_CATEGORY AS ${_iq_}category${_iq_},
+			A.GS_SUMMARY AS ${_iq_}summary${_iq_},
+			A.GS_STATUS AS ${_iq_}status${_iq_},
+			A.GS_REFS AS ${_iq_}refs${_iq_},
+			A.GS_OWNER AS ${_iq_}owner${_iq_},
+			A.GS_CREATE_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_GOV_STANDARD A
+	</sql>
+
+	<select id="listStandards" resultType="org.datagear.management.domain.GovStandard">
+		SELECT T.* FROM (<include refid="stdView" />) T ORDER BY T.${_iq_}createTime${_iq_} DESC
+	</select>
+
+	<insert id="insertStandard">
+		INSERT INTO DATAGEAR_GOV_STANDARD
+			(GS_ID, GS_NAME, GS_CATEGORY, GS_SUMMARY, GS_STATUS, GS_REFS, GS_OWNER, GS_CREATE_TIME)
+		VALUES
+			(#{entity.id}, #{entity.name}, #{entity.category}, #{entity.summary}, #{entity.status}, #{entity.refs}, #{entity.owner}, #{entity.createTime})
+	</insert>
+
+	<update id="updateStandard">
+		UPDATE DATAGEAR_GOV_STANDARD SET
+			GS_NAME = #{entity.name},
+			GS_CATEGORY = #{entity.category},
+			GS_SUMMARY = #{entity.summary},
+			GS_STATUS = #{entity.status},
+			GS_REFS = #{entity.refs},
+			GS_OWNER = #{entity.owner}
+		WHERE
+			GS_ID = #{entity.id}
+	</update>
+
+	<delete id="deleteStandard">
+		DELETE FROM DATAGEAR_GOV_STANDARD WHERE GS_ID = #{id}
+	</delete>
+
+	<!-- ==================== 质量规则 ==================== -->
+	<sql id="qrView">
+		SELECT
+			A.QR_ID AS ${_iq_}id${_iq_},
+			A.QR_NAME AS ${_iq_}name${_iq_},
+			A.QR_TYPE AS ${_iq_}type${_iq_},
+			A.QR_SOURCE_ID AS ${_iq_}sourceId${_iq_},
+			A.QR_SOURCE_NAME AS ${_iq_}sourceName${_iq_},
+			A.QR_TABLE_NAME AS ${_iq_}tableName${_iq_},
+			A.QR_COLUMN_NAME AS ${_iq_}columnName${_iq_},
+			A.QR_THRESHOLD AS ${_iq_}threshold${_iq_},
+			A.QR_FREQ AS ${_iq_}freq${_iq_},
+			A.QR_ENABLED AS ${_iq_}enabled${_iq_},
+			A.QR_LAST_RUN_TIME AS ${_iq_}lastRunTime${_iq_},
+			A.QR_PASS_RATE AS ${_iq_}passRate${_iq_},
+			A.QR_TOTAL AS ${_iq_}total${_iq_},
+			A.QR_FAILED AS ${_iq_}failed${_iq_},
+			A.QR_SAMPLE AS ${_iq_}sample${_iq_},
+			A.QR_CREATE_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_GOV_QUALITY_RULE A
+	</sql>
+
+	<select id="listQualityRules" resultType="org.datagear.management.domain.GovQualityRule">
+		SELECT T.* FROM (<include refid="qrView" />) T ORDER BY T.${_iq_}createTime${_iq_} DESC
+	</select>
+
+	<insert id="insertQualityRule">
+		INSERT INTO DATAGEAR_GOV_QUALITY_RULE
+			(QR_ID, QR_NAME, QR_TYPE, QR_SOURCE_ID, QR_SOURCE_NAME, QR_TABLE_NAME, QR_COLUMN_NAME,
+			QR_THRESHOLD, QR_FREQ, QR_ENABLED, QR_LAST_RUN_TIME, QR_PASS_RATE, QR_TOTAL, QR_FAILED, QR_SAMPLE, QR_CREATE_TIME)
+		VALUES
+			(#{entity.id}, #{entity.name}, #{entity.type}, #{entity.sourceId}, #{entity.sourceName}, #{entity.tableName}, #{entity.columnName},
+			#{entity.threshold}, #{entity.freq}, #{entity.enabled}, #{entity.lastRunTime}, #{entity.passRate}, #{entity.total}, #{entity.failed}, #{entity.sample}, #{entity.createTime})
+	</insert>
+
+	<update id="updateQualityRule">
+		UPDATE DATAGEAR_GOV_QUALITY_RULE SET
+			QR_NAME = #{entity.name},
+			QR_TYPE = #{entity.type},
+			QR_SOURCE_ID = #{entity.sourceId},
+			QR_SOURCE_NAME = #{entity.sourceName},
+			QR_TABLE_NAME = #{entity.tableName},
+			QR_COLUMN_NAME = #{entity.columnName},
+			QR_THRESHOLD = #{entity.threshold},
+			QR_FREQ = #{entity.freq},
+			QR_ENABLED = #{entity.enabled},
+			QR_LAST_RUN_TIME = #{entity.lastRunTime},
+			QR_PASS_RATE = #{entity.passRate},
+			QR_TOTAL = #{entity.total},
+			QR_FAILED = #{entity.failed},
+			QR_SAMPLE = #{entity.sample}
+		WHERE
+			QR_ID = #{entity.id}
+	</update>
+
+	<update id="updateQualityRuleRun">
+		UPDATE DATAGEAR_GOV_QUALITY_RULE SET
+			QR_LAST_RUN_TIME = #{lastRunTime},
+			QR_PASS_RATE = #{passRate},
+			QR_TOTAL = #{total},
+			QR_FAILED = #{failed},
+			QR_SAMPLE = #{sample}
+		WHERE
+			QR_ID = #{id}
+	</update>
+
+	<delete id="deleteQualityRule">
+		DELETE FROM DATAGEAR_GOV_QUALITY_RULE WHERE QR_ID = #{id}
+	</delete>
+
+	<!-- ==================== 质量异常 ==================== -->
+	<sql id="qiView">
+		SELECT
+			A.QI_ID AS ${_iq_}id${_iq_},
+			A.QI_RULE_ID AS ${_iq_}ruleId${_iq_},
+			A.QI_RULE AS ${_iq_}rule${_iq_},
+			A.QI_TARGET AS ${_iq_}target${_iq_},
+			A.QI_DETAIL AS ${_iq_}detail${_iq_},
+			A.QI_LEVEL AS ${_iq_}level${_iq_},
+			A.QI_RESOLVED AS ${_iq_}resolved${_iq_},
+			A.QI_NOTE AS ${_iq_}note${_iq_},
+			A.QI_FAILED AS ${_iq_}failed${_iq_},
+			A.QI_TOTAL AS ${_iq_}total${_iq_},
+			A.QI_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_GOV_QUALITY_ISSUE A
+	</sql>
+
+	<select id="listQualityIssues" resultType="org.datagear.management.domain.GovQualityIssue">
+		SELECT T.* FROM (<include refid="qiView" />) T
+		<where>
+			<if test="!includeResolved">
+				T.${_iq_}resolved${_iq_} = 0
+			</if>
+		</where>
+		ORDER BY T.${_iq_}createTime${_iq_} DESC
+	</select>
+
+	<insert id="insertQualityIssue">
+		INSERT INTO DATAGEAR_GOV_QUALITY_ISSUE
+			(QI_ID, QI_RULE_ID, QI_RULE, QI_TARGET, QI_DETAIL, QI_LEVEL, QI_RESOLVED, QI_NOTE, QI_FAILED, QI_TOTAL, QI_TIME)
+		VALUES
+			(#{entity.id}, #{entity.ruleId}, #{entity.rule}, #{entity.target}, #{entity.detail}, #{entity.level}, #{resolved}, #{entity.note}, #{entity.failed}, #{entity.total}, #{entity.createTime})
+	</insert>
+
+	<update id="resolveQualityIssue">
+		UPDATE DATAGEAR_GOV_QUALITY_ISSUE SET
+			QI_RESOLVED = 1,
+			QI_NOTE = #{note},
+			QI_LEVEL = 'ok'
+		WHERE
+			QI_ID = #{id}
+	</update>
+
+	<delete id="deleteQualityIssue">
+		DELETE FROM DATAGEAR_GOV_QUALITY_ISSUE WHERE QI_ID = #{id}
+	</delete>
+
+	<!-- ==================== 敏感字段 ==================== -->
+	<sql id="sfView">
+		SELECT
+			A.SF_ID AS ${_iq_}id${_iq_},
+			A.SF_FIELD AS ${_iq_}field${_iq_},
+			A.SF_TABLE_NAME AS ${_iq_}tableName${_iq_},
+			A.SF_SOURCE_ID AS ${_iq_}sourceId${_iq_},
+			A.SF_TYPE AS ${_iq_}type${_iq_},
+			A.SF_HITS AS ${_iq_}hits${_iq_},
+			A.SF_SAMPLE AS ${_iq_}sample${_iq_},
+			A.SF_MODE AS ${_iq_}mode${_iq_},
+			A.SF_RULE AS ${_iq_}rule${_iq_},
+			A.SF_CREATE_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_GOV_SENSITIVE A
+	</sql>
+
+	<select id="listSensitiveFields" resultType="org.datagear.management.domain.GovSensitiveField">
+		SELECT T.* FROM (<include refid="sfView" />) T ORDER BY T.${_iq_}createTime${_iq_} DESC
+	</select>
+
+	<select id="getSensitiveByTarget" resultType="org.datagear.management.domain.GovSensitiveField">
+		SELECT T.* FROM (<include refid="sfView" />) T
+		WHERE T.${_iq_}field${_iq_} = #{entity.field}
+			AND T.${_iq_}tableName${_iq_} = #{entity.tableName}
+			AND T.${_iq_}sourceId${_iq_} = #{entity.sourceId}
+	</select>
+
+	<insert id="insertSensitiveField">
+		INSERT INTO DATAGEAR_GOV_SENSITIVE
+			(SF_ID, SF_FIELD, SF_TABLE_NAME, SF_SOURCE_ID, SF_TYPE, SF_HITS, SF_SAMPLE, SF_MODE, SF_RULE, SF_CREATE_TIME)
+		VALUES
+			(#{entity.id}, #{entity.field}, #{entity.tableName}, #{entity.sourceId}, #{entity.type}, #{entity.hits}, #{entity.sample}, #{entity.mode}, #{entity.rule}, #{entity.createTime})
+	</insert>
+
+	<update id="updateSensitiveField">
+		UPDATE DATAGEAR_GOV_SENSITIVE SET
+			SF_TYPE = #{entity.type},
+			SF_HITS = #{entity.hits},
+			SF_SAMPLE = #{entity.sample},
+			SF_MODE = #{entity.mode},
+			SF_RULE = #{entity.rule}
+		WHERE
+			SF_ID = #{entity.id}
+	</update>
+
+	<delete id="deleteSensitiveField">
+		DELETE FROM DATAGEAR_GOV_SENSITIVE WHERE SF_ID = #{id}
+	</delete>
+</mapper>

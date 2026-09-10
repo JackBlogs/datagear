@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.datagear.management.domain.GlossaryEntity">
+
+	<select id="listAll" resultType="org.datagear.management.domain.GlossaryEntity">
+		SELECT
+			A.GL_ID AS ${_iq_}id${_iq_},
+			A.GL_TERM AS ${_iq_}term${_iq_},
+			A.GL_SYNONYMS AS ${_iq_}synonyms${_iq_},
+			A.GL_BIZ_DESC AS ${_iq_}bizDesc${_iq_},
+			A.GL_REF_METRIC_ID AS ${_iq_}refMetricId${_iq_},
+			A.GL_CREATE_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_GLOSSARY A
+		ORDER BY
+			A.GL_CREATE_TIME DESC
+	</select>
+
+	<insert id="insertGlossary">
+		INSERT INTO DATAGEAR_GLOSSARY
+			(GL_ID, GL_TERM, GL_SYNONYMS, GL_BIZ_DESC, GL_REF_METRIC_ID, GL_CREATE_TIME)
+		VALUES
+			(#{entity.id}, #{entity.term}, #{entity.synonyms}, #{entity.bizDesc}, #{entity.refMetricId}, #{entity.createTime})
+	</insert>
+
+	<update id="updateGlossary">
+		UPDATE DATAGEAR_GLOSSARY SET
+			GL_TERM = #{entity.term},
+			GL_SYNONYMS = #{entity.synonyms},
+			GL_BIZ_DESC = #{entity.bizDesc},
+			GL_REF_METRIC_ID = #{entity.refMetricId}
+		WHERE
+			GL_ID = #{entity.id}
+	</update>
+
+	<delete id="deleteGlossary">
+		DELETE FROM DATAGEAR_GLOSSARY
+		WHERE GL_ID = #{id}
+	</delete>
+</mapper>

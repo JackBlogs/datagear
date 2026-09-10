@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.datagear.management.domain.AiMessage">
+
+	<insert id="insertMessage">
+		INSERT INTO DATAGEAR_AI_MESSAGE
+			(AM_ID, AM_SESSION_ID, AM_ROLE, AM_CONTENT, AM_CREATE_TIME)
+		VALUES
+			(#{entity.id}, #{entity.sessionId}, #{entity.role}, #{entity.content}, #{entity.createTime})
+	</insert>
+
+	<select id="listBySession" resultType="org.datagear.management.domain.AiMessage">
+		SELECT
+			A.AM_ID AS ${_iq_}id${_iq_},
+			A.AM_SESSION_ID AS ${_iq_}sessionId${_iq_},
+			A.AM_ROLE AS ${_iq_}role${_iq_},
+			A.AM_CONTENT AS ${_iq_}content${_iq_},
+			A.AM_CREATE_TIME AS ${_iq_}createTime${_iq_}
+		FROM
+			DATAGEAR_AI_MESSAGE A
+		WHERE
+			A.AM_SESSION_ID = #{sessionId}
+		ORDER BY
+			A.AM_CREATE_TIME ASC
+	</select>
+
+	<delete id="deleteMessagesBySession">
+		DELETE FROM DATAGEAR_AI_MESSAGE
+		WHERE AM_SESSION_ID = #{sessionId}
+	</delete>
+</mapper>

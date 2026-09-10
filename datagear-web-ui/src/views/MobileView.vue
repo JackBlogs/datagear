@@ -6,6 +6,7 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsCoreOption } from 'echarts/core'
 import { useOperationMessage } from '@/composables/useOperationMessage'
+import { aiSessionCreate, aiChatAsk, type LiveAnswer } from '@/api/chatbi'
 import '@/styles/datasource-page.css'
 
 use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
@@ -127,6 +128,20 @@ const CANNED: { match: RegExp; answer: ChatBubble & { chart: NonNullable<ChatBub
 ]
 const CLARIFY = ['查「原油产量」月度同比', '查「瓦斯超限次数」排名', '查「甲醇装置开工率」趋势']
 
+/* 手机端问数会话（复用桌面端 Text2DSL 管道，FR-AI-03） */
+let mobileSessionId: string | null = null
+
+async function ensureMobileSession(): Promise<string | null> {
+  if (mobileSessionId) return mobileSessionId
+  try {
+    const s = await aiSessionCreate('手机问数')
+    mobileSessionId = s.id
+    return s.id
+  } catch {
+    return null
+  }
+}
+
 async function sendChat() {
   const q = chatInput.value.trim()
   if (!q) {
@@ -138,8 +153,27 @@ async function sendChat() {
   const loadingBubble: ChatBubble = { role: 'a', text: '正在按语义层口径查询…', loading: true }
   chatBubbles.value.push(loadingBubble)
   await scrollChatBottom()
-  await new Promise((r) => setTimeout(r, 600 + Math.random() * 400))
 
+  // live：真实语义层取数；失败回退演示罐装
+  const sid = await ensureMobileSession()
+  if (sid) {
+    try {
+      const resp = await aiChatAsk(sid, q)
+      const idx = chatBubbles.value.indexOf(loadingBubble)
+      if (resp.type === 'clarify') {
+        chatBubbles.value[idx] = { role: 'a', text: resp.message, clarify: resp.options }
+      } else {
+        applyLiveAnswer(idx, resp)
+      }
+      await scrollChatBottom()
+      renderDynChart()
+      return
+    } catch {
+      /* 回退演示罐装 */
+    }
+  }
+
+  await new Promise((r) => setTimeout(r, 600 + Math.random() * 400))
   const hit = CANNED.find((c) => c.match.test(q))
   const idx = chatBubbles.value.indexOf(loadingBubble)
   if (hit) {
@@ -150,6 +184,18 @@ async function sendChat() {
   }
   await scrollChatBottom()
   renderDynChart()
+}
+
+function applyLiveAnswer(idx: number, a: LiveAnswer) {
+  const text = String(a.conclusion || '').replace(/<[^>]+>/g, '').trim()
+  const chart = a.chart
+  const dims = (chart?.x || []).map((v) => String(v))
+  const values = (chart?.y || []).map((v) => Number(v) || 0)
+  chatBubbles.value[idx] = {
+    role: 'a',
+    text: text || `已命中语义层指标「${a.title}」。`,
+    chart: dims.length ? { title: a.title, dims, values } : undefined,
+  }
 }
 
 function onClarify(option: string) {
@@ -164,18 +210,22 @@ async function scrollChatBottom() {
 }
 
 /* ================= 动态答图 ================= */
-function renderDynChart() {
+function renderDynChart(attempt = 0) {
+  // 不依赖 requestAnimationFrame（后台标签不触发），nextTick + 短重试
   nextTick(() => {
-    requestAnimationFrame(() => {
-      chatBubbles.value.forEach((b) => {
-        if (!b.chart) return
-        const host = document.querySelector(`#chatView .dyn-chart[data-t="${b.chart.title}"]`) as HTMLElement | null
-        if (!host || host.querySelector('canvas')) return
-        makeChart(host, barOption(b.chart.dims, b.chart.values))
-      })
-      const box = document.querySelector('#chatView .chat-box')
-      box?.scrollTo?.(0, box.scrollHeight)
+    let pending = false
+    chatBubbles.value.forEach((b) => {
+      if (!b.chart) return
+      const host = document.querySelector(`#chatView .dyn-chart[data-t="${b.chart.title}"]`) as HTMLElement | null
+      if (!host) {
+        pending = true
+        return
+      }
+      if (!host.querySelector('canvas')) makeChart(host, barOption(b.chart.dims, b.chart.values))
     })
+    const box = document.querySelector('#chatView .chat-box')
+    box?.scrollTo?.(0, box.scrollHeight)
+    if (pending && attempt < 6) setTimeout(() => renderDynChart(attempt + 1), 150)
   })
 }
 

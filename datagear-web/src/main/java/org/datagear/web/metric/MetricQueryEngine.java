@@ -369,6 +369,10 @@ public class MetricQueryEngine
 		private List<List<Object>> rows;
 		private String sql = "";
 		private long costMs = 0;
+		/** 应用的行级权限规则名（FR-AUTH-10，供取数透明化展示；管理员为空） */
+		private List<String> appliedRowPerms = new ArrayList<String>(0);
+		/** 应用的脱敏规则描述（FR-AUTH-11，管理员为空） */
+		private List<String> appliedMasks = new ArrayList<String>(0);
 
 		public MetricQueryResult()
 		{
@@ -420,6 +424,26 @@ public class MetricQueryEngine
 		public void setCostMs(long costMs)
 		{
 			this.costMs = costMs;
+		}
+
+		public List<String> getAppliedRowPerms()
+		{
+			return appliedRowPerms;
+		}
+
+		public void setAppliedRowPerms(List<String> appliedRowPerms)
+		{
+			this.appliedRowPerms = appliedRowPerms;
+		}
+
+		public List<String> getAppliedMasks()
+		{
+			return appliedMasks;
+		}
+
+		public void setAppliedMasks(List<String> appliedMasks)
+		{
+			this.appliedMasks = appliedMasks;
 		}
 
 		/**

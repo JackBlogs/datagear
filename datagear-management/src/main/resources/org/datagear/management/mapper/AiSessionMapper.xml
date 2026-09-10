@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.datagear.management.domain.AiSession">
+
+	<insert id="insertSession">
+		INSERT INTO DATAGEAR_AI_SESSION
+			(AS_ID, AS_TITLE, AS_CREATE_USER_ID, AS_CREATE_TIME, AS_UPDATE_TIME)
+		VALUES
+			(#{entity.id}, #{entity.title}, #{entity.createUserId}, #{entity.createTime}, #{entity.updateTime})
+	</insert>
+
+	<update id="touchSession">
+		UPDATE DATAGEAR_AI_SESSION
+		SET AS_UPDATE_TIME = #{updateTime}
+		<if test="title != null">
+			, AS_TITLE = #{title}
+		</if>
+		WHERE AS_ID = #{id}
+	</update>
+
+	<select id="getSession" resultType="org.datagear.management.domain.AiSession">
+		SELECT
+			A.AS_ID AS ${_iq_}id${_iq_},
+			A.AS_TITLE AS ${_iq_}title${_iq_},
+			A.AS_CREATE_USER_ID AS ${_iq_}createUserId${_iq_},
+			A.AS_CREATE_TIME AS ${_iq_}createTime${_iq_},
+			A.AS_UPDATE_TIME AS ${_iq_}updateTime${_iq_},
+			(
+				SELECT COUNT(*)
+				FROM DATAGEAR_AI_MESSAGE M
+				WHERE M.AM_SESSION_ID = A.AS_ID AND M.AM_ROLE = 'user'
+			) AS ${_iq_}turns${_iq_}
+		FROM
+			DATAGEAR_AI_SESSION A
+		WHERE
+			A.AS_ID = #{id}
+	</select>
+
+	<select id="listByUser" resultType="org.datagear.management.domain.AiSession">
+		SELECT
+			A.AS_ID AS ${_iq_}id${_iq_},
+			A.AS_TITLE AS ${_iq_}title${_iq_},
+			A.AS_CREATE_USER_ID AS ${_iq_}createUserId${_iq_},
+			A.AS_CREATE_TIME AS ${_iq_}createTime${_iq_},
+			A.AS_UPDATE_TIME AS ${_iq_}updateTime${_iq_},
+			(
+				SELECT COUNT(*)
+				FROM DATAGEAR_AI_MESSAGE M
+				WHERE M.AM_SESSION_ID = A.AS_ID AND M.AM_ROLE = 'user'
+			) AS ${_iq_}turns${_iq_}
+		FROM
+			DATAGEAR_AI_SESSION A
+		WHERE
+			A.AS_CREATE_USER_ID = #{createUserId}
+		ORDER BY
+			A.AS_UPDATE_TIME DESC
+	</select>
+
+	<delete id="deleteSession">
+		DELETE FROM DATAGEAR_AI_SESSION
+		WHERE AS_ID = #{id}
+	</delete>
+
+	<delete id="deleteMessagesBySession">
+		DELETE FROM DATAGEAR_AI_MESSAGE
+		WHERE AM_SESSION_ID = #{id}
+	</delete>
+</mapper>

@@ -12,7 +12,6 @@ import {
   saveQualityRule,
   updateQualityRule,
   deleteQualityRule,
-  saveIssue,
   resolveIssue,
   toggleQualityRule,
   saveStandard,
@@ -20,7 +19,8 @@ import {
   deleteStandard,
   publishStandard,
   addSensitive,
-  judgeSamples,
+  runRuleOnBackend,
+  initFromBackend,
   fetchColumnSample,
   isValidIdentifier,
   identifyValue,
@@ -286,29 +286,10 @@ async function runRule(r: QualityRule) {
   }
   runningId.value = r.id
   try {
-    const values = await fetchColumnSample(r.sourceId, r.tableName, r.columnName, 500)
-    const { total, failed } = judgeSamples(r.type, values, r.threshold)
-    const passRate = total ? Math.round(((total - failed) / total) * 1000) / 10 : 100
-    const time = new Date().toLocaleString('zh-CN', { hour12: false })
-    const target = qualityRules.value.find((x) => x.id === r.id)
-    if (target) {
-      target.lastRun = { time, passRate, total, failed, sample: values.length }
-      updateQualityRule(target)
-    }
-    if (passRate < 98) {
-      saveIssue({
-        id: 'QI-' + Date.now() % 100000,
-        ruleId: r.id,
-        rule: r.name,
-        target: `${r.tableName}.${r.columnName}`,
-        detail: `样本 ${total} 行中 ${failed} 行不满足「${r.type}${r.threshold ? ' ' + r.threshold : ''}」`,
-        time: time.slice(5),
-        level: passRate < 95 ? 'danger' : 'warn',
-        failed,
-        total,
-      })
-    }
-    success(`校验完成：通过率 ${passRate}%（${failed}/${total} 不通过）`)
+    // 后端执行引擎（FR-GOV-04）：服务端抽样判定，结果与异常落库
+    const res = await runRuleOnBackend(r.id)
+    if (!res) throw new Error('执行引擎无返回')
+    success(`校验完成：通过率 ${res.passRate}%（${res.failed}/${res.total} 不通过）`)
   } catch (e) {
     fail((e as Error).message || '校验执行失败')
   } finally {
@@ -553,6 +534,7 @@ async function runCollect() {
 
 /* ================================================================ */
 onMounted(async () => {
+  await initFromBackend()
   await loadSources()
   // 无元数据时自动尝试采集首个数据源（仅当用户已在治理页且没有任何数据）
   if (!metaTables.value.length && sources.value.length) {
